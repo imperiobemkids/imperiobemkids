@@ -5,7 +5,7 @@ const CARDS = [
   { href: "/admin/fornecedores", emoji: "🏭", titulo: "Fornecedores", desc: "quem fornece, contatos e lotes", pronto: true },
   { href: "/admin/vendas", emoji: "🧾", titulo: "Vendas", desc: "registrar venda, baixa de estoque e lucro", pronto: true },
   { href: "/admin/financeiro", emoji: "💰", titulo: "Financeiro", desc: "caixa, contas a pagar e payback", pronto: true },
-  { href: "/admin/simulador", emoji: "🧮", titulo: "Simulador", desc: "preço, kit, taxa e ads com lucro na hora", pronto: true },
+  { href: "/admin/simulador", emoji: "🧮", titulo: "Precificação", desc: "preço, kit, taxa e ads com lucro na hora", pronto: true },
 ];
 
 export default function AdminHome() {

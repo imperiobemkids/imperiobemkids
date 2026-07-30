@@ -5,10 +5,17 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 
 type SKU = {
   id: string;
-  linha: "verao" | "inverno";
-  genero: string;
+  nome: string | null;
+  linha: "verao" | "inverno" | null;
+  genero: string | null;
   tamanho: string | null;
   custo_unit: number;
+};
+
+const rotuloSku = (s: SKU) => {
+  if (s.nome && s.nome.trim()) return s.nome.trim() + (s.tamanho ? ` · ${s.tamanho}` : "");
+  const linha = s.linha === "verao" ? "Verão" : s.linha === "inverno" ? "Inverno" : "";
+  return [linha, s.genero, s.tamanho].filter(Boolean).join(" · ") || "Produto";
 };
 
 const brl = (v: number) =>
@@ -34,9 +41,9 @@ export function SimuladorClient() {
     if (!supabaseConfigured || !supabase) return;
     supabase
       .from("ibk_produtos")
-      .select("id, linha, genero, tamanho, custo_unit")
+      .select("*")
       .eq("ativo", true)
-      .order("linha")
+      .order("created_at", { ascending: false })
       .then(({ data }) => setSkus((data as SKU[]) ?? []));
   }, []);
 
@@ -76,10 +83,10 @@ export function SimuladorClient() {
   return (
     <div>
       <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold text-[var(--purple-dark)]">
-        Simulador
+        Precificação
       </h1>
       <p className="text-sm text-[var(--ink)]/70">
-        Testa preço, kit, taxa e anúncios e vê o lucro na hora. Não grava nada.
+        Testa preço, kit, taxa e anúncios e vê o lucro na hora. Puxa o custo de um produto do estoque.
       </p>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
@@ -91,8 +98,7 @@ export function SimuladorClient() {
                 <option value="">escolher SKU...</option>
                 {skus.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.linha === "verao" ? "Verão" : "Inverno"} · {s.genero}
-                    {s.tamanho ? " · " + s.tamanho : ""} ({brl(s.custo_unit)})
+                    {rotuloSku(s)} ({brl(s.custo_unit)})
                   </option>
                 ))}
               </select>

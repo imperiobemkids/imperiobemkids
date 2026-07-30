@@ -23,7 +23,7 @@ export function SiteHeader() {
             Império Bem Kids
           </span>
         </Link>
-        <nav className="flex flex-1 gap-0.5 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden">
+        <nav className="flex flex-1 justify-end gap-0.5 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden">
           {NAV.map((n) => (
             <Link
               key={n.href}
@@ -34,12 +34,6 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <Link
-          href="/portal"
-          className="shrink-0 rounded-full bg-[var(--purple)]/10 px-3.5 py-1.5 text-sm font-bold text-[var(--purple)] transition-colors hover:bg-[var(--purple)]/18"
-        >
-          Portal
-        </Link>
       </div>
     </header>
   );

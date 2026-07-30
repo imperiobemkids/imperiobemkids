@@ -14,7 +14,7 @@ const NAV = [
   { href: "/admin/fornecedores", label: "Fornecedores" },
   { href: "/admin/vendas", label: "Vendas" },
   { href: "/admin/financeiro", label: "Financeiro" },
-  { href: "/admin/simulador", label: "Simulador" },
+  { href: "/admin/simulador", label: "Precificação" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
