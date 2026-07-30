@@ -187,7 +187,7 @@ export function VendasClient() {
             Registra a venda, dá baixa no estoque e lança no caixa.
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <Kpi titulo="Vendido" valor={brl(totalVendido)} />
           <Kpi titulo="Lucro acum." valor={brl(lucroAcum)} />
           <Kpi titulo="Payback" valor={`${paybackPct}%`} />

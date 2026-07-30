@@ -123,7 +123,7 @@ export function FinanceiroClient() {
           </h1>
           <p className="text-sm text-[var(--ink)]/70">Caixa, contas a pagar e resultado do mês.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <Kpi titulo="Saldo de caixa" valor={brl(saldo)} destaque={saldo >= 0} />
           <Kpi titulo="Entradas" valor={brl(entradas)} />
           <Kpi titulo="Saídas" valor={brl(saidas)} />
