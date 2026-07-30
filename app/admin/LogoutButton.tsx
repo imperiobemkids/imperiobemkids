@@ -12,7 +12,7 @@ export function LogoutButton() {
         await supabase!.auth.signOut();
         router.replace("/portal");
       }}
-      className="ml-auto rounded-lg px-3 py-1.5 text-sm font-semibold text-[var(--ink)]/60 transition-colors hover:bg-[var(--purple)]/8 hover:text-[var(--purple-dark)]"
+      className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold text-[var(--ink)]/60 transition-colors hover:bg-[var(--purple)]/8 hover:text-[var(--purple-dark)]"
     >
       Sair
     </button>
