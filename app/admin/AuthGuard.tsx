@@ -1,23 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
 /*
   Guarda do /admin: so deixa passar quem esta logado (Supabase Auth).
-  A pagina de login (/admin/login) e liberada. A seguranca real e o RLS
-  no banco; isto aqui e a camada de UX (redireciona pro login).
+  Quem nao esta logado vai para o /portal (login publico com cabecalho do site).
+  A seguranca real e o RLS no banco; isto e a camada de UX.
 */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [estado, setEstado] = useState<"checando" | "ok" | "fora">("checando");
 
-  const ehLogin = pathname === "/admin/login";
-
   useEffect(() => {
-    // sem banco configurado: nao trava (mostra os SetupCards das paginas)
     if (!supabaseConfigured || !supabase) {
       setEstado("ok");
       return;
@@ -37,16 +33,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (estado === "fora" && !ehLogin) router.replace("/admin/login");
-  }, [estado, ehLogin, router]);
-
-  if (ehLogin) return <>{children}</>;
+    if (estado === "fora") router.replace("/portal");
+  }, [estado, router]);
 
   if (estado === "checando")
     return <div className="p-10 text-center text-[var(--ink)]/50">verificando acesso...</div>;
 
   if (estado === "fora")
-    return <div className="p-10 text-center text-[var(--ink)]/50">redirecionando para o login...</div>;
+    return <div className="p-10 text-center text-[var(--ink)]/50">redirecionando...</div>;
 
   return <>{children}</>;
 }

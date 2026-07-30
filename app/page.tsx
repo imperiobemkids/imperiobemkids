@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { SiteHeader } from "./SiteHeader";
 
 export const metadata: Metadata = {
   title: "Império Bem Kids | Moda e achadinhos infantis",
@@ -14,7 +15,9 @@ export const metadata: Metadata = {
 */
 export default function Home() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16 text-center">
+    <>
+    <SiteHeader />
+    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-16 text-center">
       {/* bolhas de fundo */}
       <div className="pointer-events-none absolute -left-16 top-10 h-56 w-56 rounded-full bg-[var(--pink)]/25 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 top-1/3 h-56 w-56 rounded-full bg-[var(--mint)]/30 blur-3xl" />
@@ -47,13 +50,7 @@ export default function Home() {
           TikTok
         </a>
       </div>
-
-      <Link
-        href="/admin/login"
-        className="relative z-10 mt-8 rounded-full border border-[var(--purple)]/25 px-5 py-2 text-xs font-semibold text-[var(--ink)]/55 transition-colors hover:border-[var(--purple)] hover:text-[var(--purple-dark)]"
-      >
-        Portal do Cliente
-      </Link>
     </main>
+    </>
   );
 }

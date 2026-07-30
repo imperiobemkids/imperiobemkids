@@ -10,7 +10,7 @@ export function LogoutButton() {
     <button
       onClick={async () => {
         await supabase!.auth.signOut();
-        router.replace("/admin/login");
+        router.replace("/portal");
       }}
       className="ml-auto rounded-lg px-3 py-1.5 text-sm font-semibold text-[var(--ink)]/60 transition-colors hover:bg-[var(--purple)]/8 hover:text-[var(--purple-dark)]"
     >
