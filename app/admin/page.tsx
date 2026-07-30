@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const CARDS = [
   { href: "/admin/estoque", emoji: "📦", titulo: "Estoque", desc: "SKUs, custo posto, valor em estoque e giro", pronto: true },
+  { href: "/admin/compras", emoji: "🛍️", titulo: "Compras", desc: "registrar remessa: estoque + caixa de uma vez", pronto: true },
   { href: "/admin/fornecedores", emoji: "🏭", titulo: "Fornecedores", desc: "quem fornece, contatos e lotes", pronto: true },
   { href: "/admin/vendas", emoji: "🧾", titulo: "Vendas", desc: "registrar venda, baixa de estoque e lucro", pronto: true },
   { href: "/admin/financeiro", emoji: "💰", titulo: "Financeiro", desc: "caixa, contas a pagar e payback", pronto: true },
