@@ -31,9 +31,9 @@ export default function LoginPage() {
         <div className="mb-4 flex flex-col items-center">
           <Image src="/logo.png" alt="Império Bem Kids" width={90} height={90} />
           <h1 className="mt-2 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
-            Acesso dos sócios
+            Portal do Cliente
           </h1>
-          <p className="text-xs text-[var(--ink)]/55">painel de gestão do Império</p>
+          <p className="text-xs text-[var(--ink)]/55">entre com seu acesso</p>
         </div>
 
         {!supabaseConfigured ? (

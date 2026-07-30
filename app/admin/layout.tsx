@@ -4,7 +4,7 @@ import { AuthGuard } from "./AuthGuard";
 import { LogoutButton } from "./LogoutButton";
 
 export const metadata: Metadata = {
-  title: "Admin",
+  title: "Portal do Cliente",
   robots: { index: false, follow: false },
 };
 

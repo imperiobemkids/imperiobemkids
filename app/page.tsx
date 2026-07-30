@@ -47,6 +47,13 @@ export default function Home() {
           TikTok
         </a>
       </div>
+
+      <Link
+        href="/admin/login"
+        className="relative z-10 mt-8 rounded-full border border-[var(--purple)]/25 px-5 py-2 text-xs font-semibold text-[var(--ink)]/55 transition-colors hover:border-[var(--purple)] hover:text-[var(--purple-dark)]"
+      >
+        Portal do Cliente
+      </Link>
     </main>
   );
 }
