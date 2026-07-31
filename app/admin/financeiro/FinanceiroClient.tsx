@@ -15,13 +15,13 @@ type Mov = {
   vencimento: string | null;
 };
 
-const CATEGORIAS = ["mercadoria", "insumo", "capex", "venda", "taxa_shopee", "frete", "outro"];
+const CATEGORIAS = ["mercadoria", "insumo", "capex", "venda", "taxa_shopee", "frete", "ads", "outro"];
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
 const catLabel = (c: string) =>
-  ({ mercadoria: "Mercadoria", insumo: "Insumo", capex: "Capex", venda: "Venda", taxa_shopee: "Taxa Shopee", frete: "Frete", outro: "Outro" }[c] ?? c);
+  ({ mercadoria: "Mercadoria", insumo: "Insumo", capex: "Capex", venda: "Venda", taxa_shopee: "Taxa Shopee", frete: "Frete", ads: "Anúncios (Ads)", outro: "Outro" }[c] ?? c);
 
 const noMes = (dataISO: string) => {
   const d = new Date(dataISO);

@@ -6,8 +6,10 @@ import { SetupCard } from "../SetupCard";
 
 type Produto = {
   id: string;
-  linha: "verao" | "inverno";
-  genero: "menino" | "menina" | "unissex";
+  nome: string | null;
+  categoria: string | null;
+  linha: "verao" | "inverno" | null;
+  genero: "menino" | "menina" | "unissex" | null;
   tamanho: string | null;
   custo_unit: number;
   qtd_atual: number;
@@ -30,8 +32,12 @@ type VendaRow = {
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-const labelProduto = (p: Produto) =>
-  `${p.linha === "verao" ? "Verão" : "Inverno"} · ${p.genero}${p.tamanho ? " · " + p.tamanho : ""}`;
+const labelProduto = (p: Produto) => {
+  if (p.nome && p.nome.trim())
+    return p.nome.trim() + (p.tamanho ? ` · ${p.tamanho}` : "");
+  const linha = p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "";
+  return [linha, p.genero, p.tamanho].filter(Boolean).join(" · ") || "Produto";
+};
 
 // lucro = preco liquido - custo dos itens - insumo - frete
 const lucroVenda = (v: VendaRow) => {
@@ -63,10 +69,9 @@ export function VendasClient() {
     const [{ data: prod }, { data: vend, error }] = await Promise.all([
       supabase
         .from("ibk_produtos")
-        .select("id, linha, genero, tamanho, custo_unit, qtd_atual")
+        .select("*")
         .eq("ativo", true)
-        .order("linha")
-        .order("genero"),
+        .order("created_at", { ascending: false }),
       supabase
         .from("ibk_vendas")
         .select("*, ibk_venda_itens(qtd, produto:ibk_produtos(custo_unit))")
