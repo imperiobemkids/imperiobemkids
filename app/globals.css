@@ -30,6 +30,19 @@ body {
   font-family: var(--font-nunito), sans-serif;
 }
 
+/*
+  iOS Safari da zoom automatico ao focar um campo com fonte menor que 16px.
+  Forcar 16px nos controles em tela pequena evita o zoom sem bloquear o
+  gesto de pinca do usuario (nao usar maximum-scale, que quebra acessibilidade).
+*/
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }

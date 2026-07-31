@@ -120,6 +120,26 @@ export async function saidaEstoque(
   });
 }
 
+/*
+  Devolucao: a peca volta para o estoque pelo mesmo custo com que saiu, entao
+  o custo medio NAO muda. Tambem nao mexe em qtd_inicial, para o giro continuar
+  medindo o que foi realmente vendido.
+*/
+export async function devolucaoEstoque(produtoId: string, qtd: number, ref?: Ref) {
+  if (!supabase || qtd <= 0) return;
+  const p = await lerProduto(produtoId);
+  const saldo = p.qtd_atual + qtd;
+
+  await supabase.from("ibk_produtos").update({ qtd_atual: saldo }).eq("id", produtoId);
+
+  await gravarMov({
+    produtoId, tipo: "devolucao", origem: "devolucao",
+    qtd, custoUnit: p.custo_unit,
+    saldoDepois: saldo, custoMedioDepois: p.custo_unit,
+    ref: { ...ref, obs: ref?.obs ?? "retorno de venda devolvida" },
+  });
+}
+
 /** Ajuste manual (correcao de contagem). Registra a diferenca no kardex. */
 export async function ajusteEstoque(produtoId: string, novaQtd: number, obs?: string) {
   if (!supabase) return;

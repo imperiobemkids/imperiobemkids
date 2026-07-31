@@ -17,6 +17,7 @@ type Produto = {
   qtd_inicial: number;
   qtd_atual: number;
   fornecedor_id: string | null;
+  estoque_minimo: number | null;
   ativo: boolean;
 };
 
@@ -44,10 +45,11 @@ type Form = {
   qtdAtual: string;
   qtdInicial: string;
   fornecedorId: string;
+  estoqueMinimo: string;
 };
 const formVazio: Form = {
   nome: "", categoria: "", linha: "", genero: "", tamanho: "",
-  custo: "", qtdAtual: "", qtdInicial: "", fornecedorId: "",
+  custo: "", qtdAtual: "", qtdInicial: "", fornecedorId: "", estoqueMinimo: "3",
 };
 
 export function EstoqueClient() {
@@ -93,6 +95,7 @@ export function EstoqueClient() {
       custo: String(p.custo_unit).replace(".", ","),
       qtdAtual: String(p.qtd_atual), qtdInicial: String(p.qtd_inicial),
       fornecedorId: p.fornecedor_id ?? "",
+      estoqueMinimo: String(p.estoque_minimo ?? 3),
     });
     setErro(""); setAberto(true);
   };
@@ -118,6 +121,7 @@ export function EstoqueClient() {
       qtd_atual: qtdAtual,
       qtd_inicial: qtdInicial,
       fornecedor_id: form.fornecedorId || null,
+      estoque_minimo: parseInt(form.estoqueMinimo, 10) || 0,
     };
     // na edicao a quantidade vai pelo motor de estoque, para registrar o ajuste no kardex
     const { qtd_atual, ...semQtd } = payload;
@@ -297,6 +301,9 @@ export function EstoqueClient() {
               </Campo>
               <Campo label="Qtd inicial (comprada)">
                 <input value={form.qtdInicial} onChange={(e) => set({ qtdInicial: e.target.value })} placeholder="igual à atual" className={inputCls} />
+              </Campo>
+              <Campo label="Alertar quando sobrar">
+                <input value={form.estoqueMinimo} onChange={(e) => set({ estoqueMinimo: e.target.value })} placeholder="3" className={inputCls} />
               </Campo>
             </div>
 

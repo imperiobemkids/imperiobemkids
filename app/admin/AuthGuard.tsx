@@ -23,8 +23,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       if (!vivo) return;
       setEstado(data.session ? "ok" : "fora");
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setEstado(session ? "ok" : "fora");
+    /*
+      So reage a login e logout explicitos. Eventos intermediarios (token
+      renovando depois do app voltar do segundo plano no celular) chegavam
+      com sessao nula por um instante e jogavam o usuario para o login.
+    */
+    const { data: sub } = supabase.auth.onAuthStateChange((evento, session) => {
+      if (evento === "SIGNED_OUT") setEstado("fora");
+      else if (session) setEstado("ok");
     });
     return () => {
       vivo = false;

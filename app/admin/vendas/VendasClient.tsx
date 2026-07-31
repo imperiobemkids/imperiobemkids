@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
-import { saidaEstoque } from "@/lib/estoque";
+import { saidaEstoque, devolucaoEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
 
 type Produto = {
@@ -27,7 +27,10 @@ type VendaRow = {
   taxa_pct: number;
   insumo_custo: number;
   frete: number;
-  ibk_venda_itens: { qtd: number; produto: { custo_unit: number } | null }[];
+  devolvida: boolean;
+  data_devolucao: string | null;
+  custo_devolucao: number;
+  ibk_venda_itens: { qtd: number; produto_id: string | null; produto: { custo_unit: number } | null }[];
 };
 
 const brl = (v: number) =>
@@ -40,8 +43,13 @@ const labelProduto = (p: Produto) => {
   return [linha, p.genero, p.tamanho].filter(Boolean).join(" · ") || "Produto";
 };
 
-// lucro = preco liquido - custo dos itens - insumo - frete
+/*
+  lucro = preco liquido - custo dos itens - insumo - frete
+  Venda devolvida nao gera lucro: o produto volta ao estoque e sobra o
+  prejuizo da devolucao (frete reverso + parte da comissao que nao volta).
+*/
 const lucroVenda = (v: VendaRow) => {
+  if (v.devolvida) return -(v.custo_devolucao ?? 0);
   const custoItens = v.ibk_venda_itens.reduce(
     (s, it) => s + (it.produto?.custo_unit ?? 0) * it.qtd,
     0,
@@ -52,6 +60,7 @@ const lucroVenda = (v: VendaRow) => {
 export function VendasClient() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<VendaRow[]>([]);
+  const [investido, setInvestido] = useState(0);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -67,7 +76,7 @@ export function VendasClient() {
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [{ data: prod }, { data: vend, error }] = await Promise.all([
+    const [{ data: prod }, { data: vend, error }, { data: movs }] = await Promise.all([
       supabase
         .from("ibk_produtos")
         .select("*")
@@ -75,13 +84,19 @@ export function VendasClient() {
         .order("created_at", { ascending: false }),
       supabase
         .from("ibk_vendas")
-        .select("*, ibk_venda_itens(qtd, produto:ibk_produtos(custo_unit))")
+        .select("*, ibk_venda_itens(qtd, produto_id, produto:ibk_produtos(custo_unit))")
         .order("data", { ascending: false })
         .limit(50),
+      supabase
+        .from("ibk_movimentos")
+        .select("valor, categoria, tipo")
+        .eq("tipo", "saida")
+        .in("categoria", ["mercadoria", "insumo", "capex"]),
     ]);
     if (error) setErro(error.message);
     setProdutos((prod as Produto[]) ?? []);
     setVendas((vend as VendaRow[]) ?? []);
+    setInvestido(((movs as { valor: number }[]) ?? []).reduce((s, m) => s + m.valor, 0));
     setLoading(false);
   }, []);
 
@@ -171,11 +186,52 @@ export function VendasClient() {
     carregar();
   };
 
-  // somas gerais
-  const totalVendido = vendas.reduce((s, v) => s + v.preco_venda, 0);
+  /*
+    Devolucao: devolve a peca ao estoque, estorna a venda e a taxa no caixa e
+    lanca o custo da devolucao (frete reverso + parte da comissao que nao volta).
+  */
+  const devolver = async (v: VendaRow) => {
+    if (!supabase) return;
+    const resposta = prompt(
+      `Devolver a venda de ${brl(v.preco_venda)}?\n\nQuanto essa devolução vai custar (frete reverso + comissão que a Shopee não devolve)?`,
+      "0",
+    );
+    if (resposta === null) return;
+    const custoDev = parseFloat(resposta.replace(",", ".")) || 0;
+    const dataDev = new Date().toISOString().slice(0, 10);
+    setErro("");
+
+    // 1) peca volta ao estoque (custo medio nao muda)
+    for (const it of v.ibk_venda_itens) {
+      if (it.produto_id) await devolucaoEstoque(it.produto_id, it.qtd, { vendaId: v.id, data: dataDev });
+    }
+
+    // 2) caixa: estorna a entrada da venda e devolve a taxa que havia saido
+    const movs: Record<string, unknown>[] = [
+      { data: dataDev, tipo: "saida", categoria: "venda", valor: v.preco_venda, descricao: "Estorno de venda devolvida", ref_venda_id: v.id },
+      { data: dataDev, tipo: "entrada", categoria: "taxa_shopee", valor: v.preco_venda * v.taxa_pct, descricao: "Estorno da taxa (venda devolvida)", ref_venda_id: v.id },
+    ];
+    // 3) custo da devolucao
+    if (custoDev > 0) {
+      movs.push({ data: dataDev, tipo: "saida", categoria: "frete", valor: custoDev, descricao: "Custo da devolução (frete reverso e taxa retida)", ref_venda_id: v.id });
+    }
+    await supabase.from("ibk_movimentos").insert(movs);
+
+    // 4) marca a venda
+    const { error } = await supabase
+      .from("ibk_vendas")
+      .update({ devolvida: true, data_devolucao: dataDev, custo_devolucao: custoDev })
+      .eq("id", v.id);
+    if (error) setErro(error.message);
+    carregar();
+  };
+
+  // somas gerais (venda devolvida sai do faturamento)
+  const totalVendido = vendas.filter((v) => !v.devolvida).reduce((s, v) => s + v.preco_venda, 0);
+  const devolvidas = vendas.filter((v) => v.devolvida);
   const lucroAcum = vendas.reduce((s, v) => s + lucroVenda(v), 0);
-  const DESEMBOLSO = 1621.7; // 1o lote (ver analise de custos)
-  const paybackPct = Math.min(100, Math.round((lucroAcum / DESEMBOLSO) * 100));
+  // investido = tudo que saiu em mercadoria, insumo e capex (nao fixar no codigo)
+  const paybackPct = investido > 0 ? Math.min(100, Math.round((lucroAcum / investido) * 100)) : 0;
 
   return (
     <div>
@@ -192,6 +248,12 @@ export function VendasClient() {
           <Kpi titulo="Vendido" valor={brl(totalVendido)} />
           <Kpi titulo="Lucro acum." valor={brl(lucroAcum)} />
           <Kpi titulo="Payback" valor={`${paybackPct}%`} />
+          {devolvidas.length > 0 && (
+            <Kpi
+              titulo="Devoluções"
+              valor={`${devolvidas.length} (${Math.round((devolvidas.length / vendas.length) * 100)}%)`}
+            />
+          )}
         </div>
       </div>
 
@@ -288,7 +350,7 @@ export function VendasClient() {
       {/* payback bar */}
       <div className="mt-5 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
         <div className="mb-1 flex justify-between text-xs font-bold text-[var(--ink)]/60">
-          <span>Payback do 1º lote ({brl(DESEMBOLSO)})</span>
+          <span>Payback do investido ({brl(investido)})</span>
           <span>{brl(lucroAcum)} de lucro</span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-[var(--purple)]/10">
@@ -307,30 +369,45 @@ export function VendasClient() {
               <th className="p-3">Itens</th>
               <th className="p-3">Preço</th>
               <th className="p-3">Lucro</th>
+              <th className="p-3"></th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-[var(--ink)]/50">carregando...</td>
+                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">carregando...</td>
               </tr>
             )}
             {!loading && vendas.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-[var(--ink)]/50">nenhuma venda registrada ainda.</td>
+                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">nenhuma venda registrada ainda.</td>
               </tr>
             )}
             {vendas.map((v) => {
               const l = lucroVenda(v);
               const qtdItens = v.ibk_venda_itens.reduce((s, it) => s + it.qtd, 0);
               return (
-                <tr key={v.id} className="border-b border-[var(--purple)]/6 last:border-0">
+                <tr key={v.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${v.devolvida ? "bg-red-50/60" : ""}`}>
                   <td className="p-3">{new Date(v.data).toLocaleDateString("pt-BR")}</td>
-                  <td className="p-3 capitalize">{v.tipo}</td>
+                  <td className="p-3 capitalize">
+                    {v.tipo}
+                    {v.devolvida && (
+                      <span className="ml-1.5 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-extrabold uppercase text-red-600">
+                        devolvida
+                      </span>
+                    )}
+                  </td>
                   <td className="p-3 capitalize">{v.canal}</td>
                   <td className="p-3">{qtdItens}</td>
-                  <td className="p-3">{brl(v.preco_venda)}</td>
+                  <td className={`p-3 ${v.devolvida ? "text-[var(--ink)]/40 line-through" : ""}`}>{brl(v.preco_venda)}</td>
                   <td className={`p-3 font-bold ${l >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l)}</td>
+                  <td className="p-3">
+                    {!v.devolvida && (
+                      <button onClick={() => devolver(v)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-red-600" title="registrar devolução">
+                        devolver
+                      </button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
