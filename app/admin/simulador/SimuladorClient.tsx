@@ -10,6 +10,7 @@ type SKU = {
   genero: string | null;
   tamanho: string | null;
   custo_unit: number;
+  qtd_atual: number;
 };
 
 const rotuloSku = (s: SKU) => {
@@ -36,6 +37,11 @@ export function SimuladorClient() {
   const [frete, setFrete] = useState("0");
   const [cpa, setCpa] = useState("0");
   const [orcAds, setOrcAds] = useState("50");
+
+  // tabela de precos de todo o estoque
+  const [margemAlvo, setMargemAlvo] = useState("35");
+  const [arredondar, setArredondar] = useState(true);
+  const [kitTabela, setKitTabela] = useState("2");
 
   useEffect(() => {
     if (!supabaseConfigured || !supabase) return;
@@ -68,6 +74,52 @@ export function SimuladorClient() {
   const maxCpa = lucroSemAds;
   // vendas necessarias para pagar um orcamento de ads (com o lucro sem ads)
   const vendasBreakeven = lucroSemAds > 0 ? Math.ceil(orcN / lucroSemAds) : Infinity;
+
+  /*
+    Preco sugerido a partir da margem desejada:
+    lucro = preco*(1-taxa) - custo - ads  e  margem = lucro/preco
+    logo  preco = (custo + ads) / (1 - taxa - margem)
+    Arredondar termina o preco em ,90 (pratica de varejo).
+  */
+  const margemAlvoN = num(margemAlvo) / 100;
+  const kitN = Math.max(1, Math.round(num(kitTabela)));
+  const termina90 = (v: number) => {
+    const base = Math.floor(v);
+    return (v <= base + 0.9 ? base : base + 1) + 0.9;
+  };
+  const precoSugerido = (custoPosto: number) => {
+    const divisor = 1 - taxaN - margemAlvoN;
+    if (divisor <= 0) return 0;
+    const bruto = (custoPosto + cpaN) / divisor;
+    return arredondar ? termina90(bruto) : Math.round(bruto * 100) / 100;
+  };
+
+  const linhasTabela = skus.map((s) => {
+    const custoPostoAvulso = s.custo_unit + insumoN;
+    const pAvulso = precoSugerido(custoPostoAvulso);
+    const lucroAvulso = pAvulso * (1 - taxaN) - custoPostoAvulso - cpaN;
+
+    const custoPostoKit = s.custo_unit * kitN + insumoN;
+    const pKit = precoSugerido(custoPostoKit);
+    const lucroKit = pKit * (1 - taxaN) - custoPostoKit - cpaN;
+
+    return {
+      sku: s,
+      custoPostoAvulso,
+      pAvulso,
+      lucroAvulso,
+      margemAvulso: pAvulso > 0 ? lucroAvulso / pAvulso : 0,
+      pKit,
+      lucroKit,
+      potencial: lucroAvulso * s.qtd_atual,
+      receitaPotencial: pAvulso * s.qtd_atual,
+    };
+  });
+
+  const totalUnidades = skus.reduce((s, x) => s + x.qtd_atual, 0);
+  const totalCusto = skus.reduce((s, x) => s + x.qtd_atual * x.custo_unit, 0);
+  const totalReceita = linhasTabela.reduce((s, l) => s + l.receitaPotencial, 0);
+  const totalLucro = linhasTabela.reduce((s, l) => s + l.potencial, 0);
 
   const escada = [-10, -5, 0, 5, 10].map((d) => {
     const p = precoN + d;
@@ -174,6 +226,88 @@ export function SimuladorClient() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* ── Tabela de precos de todo o estoque ── */}
+      <div className="mt-8 border-t border-[var(--purple)]/15 pt-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
+              Tabela de preços do estoque
+            </h2>
+            <p className="text-sm text-[var(--ink)]/70">
+              Preço sugerido de cada produto para a margem desejada, usando a taxa ({Math.round(taxaN * 100)}%),
+              insumo ({brl(insumoN)}) e ads ({brl(cpaN)}) definidos acima.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <Campo label="Margem alvo %">
+              <input value={margemAlvo} onChange={(e) => setMargemAlvo(e.target.value)} className={`${inputCls} w-20`} />
+            </Campo>
+            <Campo label="Kit de">
+              <input value={kitTabela} onChange={(e) => setKitTabela(e.target.value)} className={`${inputCls} w-16`} />
+            </Campo>
+            <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]/70">
+              <input type="checkbox" checked={arredondar} onChange={(e) => setArredondar(e.target.checked)} className="h-4 w-4 accent-[var(--purple)]" />
+              terminar em ,90
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+                <th className="p-3">Produto</th>
+                <th className="p-3">Estoque</th>
+                <th className="p-3">Custo un.</th>
+                <th className="p-3">Custo posto</th>
+                <th className="p-3">Preço avulso</th>
+                <th className="p-3">Lucro/un</th>
+                <th className="p-3">Margem</th>
+                <th className="p-3">Kit {kitN}un</th>
+                <th className="p-3">Lucro kit</th>
+                <th className="p-3">Lucro potencial</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhasTabela.length === 0 && (
+                <tr><td colSpan={10} className="p-6 text-center text-[var(--ink)]/50">nenhum produto no estoque.</td></tr>
+              )}
+              {linhasTabela.map((l) => (
+                <tr key={l.sku.id} className="border-b border-[var(--purple)]/6 last:border-0">
+                  <td className="p-3 font-semibold text-[var(--ink)]">{rotuloSku(l.sku)}</td>
+                  <td className="p-3">{l.sku.qtd_atual}</td>
+                  <td className="p-3">{brl(l.sku.custo_unit)}</td>
+                  <td className="p-3">{brl(l.custoPostoAvulso)}</td>
+                  <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(l.pAvulso)}</td>
+                  <td className={`p-3 font-bold ${l.lucroAvulso >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucroAvulso)}</td>
+                  <td className="p-3">{Math.round(l.margemAvulso * 100)}%</td>
+                  <td className="p-3 font-semibold">{brl(l.pKit)}</td>
+                  <td className={`p-3 ${l.lucroKit >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucroKit)}</td>
+                  <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(l.potencial)}</td>
+                </tr>
+              ))}
+            </tbody>
+            {linhasTabela.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-[var(--purple)]/15 bg-[var(--purple)]/5 font-bold">
+                  <td className="p-3">Total</td>
+                  <td className="p-3">{totalUnidades}</td>
+                  <td className="p-3" colSpan={2}>{brl(totalCusto)} em custo</td>
+                  <td className="p-3 text-[var(--purple-dark)]" colSpan={4}>{brl(totalReceita)} de receita se vender tudo</td>
+                  <td className="p-3"></td>
+                  <td className="p-3 text-emerald-600">{brl(totalLucro)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+
+        <p className="mt-2 text-xs text-[var(--ink)]/50">
+          Preço sugerido = (custo posto + ads) ÷ (1 − taxa − margem alvo). O kit usa {kitN} unidades do mesmo produto,
+          com o insumo contado uma vez só por pedido.
+        </p>
       </div>
     </div>
   );
