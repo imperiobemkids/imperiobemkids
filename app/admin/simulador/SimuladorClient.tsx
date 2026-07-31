@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
+import type { Canal } from "../canais/CanaisClient";
 
 type SKU = {
   id: string;
@@ -27,6 +28,8 @@ const num = (s: string) => parseFloat(s.replace(",", ".")) || 0;
 
 export function SimuladorClient() {
   const [skus, setSkus] = useState<SKU[]>([]);
+  const [canais, setCanais] = useState<Canal[]>([]);
+  const [canalTabela, setCanalTabela] = useState<string>("");
 
   // entradas
   const [custoConj, setCustoConj] = useState("14,90");
@@ -51,6 +54,16 @@ export function SimuladorClient() {
       .eq("ativo", true)
       .order("created_at", { ascending: false })
       .then(({ data }) => setSkus((data as SKU[]) ?? []));
+    supabase
+      .from("ibk_canais")
+      .select("*")
+      .eq("ativo", true)
+      .order("ordem")
+      .then(({ data }) => {
+        const cs = (data as Canal[]) ?? [];
+        setCanais(cs);
+        if (cs.length) setCanalTabela((atual) => atual || cs[0].id);
+      });
   }, []);
 
   // calculos
@@ -87,21 +100,43 @@ export function SimuladorClient() {
     const base = Math.floor(v);
     return (v <= base + 0.9 ? base : base + 1) + 0.9;
   };
-  const precoSugerido = (custoPosto: number) => {
-    const divisor = 1 - taxaN - margemAlvoN;
+  /*
+    custoFixo = produto + embalagem + tarifa fixa do canal + ads
+    preco = custoFixo / (1 - comissao - margem)
+    A tarifa fixa entra no numerador porque nao depende do preco (Mercado Livre
+    cobra por pedido, Shopee nao). A comissao entra no divisor porque e percentual.
+  */
+  const precoPorMargem = (custoFixo: number, taxaPct: number, margem: number) => {
+    const divisor = 1 - taxaPct - margem;
     if (divisor <= 0) return 0;
-    const bruto = (custoPosto + cpaN) / divisor;
+    const bruto = custoFixo / divisor;
     return arredondar ? termina90(bruto) : Math.round(bruto * 100) / 100;
   };
+  const precoSugerido = (custoPosto: number) => precoPorMargem(custoPosto + cpaN, taxaN, margemAlvoN);
+
+  // canal escolhido para a tabela de estoque (cai no simulador se nao houver canal)
+  const canalSel = canais.find((c) => c.id === canalTabela);
+  const taxaTabela = canalSel ? canalSel.taxa_pct : taxaN;
+  const fixaTabela = canalSel ? canalSel.taxa_fixa : 0;
+  const insumoTabela = canalSel ? canalSel.insumo_custo : insumoN;
+
+  // comparativo: mesmo produto em todos os canais ativos
+  const custoBaseComparativo = custoConjN * qtd;
+  const comparativo = canais.map((c) => {
+    const custoFixo = custoBaseComparativo + c.insumo_custo + c.taxa_fixa + cpaN + freteN;
+    const preco = precoPorMargem(custoFixo, c.taxa_pct, margemAlvoN);
+    const lucro = preco * (1 - c.taxa_pct) - custoFixo;
+    return { canal: c, preco, lucro, margem: preco > 0 ? lucro / preco : 0 };
+  });
 
   const linhasTabela = skus.map((s) => {
-    const custoPostoAvulso = s.custo_unit + insumoN;
-    const pAvulso = precoSugerido(custoPostoAvulso);
-    const lucroAvulso = pAvulso * (1 - taxaN) - custoPostoAvulso - cpaN;
+    const custoPostoAvulso = s.custo_unit + insumoTabela + fixaTabela;
+    const pAvulso = precoPorMargem(custoPostoAvulso + cpaN, taxaTabela, margemAlvoN);
+    const lucroAvulso = pAvulso * (1 - taxaTabela) - custoPostoAvulso - cpaN;
 
-    const custoPostoKit = s.custo_unit * kitN + insumoN;
-    const pKit = precoSugerido(custoPostoKit);
-    const lucroKit = pKit * (1 - taxaN) - custoPostoKit - cpaN;
+    const custoPostoKit = s.custo_unit * kitN + insumoTabela + fixaTabela;
+    const pKit = precoPorMargem(custoPostoKit + cpaN, taxaTabela, margemAlvoN);
+    const lucroKit = pKit * (1 - taxaTabela) - custoPostoKit - cpaN;
 
     return {
       sku: s,
@@ -236,11 +271,21 @@ export function SimuladorClient() {
               Tabela de preços do estoque
             </h2>
             <p className="text-sm text-[var(--ink)]/70">
-              Preço sugerido de cada produto para a margem desejada, usando a taxa ({Math.round(taxaN * 100)}%),
-              insumo ({brl(insumoN)}) e ads ({brl(cpaN)}) definidos acima.
+              Preço sugerido de cada produto para a margem desejada
+              {canalSel
+                ? `, no canal ${canalSel.nome} (${Math.round(canalSel.taxa_pct * 1000) / 10}%${canalSel.taxa_fixa ? ` + ${brl(canalSel.taxa_fixa)} fixo` : ""})`
+                : `, usando a taxa de ${Math.round(taxaN * 100)}%`}
+              {cpaN > 0 && ` e ads de ${brl(cpaN)}`}.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
+            {canais.length > 0 && (
+              <Campo label="Canal">
+                <select value={canalTabela} onChange={(e) => setCanalTabela(e.target.value)} className={`${inputCls} w-40`}>
+                  {canais.map((c) => (<option key={c.id} value={c.id}>{c.nome}</option>))}
+                </select>
+              </Campo>
+            )}
             <Campo label="Margem alvo %">
               <input value={margemAlvo} onChange={(e) => setMargemAlvo(e.target.value)} className={`${inputCls} w-20`} />
             </Campo>
@@ -309,6 +354,51 @@ export function SimuladorClient() {
           com o insumo contado uma vez só por pedido.
         </p>
       </div>
+
+      {/* ── Mesmo produto, todos os canais ── */}
+      {comparativo.length > 0 && (
+        <div className="mt-8 border-t border-[var(--purple)]/15 pt-6">
+          <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
+            O mesmo produto em cada canal
+          </h2>
+          <p className="text-sm text-[var(--ink)]/70">
+            Usa o custo do simulador ({brl(custoConjN)} × {qtd}) e a margem alvo de {margemAlvo}%.
+            Mostra quanto cobrar em cada lugar para ganhar a mesma coisa.
+          </p>
+
+          <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+                  <th className="p-3">Canal</th>
+                  <th className="p-3">Comissão</th>
+                  <th className="p-3">Tarifa fixa</th>
+                  <th className="p-3">Preço para a margem alvo</th>
+                  <th className="p-3">Lucro</th>
+                  <th className="p-3">Margem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparativo.map((l) => (
+                  <tr key={l.canal.id} className="border-b border-[var(--purple)]/6 last:border-0">
+                    <td className="p-3 font-semibold text-[var(--ink)]">{l.canal.nome}</td>
+                    <td className="p-3">{Math.round(l.canal.taxa_pct * 1000) / 10}%</td>
+                    <td className="p-3">{l.canal.taxa_fixa ? brl(l.canal.taxa_fixa) : "-"}</td>
+                    <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(l.preco)}</td>
+                    <td className={`p-3 font-bold ${l.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucro)}</td>
+                    <td className="p-3">{Math.round(l.margem * 100)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-2 text-xs text-[var(--ink)]/50">
+            Onde a comissão é menor (WhatsApp no Pix, loja física) dá para vender mais barato ganhando o mesmo,
+            ou manter o preço e ficar com a margem inteira. Ajuste as taxas reais em Canais.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
