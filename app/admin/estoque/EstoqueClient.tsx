@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
+import { KardexModal } from "./KardexModal";
 
 type Produto = {
   id: string;
@@ -58,6 +60,7 @@ export function EstoqueClient() {
   const [aberto, setAberto] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Form>(formVazio);
+  const [kardex, setKardex] = useState<Produto | null>(null);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
@@ -116,9 +119,24 @@ export function EstoqueClient() {
       qtd_inicial: qtdInicial,
       fornecedor_id: form.fornecedorId || null,
     };
+    // na edicao a quantidade vai pelo motor de estoque, para registrar o ajuste no kardex
+    const { qtd_atual, ...semQtd } = payload;
     const res = editId
-      ? await supabase.from("ibk_produtos").update(payload).eq("id", editId)
-      : await supabase.from("ibk_produtos").insert(payload);
+      ? await supabase.from("ibk_produtos").update(semQtd).eq("id", editId)
+      : await supabase.from("ibk_produtos").insert(payload).select("id").single();
+    // produto novo cadastrado a mao: registra o saldo inicial no kardex
+    if (!res.error && !editId && res.data) {
+      await supabase.from("ibk_estoque_mov").insert({
+        produto_id: (res.data as { id: string }).id,
+        tipo: "entrada", origem: "inicial", qtd: qtdAtual, custo_unit: custo,
+        saldo_depois: qtdAtual, custo_medio_depois: custo, obs: "cadastro manual",
+      });
+    }
+    if (!res.error && editId) {
+      try {
+        await ajusteEstoque(editId, qtd_atual, "correção pelo cadastro do produto");
+      } catch { /* o cadastro ja foi salvo; o ajuste e complementar */ }
+    }
     setSalvando(false);
     if (res.error) { setErro(res.error.message); return; }
     setAberto(false);
@@ -138,8 +156,12 @@ export function EstoqueClient() {
     if (!supabase) return;
     const novo = Math.max(0, p.qtd_atual + delta);
     setRows((r) => r.map((x) => (x.id === p.id ? { ...x, qtd_atual: novo } : x)));
-    const { error } = await supabase.from("ibk_produtos").update({ qtd_atual: novo }).eq("id", p.id);
-    if (error) { setErro(error.message); carregar(); }
+    try {
+      await ajusteEstoque(p.id, novo, delta > 0 ? "ajuste manual (+)" : "ajuste manual (-)");
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "erro no ajuste");
+      carregar();
+    }
   };
 
   const unidades = rows.reduce((s, p) => s + p.qtd_atual, 0);
@@ -211,7 +233,10 @@ export function EstoqueClient() {
                   <td className="p-3">{brl(p.qtd_atual * p.custo_unit)}</td>
                   <td className="p-3">{giro}%</td>
                   <td className="p-3">
-                    <button onClick={() => abrirEdicao(p)} className="rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">editar</button>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => abrirEdicao(p)} className="rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">editar</button>
+                      <button onClick={() => setKardex(p)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)]" title="extrato de movimentações">extrato</button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -219,6 +244,10 @@ export function EstoqueClient() {
           </tbody>
         </table>
       </div>
+
+      {kardex && (
+        <KardexModal produtoId={kardex.id} titulo={nomeExibido(kardex)} onClose={() => setKardex(null)} />
+      )}
 
       {/* modal cadastro/edicao */}
       {aberto && (

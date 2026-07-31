@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { saidaEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
 
 type Produto = {
@@ -152,14 +153,9 @@ export function VendasClient() {
       return;
     }
 
-    // baixa no estoque
+    // baixa no estoque (registrada no kardex)
     for (const it of itensValidos) {
-      const p = pMap.get(it.produto_id);
-      if (!p) continue;
-      await supabase
-        .from("ibk_produtos")
-        .update({ qtd_atual: Math.max(0, p.qtd_atual - it.qtd) })
-        .eq("id", it.produto_id);
+      await saidaEstoque(it.produto_id, it.qtd, "venda", { vendaId: venda.id });
     }
 
     // caixa: entrada da venda + saida da taxa

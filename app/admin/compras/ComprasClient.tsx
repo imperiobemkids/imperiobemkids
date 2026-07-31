@@ -2,11 +2,27 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { entradaEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
 
 type Fornecedor = { id: string; nome: string };
+type Produto = { id: string; nome: string | null; linha: string | null; genero: string | null; tamanho: string | null; custo_unit: number; qtd_atual: number };
 type Tipo = "mercadoria" | "insumo" | "capex";
-type Item = { tipo: Tipo; descricao: string; categoria: string; tamanho: string; qtd: string; custoUnit: string };
+type Item = {
+  tipo: Tipo;
+  produtoId: string; // vazio = produto novo; preenchido = reabastece (recalcula custo medio)
+  descricao: string;
+  categoria: string;
+  tamanho: string;
+  qtd: string;
+  custoUnit: string;
+};
+
+const rotulo = (p: Produto) => {
+  if (p.nome && p.nome.trim()) return p.nome.trim() + (p.tamanho ? ` · ${p.tamanho}` : "");
+  const linha = p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "";
+  return [linha, p.genero, p.tamanho].filter(Boolean).join(" · ") || "Produto";
+};
 
 type Lote = {
   id: string;
@@ -20,10 +36,11 @@ const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const num = (s: string) => parseFloat(s.replace(",", ".")) || 0;
 const hoje = () => new Date().toISOString().slice(0, 10);
-const itemVazio = (): Item => ({ tipo: "mercadoria", descricao: "", categoria: "", tamanho: "", qtd: "", custoUnit: "" });
+const itemVazio = (): Item => ({ tipo: "mercadoria", produtoId: "", descricao: "", categoria: "", tamanho: "", qtd: "", custoUnit: "" });
 
 export function ComprasClient() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [lotes, setLotes] = useState<Lote[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -39,8 +56,9 @@ export function ComprasClient() {
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [{ data: forns }, { data: ls, error }] = await Promise.all([
+    const [{ data: forns }, { data: prods }, { data: ls, error }] = await Promise.all([
       supabase.from("ibk_fornecedores").select("id, nome").order("nome"),
+      supabase.from("ibk_produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
       supabase
         .from("ibk_lotes")
         .select("id, data, descricao, fornecedor:ibk_fornecedores(nome), ibk_lote_itens(custo_total, tipo)")
@@ -49,6 +67,7 @@ export function ComprasClient() {
     ]);
     if (error) setErro(error.message);
     setFornecedores((forns as Fornecedor[]) ?? []);
+    setProdutos((prods as Produto[]) ?? []);
     setLotes((ls as unknown as Lote[]) ?? []);
     setLoading(false);
   }, []);
@@ -92,22 +111,43 @@ export function ComprasClient() {
     );
     if (e2) { setErro(e2.message); setSalvando(false); return; }
 
-    // 3) mercadoria vira produto no estoque
+    // 3) mercadoria entra no estoque
+    //    produto existente: recalcula o custo medio ponderado
+    //    produto novo: cria e registra a entrada inicial no kardex
     const merc = validos.filter((it) => it.tipo === "mercadoria");
-    if (merc.length) {
-      const { error: e3 } = await supabase.from("ibk_produtos").insert(
-        merc.map((it) => ({
-          nome: it.descricao.trim(),
-          categoria: it.categoria.trim() || null,
-          tamanho: it.tamanho.trim() || null,
-          custo_unit: num(it.custoUnit),
-          qtd_inicial: Math.round(num(it.qtd)),
-          qtd_atual: Math.round(num(it.qtd)),
-          fornecedor_id: fornecedorId || null,
-          lote_id: lote.id,
-        })),
-      );
-      if (e3) { setErro(e3.message); setSalvando(false); return; }
+    try {
+      for (const it of merc) {
+        const qtdItem = Math.round(num(it.qtd));
+        const custoItem = num(it.custoUnit);
+        if (it.produtoId) {
+          await entradaEstoque(it.produtoId, qtdItem, custoItem, "compra", { loteId: lote.id, data });
+        } else {
+          const { data: novo, error: e3 } = await supabase
+            .from("ibk_produtos")
+            .insert({
+              nome: it.descricao.trim(),
+              categoria: it.categoria.trim() || null,
+              tamanho: it.tamanho.trim() || null,
+              custo_unit: custoItem,
+              qtd_inicial: qtdItem,
+              qtd_atual: qtdItem,
+              fornecedor_id: fornecedorId || null,
+              lote_id: lote.id,
+            })
+            .select("id")
+            .single();
+          if (e3 || !novo) throw new Error(e3?.message ?? "erro ao criar produto");
+          await supabase.from("ibk_estoque_mov").insert({
+            produto_id: novo.id, data, tipo: "entrada", origem: "compra",
+            qtd: qtdItem, custo_unit: custoItem,
+            saldo_depois: qtdItem, custo_medio_depois: custoItem, ref_lote_id: lote.id,
+          });
+        }
+      }
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "erro ao lançar o estoque");
+      setSalvando(false);
+      return;
     }
 
     // 4) insumos entram no estoque de insumos
@@ -213,10 +253,33 @@ export function ComprasClient() {
                         <option value="capex">Capex</option>
                       </select>
                     </Campo>
-                    <Campo label={it.tipo === "mercadoria" ? "Nome do produto" : "Descrição"}>
-                      <input value={it.descricao} onChange={(e) => setItem(i, { descricao: e.target.value })} placeholder={it.tipo === "capex" ? "ex: impressora" : "ex: conjunto moletom"} className={`${inputCls} min-w-[170px]`} />
-                    </Campo>
                     {it.tipo === "mercadoria" && (
+                      <Campo label="Produto">
+                        <select
+                          value={it.produtoId}
+                          onChange={(e) => {
+                            const p = produtos.find((x) => x.id === e.target.value);
+                            setItem(i, {
+                              produtoId: e.target.value,
+                              descricao: p ? rotulo(p) : "",
+                              custoUnit: p ? String(p.custo_unit).replace(".", ",") : it.custoUnit,
+                            });
+                          }}
+                          className={`${inputCls} min-w-[170px]`}
+                        >
+                          <option value="">+ produto novo</option>
+                          {produtos.map((p) => (
+                            <option key={p.id} value={p.id}>{rotulo(p)} (tem {p.qtd_atual})</option>
+                          ))}
+                        </select>
+                      </Campo>
+                    )}
+                    {(it.tipo !== "mercadoria" || !it.produtoId) && (
+                      <Campo label={it.tipo === "mercadoria" ? "Nome do produto" : "Descrição"}>
+                        <input value={it.descricao} onChange={(e) => setItem(i, { descricao: e.target.value })} placeholder={it.tipo === "capex" ? "ex: impressora" : "ex: conjunto moletom"} className={`${inputCls} min-w-[170px]`} />
+                      </Campo>
+                    )}
+                    {it.tipo === "mercadoria" && !it.produtoId && (
                       <>
                         <Campo label="Categoria"><input value={it.categoria} onChange={(e) => setItem(i, { categoria: e.target.value })} placeholder="Conjunto" className={`${inputCls} w-28`} /></Campo>
                         <Campo label="Tamanho"><input value={it.tamanho} onChange={(e) => setItem(i, { tamanho: e.target.value })} placeholder="2" className={`${inputCls} w-16`} /></Campo>
