@@ -20,8 +20,12 @@ type Venda = {
   data: string;
   preco_venda: number;
   taxa_pct: number;
+  taxa_fixa: number;
   insumo_custo: number;
   frete: number;
+  devolvida: boolean;
+  custo_devolucao: number;
+  recebido: number | null;
   ibk_venda_itens: { qtd: number; produto: { custo_unit: number } | null }[];
 };
 
@@ -47,6 +51,8 @@ const CARDS = [
   { href: "/admin/compras", emoji: "🛍️", titulo: "Compras" },
   { href: "/admin/vendas", emoji: "🧾", titulo: "Vendas" },
   { href: "/admin/financeiro", emoji: "💰", titulo: "Financeiro" },
+  { href: "/admin/conciliacao", emoji: "🔎", titulo: "Conciliação" },
+  { href: "/admin/canais", emoji: "🏬", titulo: "Canais" },
   { href: "/admin/fornecedores", emoji: "🏭", titulo: "Fornecedores" },
   { href: "/admin/simulador", emoji: "🧮", titulo: "Precificação" },
 ];
@@ -66,7 +72,7 @@ export function PainelClient() {
       const [{ data: p }, { data: m }, { data: v }] = await Promise.all([
         supabase!.from("ibk_produtos").select("*").eq("ativo", true),
         supabase!.from("ibk_movimentos").select("tipo, categoria, valor, data, pago"),
-        supabase!.from("ibk_vendas").select("data, preco_venda, taxa_pct, insumo_custo, frete, ibk_venda_itens(qtd, produto:ibk_produtos(custo_unit))"),
+        supabase!.from("ibk_vendas").select("*, ibk_venda_itens(qtd, produto:ibk_produtos(custo_unit))"),
       ]);
       setProdutos((p as Produto[]) ?? []);
       setMovs((m as Mov[]) ?? []);
@@ -98,10 +104,15 @@ export function PainelClient() {
 
   // lucro das vendas
   const lucroVenda = (v: Venda) => {
+    if (v.devolvida) return -(v.custo_devolucao ?? 0);
     const custo = v.ibk_venda_itens.reduce((s, it) => s + (it.produto?.custo_unit ?? 0) * it.qtd, 0);
-    return v.preco_venda * (1 - v.taxa_pct) - custo - v.insumo_custo - v.frete;
+    return v.preco_venda * (1 - v.taxa_pct) - custo - v.insumo_custo - (v.taxa_fixa ?? 0) - v.frete;
   };
   const lucroBruto = vendas.reduce((s, v) => s + lucroVenda(v), 0);
+  // dinheiro ja vendido que a plataforma ainda nao repassou
+  const aReceber = vendas
+    .filter((v) => !v.devolvida && v.recebido === null)
+    .reduce((s, v) => s + (v.preco_venda * (1 - v.taxa_pct) - (v.taxa_fixa ?? 0) - v.frete), 0);
   const lucroLiquido = lucroBruto - ads;
   const vendidoMes = vendas.filter((v) => noMes(v.data)).reduce((s, v) => s + v.preco_venda, 0);
   const paybackPct = investido > 0 ? Math.min(100, Math.round((lucroBruto / investido) * 100)) : 0;
@@ -122,7 +133,11 @@ export function PainelClient() {
         <Kpi titulo="Valor em estoque" valor={brl(valorEstoque)} sub={`${unidades} unidades`} />
         <Kpi titulo="Saldo de caixa" valor={brl(caixa)} negativo={caixa < 0} sub={aPagar > 0 ? `${brl(aPagar)} a pagar` : "sem contas abertas"} />
         <Kpi titulo="Lucro das vendas" valor={brl(lucroBruto)} negativo={lucroBruto < 0} sub={ads > 0 ? `${brl(lucroLiquido)} após ads` : `${vendas.length} vendas`} />
-        <Kpi titulo="Vendido no mês" valor={brl(vendidoMes)} sub={ads > 0 ? `ads: ${brl(ads)}${roas ? ` · ROAS ${roas.toFixed(1)}x` : ""}` : "sem gasto de ads"} />
+        <Kpi
+          titulo={aReceber > 0 ? "A receber" : "Vendido no mês"}
+          valor={brl(aReceber > 0 ? aReceber : vendidoMes)}
+          sub={aReceber > 0 ? "repasse ainda não conciliado" : ads > 0 ? `ads: ${brl(ads)}${roas ? ` · ROAS ${roas.toFixed(1)}x` : ""}` : "sem gasto de ads"}
+        />
       </div>
 
       {/* payback */}

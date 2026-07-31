@@ -15,6 +15,7 @@ const NAV = [
   { href: "/admin/fornecedores", label: "Fornecedores" },
   { href: "/admin/vendas", label: "Vendas" },
   { href: "/admin/financeiro", label: "Financeiro" },
+  { href: "/admin/conciliacao", label: "Conciliação" },
   { href: "/admin/simulador", label: "Precificação" },
   { href: "/admin/canais", label: "Canais" },
 ];
