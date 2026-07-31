@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { saidaEstoque, devolucaoEstoque } from "@/lib/estoque";
+import type { Canal } from "../canais/CanaisClient";
 import { SetupCard } from "../SetupCard";
 
 type Produto = {
@@ -27,6 +28,7 @@ type VendaRow = {
   taxa_pct: number;
   insumo_custo: number;
   frete: number;
+  taxa_fixa: number;
   devolvida: boolean;
   data_devolucao: string | null;
   custo_devolucao: number;
@@ -54,20 +56,27 @@ const lucroVenda = (v: VendaRow) => {
     (s, it) => s + (it.produto?.custo_unit ?? 0) * it.qtd,
     0,
   );
-  return v.preco_venda * (1 - v.taxa_pct) - custoItens - v.insumo_custo - v.frete;
+  return (
+    v.preco_venda * (1 - v.taxa_pct) -
+    custoItens -
+    v.insumo_custo -
+    (v.taxa_fixa ?? 0) -
+    v.frete
+  );
 };
 
 export function VendasClient() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<VendaRow[]>([]);
   const [investido, setInvestido] = useState(0);
+  const [canais, setCanais] = useState<Canal[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   // form
   const [tipo, setTipo] = useState<"avulso" | "kit">("avulso");
-  const [canal, setCanal] = useState("shopee");
+  const [canalId, setCanalId] = useState("");
   const [preco, setPreco] = useState("");
   const [taxa, setTaxa] = useState("20");
   const [frete, setFrete] = useState("0");
@@ -76,7 +85,7 @@ export function VendasClient() {
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [{ data: prod }, { data: vend, error }, { data: movs }] = await Promise.all([
+    const [{ data: prod }, { data: vend, error }, { data: movs }, { data: cans }] = await Promise.all([
       supabase
         .from("ibk_produtos")
         .select("*")
@@ -92,11 +101,22 @@ export function VendasClient() {
         .select("valor, categoria, tipo")
         .eq("tipo", "saida")
         .in("categoria", ["mercadoria", "insumo", "capex"]),
+      supabase.from("ibk_canais").select("*").eq("ativo", true).order("ordem"),
     ]);
     if (error) setErro(error.message);
     setProdutos((prod as Produto[]) ?? []);
     setVendas((vend as VendaRow[]) ?? []);
     setInvestido(((movs as { valor: number }[]) ?? []).reduce((s, m) => s + m.valor, 0));
+    const cs = (cans as Canal[]) ?? [];
+    setCanais(cs);
+    // ao abrir, ja seleciona o primeiro canal e puxa as taxas dele
+    if (cs.length) {
+      setCanalId((atual) => {
+        if (atual) return atual;
+        setTaxa(String(cs[0].taxa_pct * 100).replace(".", ","));
+        return cs[0].id;
+      });
+    }
     setLoading(false);
   }, []);
 
@@ -120,8 +140,17 @@ export function VendasClient() {
   const precoN = parseFloat(preco.replace(",", ".")) || 0;
   const taxaN = (parseFloat(taxa.replace(",", ".")) || 0) / 100;
   const freteN = parseFloat(frete.replace(",", ".")) || 0;
-  const insumoN = 0.4;
-  const lucroPrevisto = precoN * (1 - taxaN) - custoItens - insumoN - freteN;
+  // embalagem e tarifa fixa vem do canal escolhido
+  const canalAtual = canais.find((c) => c.id === canalId);
+  const insumoN = canalAtual ? canalAtual.insumo_custo : 0.4;
+  const fixaN = canalAtual ? canalAtual.taxa_fixa : 0;
+  const lucroPrevisto = precoN * (1 - taxaN) - custoItens - insumoN - fixaN - freteN;
+
+  const escolherCanal = (id: string) => {
+    setCanalId(id);
+    const c = canais.find((x) => x.id === id);
+    if (c) setTaxa(String(c.taxa_pct * 100).replace(".", ","));
+  };
 
   const registrar = async () => {
     if (!supabase) return;
@@ -144,10 +173,12 @@ export function VendasClient() {
     const { data: venda, error: e1 } = await supabase
       .from("ibk_vendas")
       .insert({
-        canal,
+        canal: canalAtual ? canalAtual.nome.toLowerCase().slice(0, 20) : "outro",
+        canal_id: canalId || null,
         tipo,
         preco_venda: precoN,
         taxa_pct: taxaN,
+        taxa_fixa: fixaN,
         insumo_custo: insumoN,
         frete: freteN,
       })
@@ -173,11 +204,18 @@ export function VendasClient() {
       await saidaEstoque(it.produto_id, it.qtd, "venda", { vendaId: venda.id });
     }
 
-    // caixa: entrada da venda + saida da taxa
-    await supabase.from("ibk_movimentos").insert([
-      { tipo: "entrada", categoria: "venda", valor: precoN, descricao: `Venda ${tipo} (${canal})`, ref_venda_id: venda.id },
-      { tipo: "saida", categoria: "taxa_shopee", valor: precoN * taxaN, descricao: "Taxa Shopee", ref_venda_id: venda.id },
-    ]);
+    // caixa: entrada da venda + saida da comissao e da tarifa fixa do canal
+    const nomeCanal = canalAtual?.nome ?? "canal";
+    const movsVenda: Record<string, unknown>[] = [
+      { tipo: "entrada", categoria: "venda", valor: precoN, descricao: `Venda ${tipo} (${nomeCanal})`, ref_venda_id: venda.id },
+    ];
+    if (precoN * taxaN > 0) {
+      movsVenda.push({ tipo: "saida", categoria: "taxa_shopee", valor: precoN * taxaN, descricao: `Comissão ${nomeCanal}`, ref_venda_id: venda.id });
+    }
+    if (fixaN > 0) {
+      movsVenda.push({ tipo: "saida", categoria: "taxa_shopee", valor: fixaN, descricao: `Tarifa fixa ${nomeCanal}`, ref_venda_id: venda.id });
+    }
+    await supabase.from("ibk_movimentos").insert(movsVenda);
 
     setSalvando(false);
     setPreco("");
@@ -267,10 +305,9 @@ export function VendasClient() {
             </select>
           </Campo>
           <Campo label="Canal">
-            <select value={canal} onChange={(e) => setCanal(e.target.value)} className={inputCls}>
-              <option value="shopee">Shopee</option>
-              <option value="direto">Direto</option>
-              <option value="outro">Outro</option>
+            <select value={canalId} onChange={(e) => escolherCanal(e.target.value)} className={inputCls}>
+              {canais.length === 0 && <option value="">cadastre em Canais</option>}
+              {canais.map((c) => (<option key={c.id} value={c.id}>{c.nome}</option>))}
             </select>
           </Campo>
           <Campo label="Preço venda">
@@ -332,7 +369,9 @@ export function VendasClient() {
               {brl(lucroPrevisto)}
             </strong>
             <span className="ml-2 text-[var(--ink)]/50">
-              (líquido {brl(precoN * (1 - taxaN))} − custo {brl(custoItens)} − insumo {brl(insumoN)} − frete {brl(freteN)})
+              (líquido {brl(precoN * (1 - taxaN))} − custo {brl(custoItens)} − embalagem {brl(insumoN)}
+              {fixaN > 0 && ` − tarifa fixa ${brl(fixaN)}`}
+              {freteN > 0 && ` − frete ${brl(freteN)}`})
             </span>
           </div>
           <button
