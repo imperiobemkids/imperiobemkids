@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Assistant } from "../Assistant";
 
 export const metadata: Metadata = {
-  title: "Peça já | Império Bem Kids",
+  title: "Peça já",
   description:
     "Achadinhos, promoções e produtos para o universo infantil. Entre no grupo de promos e siga a gente nas redes.",
 };
@@ -23,21 +23,28 @@ type BioLink = {
   anchor?: string;
 };
 
+// WhatsApp de pedido, com mensagem ja preenchida
+const WHATSAPP = "https://wa.me/5511940553038?text=" +
+  encodeURIComponent("Oi! Vim pelo site do Império Bem Kids e quero fazer um pedido 💜");
+
+const LOJA_SHOPEE =
+  "https://shopee.com.br/douglasben?categoryId=100633&entryPoint=ShopByPDP&itemId=58265431662";
+
 const LINKS: BioLink[] = [
   {
-    href: null,
-    emoji: "🎁",
-    title: "Grupo de Promos",
-    desc: "achadinhos e descontos todo dia no WhatsApp",
+    href: WHATSAPP,
+    emoji: "💬",
+    title: "Pedir pelo WhatsApp",
+    desc: "fala direto com a gente e monta seu pedido",
     accent: "var(--mint)",
     featured: true,
     anchor: "promos",
   },
   {
-    href: null,
+    href: LOJA_SHOPEE,
     emoji: "🛒",
     title: "Nossa lojinha na Shopee",
-    desc: "brinquedos e produtos escolhidos a dedo",
+    desc: "veja todos os produtos e compre com segurança",
     accent: "var(--yellow)",
     featured: true,
     anchor: "loja",
@@ -87,12 +94,24 @@ const VITRINES: Vitrine[] = [
     id: "tendencia",
     emoji: "🔥",
     titulo: "Produtinhos Tendência",
-    subtitulo: "o que tá bombando no momento",
+    subtitulo: "kit com 4 peças, pronta entrega",
     produtos: [
-      { href: null, image: null, emoji: "🧸", accent: "var(--pink)", nome: "Urso de pelúcia soft", preco: "R$ 49,90", precoDe: "R$ 89,90" },
-      { href: null, image: null, emoji: "🎨", accent: "var(--teal)", nome: "Kit pintura infantil", preco: "R$ 34,90", precoDe: "R$ 59,90" },
-      { href: null, image: null, emoji: "🧩", accent: "var(--yellow)", nome: "Quebra-cabeça educativo", preco: "R$ 27,90" },
-      { href: null, image: null, emoji: "🚗", accent: "var(--mint)", nome: "Carrinho fricção", preco: "R$ 22,90", precoDe: "R$ 39,90" },
+      {
+        href: "https://shopee.com.br/product/1389538624/58215469217/",
+        image: "/produtos/kit-verao-menino.jpg",
+        emoji: "👕",
+        accent: "var(--teal)",
+        nome: "Kit 4 peças verão menino",
+        preco: "R$ 49,90",
+      },
+      {
+        href: "https://shopee.com.br/product/1389538624/58265431662/",
+        image: "/produtos/kit-verao-menina.jpg",
+        emoji: "👗",
+        accent: "var(--pink)",
+        nome: "Kit 4 peças verão menina",
+        preco: "R$ 49,90",
+      },
     ],
   },
   {
@@ -100,12 +119,8 @@ const VITRINES: Vitrine[] = [
     emoji: "✨",
     titulo: "Achadinhos",
     subtitulo: "as melhores pechinchas garimpadas pra você",
-    produtos: [
-      { href: null, image: null, emoji: "🎈", accent: "var(--teal)", nome: "Kit 50 balões coloridos", preco: "R$ 12,90" },
-      { href: null, image: null, emoji: "🖍️", accent: "var(--pink)", nome: "Giz de cera 24 cores", preco: "R$ 9,90", precoDe: "R$ 19,90" },
-      { href: null, image: null, emoji: "🦕", accent: "var(--mint)", nome: "Dino de brinquedo", preco: "R$ 18,90" },
-      { href: null, image: null, emoji: "📚", accent: "var(--yellow)", nome: "Livrinho interativo", preco: "R$ 24,90", precoDe: "R$ 44,90" },
-    ],
+    // sem produto cadastrado ainda: a secao mostra o convite para a loja
+    produtos: [],
   },
 ];
 
@@ -179,7 +194,7 @@ function ProdutoCard({ produto }: { produto: Produto }) {
     <div className="group flex h-full flex-col overflow-hidden rounded-3xl border-2 border-transparent bg-white shadow-[0_4px_0_rgba(109,40,184,0.12)] transition-all hover:-translate-y-1 hover:border-[var(--purple)] hover:shadow-[0_8px_0_rgba(109,40,184,0.18)]">
       {/* imagem / placeholder */}
       <div
-        className="relative flex aspect-square items-center justify-center overflow-hidden"
+        className="relative flex aspect-[3/4] items-center justify-center overflow-hidden"
         style={
           produto.image
             ? undefined
@@ -257,11 +272,27 @@ function VitrineSecao({ vitrine }: { vitrine: Vitrine }) {
           <p className="text-xs text-[var(--ink)]/60">{vitrine.subtitulo}</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        {vitrine.produtos.map((p) => (
-          <ProdutoCard key={p.nome} produto={p} />
-        ))}
-      </div>
+      {vitrine.produtos.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3">
+          {vitrine.produtos.map((p) => (
+            <ProdutoCard key={p.nome} produto={p} />
+          ))}
+        </div>
+      ) : (
+        <a
+          href={LOJA_SHOPEE}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block rounded-3xl border-2 border-dashed border-[var(--purple)]/25 bg-white/60 p-5 text-center"
+        >
+          <p className="text-sm text-[var(--ink)]/70">
+            Novidades chegando toda semana. Dá uma olhada na lojinha 👀
+          </p>
+          <span className="mt-2 inline-block text-sm font-extrabold text-[var(--purple)]">
+            ver na Shopee →
+          </span>
+        </a>
+      )}
     </section>
   );
 }
