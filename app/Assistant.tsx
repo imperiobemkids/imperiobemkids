@@ -3,45 +3,50 @@
 import { useEffect, useRef, useState } from "react";
 
 /*
-  Ursinha do Imperio: atendente que direciona a cliente pra vitrine,
-  grupo de promos ou loja. Cada opcao rola a pagina ate a ancora certa
-  (ids definidos no page.tsx) ou, se em breve, avisa e sugere seguir nas redes.
+  Ursinha do Imperio: atendente que direciona a cliente pra vitrine, pra loja
+  ou pro WhatsApp. Destino com `url` abre o link; sem url, rola a pagina ate
+  a ancora do bloco (ids definidos em pedido/page.tsx).
 */
+
+const WHATSAPP = "https://wa.me/5511940553038?text=";
+const LOJA_SHOPEE =
+  "https://shopee.com.br/douglasben?categoryId=100633&entryPoint=ShopByPDP&itemId=58265431662";
 
 type Destino = {
   key: string;
   label: string;
-  anchor: string; // id do bloco na pagina
+  anchor?: string; // id do bloco na pagina
+  url?: string; // link externo (abre em nova aba)
   resposta: string; // fala da ursinha ao escolher
-  emBreve?: boolean;
+  cta: string;
 };
 
 const DESTINOS: Destino[] = [
   {
     key: "tendencia",
-    label: "ver o que tá bombando 🔥",
+    label: "ver os kits de verão ☀️",
     anchor: "tendencia",
-    resposta: "amei! esses são os queridinhos do momento, separei aqui 👇",
-  },
-  {
-    key: "achadinhos",
-    label: "quero as pechinchas ✨",
-    anchor: "achadinhos",
-    resposta: "você tem bom gosto! os melhores achadinhos tão logo abaixo 👇",
+    resposta: "amei! temos kit com 4 peças por R$ 49,90, menino e menina. dá uma olhada 👇",
+    cta: "ver os kits 👇",
   },
   {
     key: "loja",
     label: "ver a lojinha completa 🛒",
-    anchor: "loja",
-    resposta: "nossa lojinha na Shopee tá quase pronta! te levo até lá 👇",
-    emBreve: true,
+    url: LOJA_SHOPEE,
+    resposta: "na lojinha tem tudo o que a gente tem disponível agora 🛍️",
+    cta: "abrir a lojinha",
   },
   {
-    key: "promos",
-    label: "receber promoções todo dia 🎁",
-    anchor: "promos",
-    resposta: "essa é a melhor parte! toda promoção cai primeiro no grupinho 👇",
-    emBreve: true,
+    key: "duvida",
+    label: "tenho uma dúvida 💬",
+    resposta: "sem problema! me chama no WhatsApp que a gente te responde rapidinho 💜",
+    cta: "chamar no WhatsApp",
+  },
+  {
+    key: "pedido",
+    label: "quero fazer um pedido 🎁",
+    resposta: "que delícia! é só me chamar no WhatsApp que eu monto seu pedido 💜",
+    cta: "fazer meu pedido",
   },
 ];
 
@@ -63,6 +68,7 @@ function Chat({ onClose }: { onClose: () => void }) {
   const [typing, setTyping] = useState(false);
   const [stage, setStage] = useState<Stage>("idade");
   const [destino, setDestino] = useState<Destino | null>(null);
+  const [idade, setIdade] = useState("");
 
   const alive = useRef(true);
   const started = useRef(false);
@@ -106,6 +112,7 @@ function Chat({ onClose }: { onClose: () => void }) {
 
   const pickIdade = (i: (typeof IDADES)[number]) => {
     say(i.label);
+    setIdade(i.label);
     fala(["perfeito! e o que você quer ver primeiro?"], "destino");
   };
 
@@ -115,11 +122,29 @@ function Chat({ onClose }: { onClose: () => void }) {
     fala([d.resposta], "fim");
   };
 
-  const irPara = (anchor: string) => {
+  /*
+    Leva a cliente ao destino: ancora rola a pagina, url abre a loja e,
+    quando nao ha nem um nem outro, manda pro WhatsApp com a conversa
+    resumida na mensagem (a idade que ela escolheu e o que ela quer).
+  */
+  const irPara = (d: Destino) => {
+    if (d.anchor) {
+      onClose();
+      setTimeout(() => {
+        document.getElementById(d.anchor!)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+      return;
+    }
+    const destinoUrl =
+      d.url ??
+      WHATSAPP +
+        encodeURIComponent(
+          `Oi! Vim pelo site do Império Bem Kids 💜` +
+            (idade ? `\nÉ para: ${idade}` : "") +
+            `\n${d.key === "duvida" ? "Tenho uma dúvida." : "Quero fazer um pedido."}`,
+        );
+    window.open(destinoUrl, "_blank", "noopener,noreferrer");
     onClose();
-    setTimeout(() => {
-      document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 120);
   };
 
   return (
@@ -186,17 +211,11 @@ function Chat({ onClose }: { onClose: () => void }) {
           {/* cartao final */}
           {stage === "fim" && !typing && destino && (
             <div className="mt-3 rounded-2xl border-2 border-[var(--purple)]/20 bg-white p-4 shadow-sm">
-              {destino.emBreve && (
-                <p className="mb-3 text-sm leading-relaxed text-[var(--ink)]/75">
-                  ainda tá em preparação, mas te levo até lá pra você não perder de vista.
-                  enquanto isso, segue a gente pra ficar por dentro! 💜
-                </p>
-              )}
               <button
-                onClick={() => irPara(destino.anchor)}
+                onClick={() => irPara(destino)}
                 className="w-full rounded-full bg-[var(--purple)] py-3 text-center text-sm font-extrabold text-white transition-colors hover:bg-[var(--purple-dark)]"
               >
-                {destino.emBreve ? "me mostra 👀" : "ver agora 👇"}
+                {destino.cta}
               </button>
             </div>
           )}
