@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
   a ancora do bloco (ids definidos em pedido/page.tsx).
 */
 
-const WHATSAPP = "https://wa.me/5511940553038?text=";
+const WHATSAPP = "https://wa.me/5511947956479?text=";
 const LOJA_SHOPEE =
   "https://shopee.com.br/douglasben?categoryId=100633&entryPoint=ShopByPDP&itemId=58265431662";
 

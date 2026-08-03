@@ -5,12 +5,11 @@ import { Assistant } from "../Assistant";
 export const metadata: Metadata = {
   title: "Peça já",
   description:
-    "Achadinhos, promoções e produtos para o universo infantil. Entre no grupo de promos e siga a gente nas redes.",
+    "Kits de roupa infantil com pronta entrega. Peça pelo WhatsApp ou compre na nossa lojinha na Shopee.",
 };
 
 /*
-  Links da pagina. Enquanto a loja e o grupo nao existem,
-  href: null renderiza o card como "em breve" (sem link).
+  Links da pagina. href: null renderiza o card como "em breve" (sem link).
   anchor: id usado pelo chat (Ursinha) pra rolar ate o bloco.
 */
 type BioLink = {
@@ -24,7 +23,7 @@ type BioLink = {
 };
 
 // WhatsApp de pedido, com mensagem ja preenchida
-const WHATSAPP = "https://wa.me/5511940553038?text=" +
+const WHATSAPP = "https://wa.me/5511947956479?text=" +
   encodeURIComponent("Oi! Vim pelo site do Império Bem Kids e quero fazer um pedido 💜");
 
 const LOJA_SHOPEE =
