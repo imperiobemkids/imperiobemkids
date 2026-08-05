@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "./SiteHeader";
+import { SiteFooter } from "./SiteFooter";
 
 export const metadata: Metadata = {
   title: "Império Bem Kids | Moda e achadinhos infantis",
@@ -51,6 +52,7 @@ export default function Home() {
         </a>
       </div>
     </main>
+    <SiteFooter />
     </>
   );
 }
