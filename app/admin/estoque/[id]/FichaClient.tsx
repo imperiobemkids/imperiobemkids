@@ -29,6 +29,14 @@ type Fornecedor = { id: string; nome: string };
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
+/*
+  Blocos de texto de anuncio, um por canal. Os canais e o limite de titulo vem
+  da tabela ibk_canais, entao canal cadastrado em /admin/canais aparece aqui.
+  Limite 0 significa sem limite definido.
+*/
+type Anuncio = { uso: string; titulo: string; descricao: string };
+type Canal = { id: string; nome: string; limite_titulo: number | null };
+
 const ABAS = ["geral", "anuncio", "especificacoes", "logistica", "fiscal"] as const;
 type Aba = (typeof ABAS)[number];
 const rotuloAba: Record<Aba, string> = {
@@ -56,6 +64,8 @@ export function FichaClient({ id }: { id: string }) {
   const [produto, setProduto] = useState<Produto | null>(null);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
+  const [canais, setCanais] = useState<Canal[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
@@ -66,9 +76,10 @@ export function FichaClient({ id }: { id: string }) {
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [{ data, error }, { data: forns }] = await Promise.all([
+    const [{ data, error }, { data: forns }, { data: cans }] = await Promise.all([
       supabase.from("ibk_produtos").select("*").eq("id", id).single(),
       supabase.from("ibk_fornecedores").select("id, nome").order("nome"),
+      supabase.from("ibk_canais").select("id, nome, limite_titulo").eq("ativo", true).order("ordem"),
     ]);
     if (error) setErro(error.message);
     else if (data) {
@@ -76,11 +87,14 @@ export function FichaClient({ id }: { id: string }) {
       setProduto(p);
       const inicial: Record<string, string> = {};
       Object.entries(p).forEach(([k, v]) => {
+        if (k === "anuncios") return; // tratado a parte, e uma lista
         inicial[k] = v === null || v === undefined ? "" : String(v);
       });
       setForm(inicial);
+      setAnuncios(Array.isArray(p.anuncios) ? (p.anuncios as Anuncio[]) : []);
     }
     setFornecedores((forns as Fornecedor[]) ?? []);
+    setCanais((cans as Canal[]) ?? []);
     setLoading(false);
   }, [id]);
 
@@ -110,6 +124,9 @@ export function FichaClient({ id }: { id: string }) {
       if (NUMERICOS.includes(k)) payload[k] = v === "" ? null : parseFloat(v.replace(",", ".")) || 0;
       else payload[k] = v === "" ? null : v;
     });
+
+    // os blocos de anuncio vao como lista, ignorando os que ficaram em branco
+    payload.anuncios = anuncios.filter((a) => a.titulo.trim() || a.descricao.trim());
 
     const { error } = await supabase.from("ibk_produtos").update(payload).eq("id", id);
     if (error) { setErro(error.message); setSalvando(false); return; }
@@ -220,17 +237,110 @@ export function FichaClient({ id }: { id: string }) {
         )}
 
         {aba === "anuncio" && (
-          <Grade>
-            <Campo label="Título do anúncio" larga dica="o que aparece na busca do marketplace; use as palavras que a cliente digita">
-              <input value={form.titulo_anuncio ?? ""} onChange={(e) => set("titulo_anuncio", e.target.value)} placeholder="Kit 4 Peças Conjunto Infantil Verão Menino" className={inp} maxLength={120} />
-            </Campo>
-            <Campo label="Descrição" larga dica="detalhe tecido, tamanhos, o que vem no kit e como lavar">
-              <textarea value={form.descricao_longa ?? ""} onChange={(e) => set("descricao_longa", e.target.value)} rows={7} className={inp} />
-            </Campo>
-            <Campo label="Palavras-chave" larga dica="separadas por vírgula, ajudam na busca interna do marketplace">
-              <input value={form.palavras_chave ?? ""} onChange={(e) => set("palavras_chave", e.target.value)} placeholder="conjunto infantil, roupa menino, kit verão" className={inp} />
-            </Campo>
-          </Grade>
+          <>
+            <div className="mb-4">
+              <Campo label="Palavras-chave" larga dica="separadas por vírgula, valem para todos os canais">
+                <input value={form.palavras_chave ?? ""} onChange={(e) => set("palavras_chave", e.target.value)} placeholder="conjunto infantil, roupa menino, kit verão" className={inp} />
+              </Campo>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--purple)]/10 pt-4">
+              <div>
+                <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
+                  Textos por canal
+                </h2>
+                <p className="text-xs text-[var(--ink)]/55">
+                  Cada canal tem um limite de título. Escreva uma versão para cada lugar onde você anuncia.
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  setAnuncios((a) => [
+                    ...a,
+                    { uso: canais[0]?.nome ?? "Outro", titulo: "", descricao: "" },
+                  ])
+                }
+                className="rounded-xl bg-[var(--purple)]/8 px-4 py-2 text-sm font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16"
+              >
+                + adicionar texto
+              </button>
+            </div>
+
+            {anuncios.length === 0 && (
+              <p className="mt-4 rounded-2xl border-2 border-dashed border-[var(--purple)]/20 p-5 text-center text-sm text-[var(--ink)]/50">
+                nenhum texto ainda. clique em &quot;+ adicionar texto&quot; para criar o primeiro.
+              </p>
+            )}
+
+            <div className="mt-4 flex flex-col gap-4">
+              {anuncios.map((a, i) => {
+                const limite = canais.find((c) => c.nome === a.uso)?.limite_titulo ?? 0;
+                const excedeu = limite > 0 && a.titulo.length > limite;
+                const trocar = (patch: Partial<Anuncio>) =>
+                  setAnuncios((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+                return (
+                  <div key={i} className="rounded-2xl border-2 border-[var(--purple)]/15 bg-[var(--cream)]/60 p-4">
+                    <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                      <Campo label="Canal">
+                        <select value={a.uso} onChange={(e) => trocar({ uso: e.target.value })} className={`${inp} w-44`}>
+                          {/* mantem o valor salvo mesmo se o canal foi desativado depois */}
+                          {!canais.some((c) => c.nome === a.uso) && <option value={a.uso}>{a.uso}</option>}
+                          {canais.map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
+                        </select>
+                      </Campo>
+                      <button
+                        onClick={() => setAnuncios((arr) => arr.filter((_, idx) => idx !== i))}
+                        className="mb-1 text-xs font-bold text-red-400 hover:text-red-600"
+                      >
+                        remover
+                      </button>
+                    </div>
+
+                    <label className="flex flex-col gap-1">
+                      <span className="flex items-center justify-between text-[10px] font-bold uppercase text-[var(--ink)]/45">
+                        <span>Título</span>
+                        <span className={excedeu ? "text-red-500" : "text-[var(--ink)]/40"}>
+                          {a.titulo.length}{limite > 0 ? ` / ${limite}` : ""}
+                        </span>
+                      </span>
+                      <input
+                        value={a.titulo}
+                        onChange={(e) => trocar({ titulo: e.target.value })}
+                        placeholder="Kit 4 Peças Conjunto Infantil Verão Menino"
+                        className={`${inp} ${excedeu ? "border-red-400" : ""}`}
+                      />
+                      {excedeu && (
+                        <span className="text-[11px] text-red-500">
+                          passou do limite do canal; o texto vai aparecer cortado
+                        </span>
+                      )}
+                    </label>
+
+                    <label className="mt-3 flex flex-col gap-1">
+                      <span className="flex items-center justify-between text-[10px] font-bold uppercase text-[var(--ink)]/45">
+                        <span>Descrição</span>
+                        <span className="text-[var(--ink)]/40">{a.descricao.length}</span>
+                      </span>
+                      <textarea
+                        value={a.descricao}
+                        onChange={(e) => trocar({ descricao: e.target.value })}
+                        rows={6}
+                        placeholder="Tecido, tamanhos disponíveis, o que vem no kit e como lavar."
+                        className={inp}
+                      />
+                    </label>
+
+                    <button
+                      onClick={() => navigator.clipboard?.writeText(`${a.titulo}\n\n${a.descricao}`)}
+                      className="mt-2 text-xs font-bold text-[var(--purple)] hover:underline"
+                    >
+                      copiar título e descrição
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {aba === "especificacoes" && (

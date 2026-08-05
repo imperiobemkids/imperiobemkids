@@ -10,6 +10,7 @@ export type Canal = {
   taxa_pct: number;
   taxa_fixa: number;
   insumo_custo: number;
+  limite_titulo: number | null;
   ordem: number;
   ativo: boolean;
   obs: string | null;
@@ -19,8 +20,8 @@ const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const num = (s: string) => parseFloat(s.replace(",", ".")) || 0;
 
-type Form = { nome: string; taxaPct: string; taxaFixa: string; insumo: string; obs: string };
-const vazio: Form = { nome: "", taxaPct: "", taxaFixa: "0", insumo: "0,40", obs: "" };
+type Form = { nome: string; taxaPct: string; taxaFixa: string; insumo: string; limiteTitulo: string; obs: string };
+const vazio: Form = { nome: "", taxaPct: "", taxaFixa: "0", insumo: "0,40", limiteTitulo: "0", obs: "" };
 
 export function CanaisClient() {
   const [rows, setRows] = useState<Canal[]>([]);
@@ -54,6 +55,7 @@ export function CanaisClient() {
       taxaPct: String(c.taxa_pct * 100).replace(".", ","),
       taxaFixa: String(c.taxa_fixa).replace(".", ","),
       insumo: String(c.insumo_custo).replace(".", ","),
+      limiteTitulo: String(c.limite_titulo ?? 0),
       obs: c.obs ?? "",
     });
   };
@@ -67,6 +69,7 @@ export function CanaisClient() {
       taxa_pct: num(form.taxaPct) / 100,
       taxa_fixa: num(form.taxaFixa),
       insumo_custo: num(form.insumo),
+      limite_titulo: Math.round(num(form.limiteTitulo)),
       obs: form.obs.trim() || null,
     };
     const res = editId
@@ -110,6 +113,7 @@ export function CanaisClient() {
           <Campo label="Comissão %"><input value={form.taxaPct} onChange={(e) => setForm({ ...form, taxaPct: e.target.value })} placeholder="20" className={`${inputCls} w-20`} /></Campo>
           <Campo label="Tarifa fixa"><input value={form.taxaFixa} onChange={(e) => setForm({ ...form, taxaFixa: e.target.value })} placeholder="0" className={`${inputCls} w-20`} /></Campo>
           <Campo label="Embalagem"><input value={form.insumo} onChange={(e) => setForm({ ...form, insumo: e.target.value })} placeholder="0,40" className={`${inputCls} w-20`} /></Campo>
+          <Campo label="Limite do título"><input value={form.limiteTitulo} onChange={(e) => setForm({ ...form, limiteTitulo: e.target.value })} placeholder="0" className={`${inputCls} w-24`} /></Campo>
           <Campo label="Observação"><input value={form.obs} onChange={(e) => setForm({ ...form, obs: e.target.value })} className={`${inputCls} w-56`} /></Campo>
           <button onClick={salvar} className="rounded-xl bg-[var(--purple)] px-4 py-2 text-sm font-extrabold text-white hover:bg-[var(--purple-dark)]">salvar</button>
           <button onClick={() => { setEditId(null); setNovo(false); }} className="rounded-xl bg-[var(--purple)]/8 px-4 py-2 text-sm font-bold text-[var(--purple)]">cancelar</button>
@@ -126,14 +130,15 @@ export function CanaisClient() {
               <th className="p-3">Comissão</th>
               <th className="p-3">Tarifa fixa</th>
               <th className="p-3">Embalagem</th>
+              <th className="p-3">Limite título</th>
               <th className="p-3">Situação</th>
               <th className="p-3"></th>
             </tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={6} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
+            {loading && (<tr><td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={6} className="p-6 text-center text-[var(--ink)]/50">nenhum canal. rode a migration 0009 ou cadastre um.</td></tr>
+              <tr><td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">nenhum canal. rode a migration 0009 ou cadastre um.</td></tr>
             )}
             {rows.map((c) => (
               <tr key={c.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${c.ativo ? "" : "opacity-50"}`}>
@@ -144,6 +149,7 @@ export function CanaisClient() {
                 <td className="p-3">{Math.round(c.taxa_pct * 1000) / 10}%</td>
                 <td className="p-3">{brl(c.taxa_fixa)}</td>
                 <td className="p-3">{brl(c.insumo_custo)}</td>
+                <td className="p-3">{c.limite_titulo ? `${c.limite_titulo} car.` : "-"}</td>
                 <td className="p-3">
                   <button onClick={() => alternarAtivo(c)} className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${c.ativo ? "bg-emerald-100 text-emerald-700" : "bg-[var(--ink)]/10 text-[var(--ink)]/50"}`}>
                     {c.ativo ? "ativo" : "inativo"}
