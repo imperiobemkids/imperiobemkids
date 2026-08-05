@@ -23,10 +23,10 @@ export type Post = {
 
 export const POSTS: Post[] = [
   {
-    slug: "guia-de-tamanhos-roupa-infantil",
-    titulo: "Guia de tamanhos de roupa infantil: como acertar de primeira",
+    slug: "tabela-de-tamanhos-roupa-infantil",
+    titulo: "Tabela de tamanhos de roupa infantil por idade e altura",
     resumo:
-      "A dúvida que mais chega no nosso WhatsApp. Uma tabela de referência e o jeito simples de medir sem erro.",
+      "A dúvida que mais chega no nosso WhatsApp. Tabela de RN ao 10 e o jeito simples de medir a criança sem errar.",
     data: "2026-08-05",
     emoji: "📏",
     leitura: "4 min",
@@ -99,7 +99,7 @@ export const POSTS: Post[] = [
   },
   {
     slug: "quantas-roupas-crianca-precisa",
-    titulo: "Quantas roupas uma criança realmente precisa?",
+    titulo: "Quantas roupas uma criança precisa? O enxoval que basta",
     resumo:
       "Guarda-roupa lotado e a criança usando sempre as mesmas 5 peças. Como montar um enxoval enxuto que funciona.",
     data: "2026-08-05",
@@ -152,8 +152,8 @@ export const POSTS: Post[] = [
     ],
   },
   {
-    slug: "como-fazer-roupa-infantil-durar-mais",
-    titulo: "Como fazer a roupa infantil durar mais",
+    slug: "como-lavar-roupa-infantil-sem-desbotar",
+    titulo: "Como lavar roupa infantil sem desbotar nem descascar a estampa",
     resumo:
       "Mancha de suco, estampa descascando, malha desbotada. Cuidados simples que dobram a vida útil das peças.",
     data: "2026-08-05",

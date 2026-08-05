@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { Assistant } from "../Assistant";
+import { jsonLdScript, listaDeProdutos, perguntas, FAQ } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Peça já",
+  // titulo escrito para a busca ("kit de roupa infantil"), nao so para a marca
+  title: "Kit de roupa infantil menino e menina | 4 peças por R$ 49,90",
   description:
-    "Kits de roupa infantil com pronta entrega. Peça pelo WhatsApp ou compre na nossa lojinha na Shopee.",
+    "Kit com 4 peças de roupa infantil de verão, para menino e menina, por R$ 49,90. Pronta entrega. Peça pelo WhatsApp ou compre na nossa loja na Shopee.",
+  alternates: { canonical: "/pedido" },
+  openGraph: {
+    title: "Kit de roupa infantil: 4 peças por R$ 49,90",
+    description: "Roupa infantil de verão com curadoria, para menino e menina. Pronta entrega.",
+    images: ["/produtos/kit-verao-menino.jpg"],
+  },
 };
 
 /*
@@ -29,15 +37,25 @@ const WHATSAPP = "https://wa.me/5511947956479?text=" +
 const LOJA_SHOPEE =
   "https://shopee.com.br/douglasben?categoryId=100633&entryPoint=ShopByPDP&itemId=58265431662";
 
+const GRUPO_ACHADINHOS = "https://chat.whatsapp.com/GKQ58djmnyGHG2HMrPUxYb";
+
 const LINKS: BioLink[] = [
+  {
+    href: GRUPO_ACHADINHOS,
+    emoji: "🎁",
+    title: "Grupo de Achadinhos",
+    desc: "as promoções caem aqui primeiro, entra que é de graça",
+    accent: "var(--mint)",
+    featured: true,
+    anchor: "promos",
+  },
   {
     href: WHATSAPP,
     emoji: "💬",
     title: "Pedir pelo WhatsApp",
     desc: "fala direto com a gente e monta seu pedido",
-    accent: "var(--mint)",
+    accent: "var(--teal)",
     featured: true,
-    anchor: "promos",
   },
   {
     href: LOJA_SHOPEE,
@@ -299,6 +317,7 @@ function VitrineSecao({ vitrine }: { vitrine: Vitrine }) {
 export default function Home() {
   const destaque = LINKS.filter((l) => l.featured);
   const redes = LINKS.filter((l) => !l.featured);
+  const todosProdutos = VITRINES.flatMap((v) => v.produtos);
 
   return (
     <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center px-5 pb-28 pt-8">
@@ -350,11 +369,39 @@ export default function Home() {
         ))}
       </div>
 
+      {/* perguntas frequentes: responde a duvida antes da compra e alimenta o snippet da busca */}
+      <section className="relative z-10 mt-10 w-full">
+        <h2 className="mb-3 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
+          Perguntas frequentes
+        </h2>
+        <div className="flex flex-col gap-2">
+          {FAQ.map((f) => (
+            <details key={f.pergunta} className="group rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+              <summary className="cursor-pointer list-none text-sm font-bold text-[var(--purple-dark)] marker:hidden">
+                <span className="mr-2 inline-block text-[var(--purple)] transition-transform group-open:rotate-90">▸</span>
+                {f.pergunta}
+              </summary>
+              <p className="mt-2 pl-5 text-sm leading-relaxed text-[var(--ink)]/75">{f.resposta}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       <footer className="relative z-10 mt-10 text-center">
         <p className="font-[family-name:var(--font-baloo)] text-sm font-semibold text-[var(--purple)]/50">
           Império Bem Kids
         </p>
+        <p className="mt-1 text-xs text-[var(--ink)]/35">
+          Powered by{" "}
+          <a href="https://audaztiva.com" target="_blank" rel="noopener noreferrer" className="font-bold text-[var(--purple)]/60 hover:underline">
+            RichardKhalid
+          </a>
+        </p>
       </footer>
+
+      {/* dados estruturados: produtos com preco e perguntas frequentes */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(listaDeProdutos(todosProdutos))} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(perguntas(FAQ))} />
 
       {/* chat que direciona a cliente */}
       <Assistant />

@@ -5,9 +5,10 @@ import { SiteFooter } from "../SiteFooter";
 import { POSTS, formatarData } from "@/lib/posts";
 
 export const metadata: Metadata = {
-  title: "Blog",
+  title: "Dicas de roupa infantil: tamanhos, enxoval e cuidados",
   description:
-    "Dicas práticas sobre roupa infantil: guia de tamanhos, quantas peças a criança precisa e como fazer a roupa durar mais.",
+    "Guia de tamanhos de roupa infantil, quantas peças a criança realmente precisa e como fazer a roupa durar mais. Conteúdo prático, sem enrolação.",
+  alternates: { canonical: "/blog" },
 };
 
 export default function BlogPage() {

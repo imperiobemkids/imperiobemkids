@@ -3,11 +3,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
+import { jsonLdScript, organizacao } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Império Bem Kids | Moda e achadinhos infantis",
+  title: "Roupa infantil com preço que cabe no bolso | Império Bem Kids",
   description:
-    "Império Bem Kids: roupas, brinquedos e achadinhos para o universo infantil, escolhidos com carinho de quem entende de criança.",
+    "Kits de roupa infantil para menino e menina, escolhidos peça por peça. Curadoria de verdade, pronta entrega e atendimento pelo WhatsApp.",
+  alternates: { canonical: "/" },
 };
 
 /*
@@ -53,6 +55,8 @@ export default function Home() {
       </div>
     </main>
     <SiteFooter />
+    {/* identifica a loja para busca e IAs */}
+    <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(organizacao)} />
     </>
   );
 }

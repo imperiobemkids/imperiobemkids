@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "../../SiteHeader";
 import { SiteFooter } from "../../SiteFooter";
 import { POSTS, getPost, formatarData, type Bloco } from "@/lib/posts";
+import { jsonLdScript, artigo, migalhas } from "@/lib/seo";
 
 // gera as rotas dos posts no build
 export function generateStaticParams() {
@@ -22,7 +23,13 @@ export async function generateMetadata({
   return {
     title: post.titulo,
     description: post.resumo,
-    openGraph: { title: post.titulo, description: post.resumo },
+    alternates: { canonical: `/blog/${post.slug}` },
+    openGraph: {
+      title: post.titulo,
+      description: post.resumo,
+      type: "article",
+      publishedTime: post.data,
+    },
   };
 }
 
@@ -167,6 +174,19 @@ export default async function PostPage({
       </main>
 
       <SiteFooter />
+
+      {/* dados estruturados do artigo e da trilha de navegacao */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(artigo(post))} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLdScript(
+          migalhas([
+            { nome: "Início", url: "/" },
+            { nome: "Blog", url: "/blog" },
+            { nome: post.titulo, url: `/blog/${post.slug}` },
+          ]),
+        )}
+      />
     </>
   );
 }
