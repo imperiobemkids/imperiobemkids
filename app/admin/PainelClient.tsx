@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "./SetupCard";
+import { GRUPOS } from "./AdminNav";
 
 type Produto = {
   id: string;
@@ -46,16 +47,6 @@ const noMes = (iso: string) => {
   return d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth();
 };
 
-const CARDS = [
-  { href: "/admin/estoque", emoji: "📦", titulo: "Estoque" },
-  { href: "/admin/compras", emoji: "🛍️", titulo: "Compras" },
-  { href: "/admin/vendas", emoji: "🧾", titulo: "Vendas" },
-  { href: "/admin/financeiro", emoji: "💰", titulo: "Financeiro" },
-  { href: "/admin/conciliacao", emoji: "🔎", titulo: "Conciliação" },
-  { href: "/admin/canais", emoji: "🏬", titulo: "Canais" },
-  { href: "/admin/fornecedores", emoji: "🏭", titulo: "Fornecedores" },
-  { href: "/admin/simulador", emoji: "🧮", titulo: "Precificação" },
-];
 
 export function PainelClient() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -175,17 +166,26 @@ export function PainelClient() {
         </div>
       )}
 
-      {/* atalhos */}
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {CARDS.map((c) => (
-          <Link
-            key={c.href}
-            href={c.href}
-            className="flex items-center gap-3 rounded-2xl border-2 border-transparent bg-white p-3 shadow-[0_4px_0_rgba(109,40,184,0.1)] transition-all hover:-translate-y-0.5 hover:border-[var(--purple)]"
-          >
-            <span className="text-xl">{c.emoji}</span>
-            <span className="font-[family-name:var(--font-baloo)] font-bold text-[var(--purple-dark)]">{c.titulo}</span>
-          </Link>
+      {/* atalhos agrupados por area, na mesma ordem do menu */}
+      <div className="mt-6 flex flex-col gap-5">
+        {GRUPOS.map((g) => (
+          <div key={g.nome}>
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/40">
+              {g.nome}
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {g.itens.map((c) => (
+                <Link
+                  key={c.href}
+                  href={c.href}
+                  className="flex items-center gap-3 rounded-2xl border-2 border-transparent bg-white p-3 shadow-[0_4px_0_rgba(109,40,184,0.1)] transition-all hover:-translate-y-0.5 hover:border-[var(--purple)]"
+                >
+                  <span className="text-xl">{c.emoji}</span>
+                  <span className="font-[family-name:var(--font-baloo)] font-bold text-[var(--purple-dark)]">{c.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
