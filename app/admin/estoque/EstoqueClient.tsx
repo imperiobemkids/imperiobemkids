@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
@@ -60,7 +61,6 @@ export function EstoqueClient() {
   const [salvando, setSalvando] = useState(false);
 
   const [aberto, setAberto] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Form>(formVazio);
   const [kardex, setKardex] = useState<Produto | null>(null);
 
@@ -86,19 +86,8 @@ export function EstoqueClient() {
 
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
 
-  const abrirNovo = () => { setEditId(null); setForm(formVazio); setErro(""); setAberto(true); };
-  const abrirEdicao = (p: Produto) => {
-    setEditId(p.id);
-    setForm({
-      nome: p.nome ?? "", categoria: p.categoria ?? "",
-      linha: p.linha ?? "", genero: p.genero ?? "", tamanho: p.tamanho ?? "",
-      custo: String(p.custo_unit).replace(".", ","),
-      qtdAtual: String(p.qtd_atual), qtdInicial: String(p.qtd_inicial),
-      fornecedorId: p.fornecedor_id ?? "",
-      estoqueMinimo: String(p.estoque_minimo ?? 3),
-    });
-    setErro(""); setAberto(true);
-  };
+  // o modal cadastra produto novo; a edicao completa acontece na ficha (/admin/estoque/[id])
+  const abrirNovo = () => { setForm(formVazio); setErro(""); setAberto(true); };
 
   const salvar = async () => {
     if (!supabase) return;
@@ -123,35 +112,17 @@ export function EstoqueClient() {
       fornecedor_id: form.fornecedorId || null,
       estoque_minimo: parseInt(form.estoqueMinimo, 10) || 0,
     };
-    // na edicao a quantidade vai pelo motor de estoque, para registrar o ajuste no kardex
-    const { qtd_atual, ...semQtd } = payload;
-    const res = editId
-      ? await supabase.from("ibk_produtos").update(semQtd).eq("id", editId)
-      : await supabase.from("ibk_produtos").insert(payload).select("id").single();
-    // produto novo cadastrado a mao: registra o saldo inicial no kardex
-    if (!res.error && !editId && res.data) {
+    const res = await supabase.from("ibk_produtos").insert(payload).select("id").single();
+    // registra o saldo inicial no kardex
+    if (!res.error && res.data) {
       await supabase.from("ibk_estoque_mov").insert({
         produto_id: (res.data as { id: string }).id,
         tipo: "entrada", origem: "inicial", qtd: qtdAtual, custo_unit: custo,
         saldo_depois: qtdAtual, custo_medio_depois: custo, obs: "cadastro manual",
       });
     }
-    if (!res.error && editId) {
-      try {
-        await ajusteEstoque(editId, qtd_atual, "correção pelo cadastro do produto");
-      } catch { /* o cadastro ja foi salvo; o ajuste e complementar */ }
-    }
     setSalvando(false);
     if (res.error) { setErro(res.error.message); return; }
-    setAberto(false);
-    carregar();
-  };
-
-  const arquivar = async () => {
-    if (!supabase || !editId) return;
-    if (!confirm("Arquivar este produto? Ele sai da lista de estoque.")) return;
-    const { error } = await supabase.from("ibk_produtos").update({ ativo: false }).eq("id", editId);
-    if (error) { setErro(error.message); return; }
     setAberto(false);
     carregar();
   };
@@ -218,7 +189,9 @@ export function EstoqueClient() {
               return (
                 <tr key={p.id} className="border-b border-[var(--purple)]/6 last:border-0">
                   <td className="p-3">
-                    <div className="font-semibold text-[var(--ink)]">{nomeExibido(p)}</div>
+                    <Link href={`/admin/estoque/${p.id}`} className="font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
+                      {nomeExibido(p)}
+                    </Link>
                     <div className="text-xs text-[var(--ink)]/45">
                       {[p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "", p.genero, p.tamanho && `tam ${p.tamanho}`].filter(Boolean).join(" · ")}
                     </div>
@@ -238,7 +211,9 @@ export function EstoqueClient() {
                   <td className="p-3">{giro}%</td>
                   <td className="p-3">
                     <div className="flex gap-1.5">
-                      <button onClick={() => abrirEdicao(p)} className="rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">editar</button>
+                      <Link href={`/admin/estoque/${p.id}`} className="rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
+                        abrir ficha
+                      </Link>
                       <button onClick={() => setKardex(p)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)]" title="extrato de movimentações">extrato</button>
                     </div>
                   </td>
@@ -258,7 +233,7 @@ export function EstoqueClient() {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" onClick={() => setAberto(false)}>
           <div className="mt-6 w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-4 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
-              {editId ? "Editar produto" : "Novo produto"}
+              Novo produto
             </h2>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
@@ -314,9 +289,6 @@ export function EstoqueClient() {
                 {salvando ? "salvando..." : "salvar"}
               </button>
               <button onClick={() => setAberto(false)} className="rounded-xl bg-[var(--purple)]/8 px-4 py-2.5 text-sm font-bold text-[var(--purple)]">cancelar</button>
-              {editId && (
-                <button onClick={arquivar} className="ml-auto rounded-xl px-3 py-2.5 text-sm font-bold text-red-400 hover:text-red-600">arquivar</button>
-              )}
             </div>
           </div>
         </div>
