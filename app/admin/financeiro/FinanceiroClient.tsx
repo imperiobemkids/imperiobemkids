@@ -13,6 +13,8 @@ type Mov = {
   descricao: string | null;
   pago: boolean;
   vencimento: string | null;
+  forma_pagamento: string | null;
+  documento: string | null;
 };
 
 const CATEGORIAS = ["mercadoria", "insumo", "capex", "venda", "taxa_shopee", "frete", "ads", "outro"];
@@ -42,6 +44,10 @@ export function FinanceiroClient() {
   const [descricao, setDescricao] = useState("");
   const [pago, setPago] = useState(true);
   const [vencimento, setVencimento] = useState("");
+  const hoje = new Date().toISOString().slice(0, 10);
+  const [data, setData] = useState(hoje);
+  const [formaPagamento, setFormaPagamento] = useState("");
+  const [documento, setDocumento] = useState("");
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
@@ -76,9 +82,13 @@ export function FinanceiroClient() {
       tipo,
       categoria,
       valor: v,
+      data,
       descricao: descricao.trim() || null,
       pago,
       vencimento: vencimento || null,
+      forma_pagamento: formaPagamento || null,
+      documento: documento.trim() || null,
+      data_pagamento: pago ? data : null,
     });
     setSalvando(false);
     if (error) {
@@ -88,6 +98,8 @@ export function FinanceiroClient() {
     setValor("");
     setDescricao("");
     setVencimento("");
+    setDocumento("");
+    setData(hoje);
     carregar();
   };
 
@@ -139,6 +151,9 @@ export function FinanceiroClient() {
 
       {/* novo movimento */}
       <div className="mt-5 flex flex-wrap items-end gap-2 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+        <Campo label="Data">
+          <input type="date" value={data} onChange={(e) => setData(e.target.value)} className={inputCls} />
+        </Campo>
         <Campo label="Tipo">
           <select value={tipo} onChange={(e) => setTipo(e.target.value as "entrada" | "saida")} className={inputCls}>
             <option value="saida">Saída</option>
@@ -157,6 +172,19 @@ export function FinanceiroClient() {
         </Campo>
         <Campo label="Descrição">
           <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="opcional" className={`${inputCls} w-48`} />
+        </Campo>
+        <Campo label="Forma">
+          <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} className={inputCls}>
+            <option value="">nao informada</option>
+            <option value="pix">Pix</option>
+            <option value="cartao">Cartão</option>
+            <option value="boleto">Boleto</option>
+            <option value="dinheiro">Dinheiro</option>
+            <option value="transferencia">Transferência</option>
+          </select>
+        </Campo>
+        <Campo label="Documento">
+          <input value={documento} onChange={(e) => setDocumento(e.target.value)} placeholder="nota, recibo, pedido" className={`${inputCls} w-40`} />
         </Campo>
         <Campo label="Pago?">
           <select value={pago ? "s" : "n"} onChange={(e) => setPago(e.target.value === "s")} className={inputCls}>
@@ -205,6 +233,54 @@ export function FinanceiroClient() {
           </div>
         </div>
       )}
+
+      {/* extrato: os lancamentos em ordem de data */}
+      <div className="mt-5">
+        <h2 className="mb-2 font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
+          Últimos lançamentos
+        </h2>
+        <div className="overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+                <th className="p-3">Data</th>
+                <th className="p-3">Descrição</th>
+                <th className="hidden p-3 sm:table-cell">Categoria</th>
+                <th className="hidden p-3 lg:table-cell">Forma</th>
+                <th className="p-3">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (<tr><td colSpan={5} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
+              {!loading && movs.length === 0 && (
+                <tr><td colSpan={5} className="p-6 text-center text-[var(--ink)]/50">nenhum lançamento ainda.</td></tr>
+              )}
+              {movs.slice(0, 40).map((m) => (
+                <tr key={m.id} className="border-b border-[var(--purple)]/6 last:border-0">
+                  <td className="whitespace-nowrap p-3">{new Date(m.data + "T12:00:00").toLocaleDateString("pt-BR")}</td>
+                  <td className="p-3">
+                    <div className="text-[var(--ink)]">{m.descricao || catLabel(m.categoria)}</div>
+                    {m.documento && <div className="text-[11px] text-[var(--ink)]/45">{m.documento}</div>}
+                    {!m.pago && (
+                      <span className="mt-0.5 inline-block rounded-full bg-[var(--sun)]/40 px-2 py-0.5 text-[10px] font-extrabold uppercase text-[var(--ink)]">
+                        a pagar
+                      </span>
+                    )}
+                  </td>
+                  <td className="hidden p-3 text-[var(--ink)]/70 sm:table-cell">{catLabel(m.categoria)}</td>
+                  <td className="hidden p-3 capitalize text-[var(--ink)]/60 lg:table-cell">{m.forma_pagamento || "-"}</td>
+                  <td className={`whitespace-nowrap p-3 font-bold ${m.tipo === "entrada" ? "text-emerald-600" : "text-red-500"}`}>
+                    {m.tipo === "entrada" ? "+" : "−"} {brl(m.valor)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {movs.length > 40 && (
+          <p className="mt-2 text-xs text-[var(--ink)]/45">mostrando os 40 mais recentes de {movs.length}.</p>
+        )}
+      </div>
 
       {/* por categoria */}
       <div className="mt-5 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
