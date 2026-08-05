@@ -164,18 +164,22 @@ export function EstoqueClient() {
       {erro && !aberto && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
 
       {/* tabela */}
+      {/*
+        Colunas secundarias somem no celular para a tabela caber sem espremer.
+        A informacao completa continua na ficha do produto.
+      */}
       <div className="mt-5 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
-        <table className="w-full min-w-[720px] text-left text-sm">
+        <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
               <th className="p-3">Produto</th>
-              <th className="p-3">Categoria</th>
-              <th className="p-3">Fornecedor</th>
+              <th className="hidden p-3 lg:table-cell">Categoria</th>
+              <th className="hidden p-3 xl:table-cell">Fornecedor</th>
               <th className="p-3">Qtd</th>
-              <th className="p-3">Custo/un</th>
-              <th className="p-3">Custo posto</th>
-              <th className="p-3">Em estoque</th>
-              <th className="p-3">Giro</th>
+              <th className="hidden p-3 sm:table-cell">Custo/un</th>
+              <th className="hidden p-3 xl:table-cell">Custo posto</th>
+              <th className="hidden p-3 md:table-cell">Em estoque</th>
+              <th className="hidden p-3 lg:table-cell">Giro</th>
               <th className="p-3"></th>
             </tr>
           </thead>
@@ -196,8 +200,8 @@ export function EstoqueClient() {
                       {[p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "", p.genero, p.tamanho && `tam ${p.tamanho}`].filter(Boolean).join(" · ")}
                     </div>
                   </td>
-                  <td className="p-3 text-[var(--ink)]/70">{p.categoria || "-"}</td>
-                  <td className="p-3 text-[var(--ink)]/70">{p.fornecedor_id ? fornMap.get(p.fornecedor_id) ?? "-" : "-"}</td>
+                  <td className="hidden p-3 text-[var(--ink)]/70 lg:table-cell">{p.categoria || "-"}</td>
+                  <td className="hidden p-3 text-[var(--ink)]/70 xl:table-cell">{p.fornecedor_id ? fornMap.get(p.fornecedor_id) ?? "-" : "-"}</td>
                   <td className="p-3">
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => ajustar(p, -1)} className={stepCls}>−</button>
@@ -205,16 +209,17 @@ export function EstoqueClient() {
                       <button onClick={() => ajustar(p, 1)} className={stepCls}>+</button>
                     </div>
                   </td>
-                  <td className="p-3">{brl(p.custo_unit)}</td>
-                  <td className="p-3">{brl(p.custo_unit + INSUMO)}</td>
-                  <td className="p-3">{brl(p.qtd_atual * p.custo_unit)}</td>
-                  <td className="p-3">{giro}%</td>
+                  <td className="hidden p-3 sm:table-cell">{brl(p.custo_unit)}</td>
+                  <td className="hidden p-3 xl:table-cell">{brl(p.custo_unit + INSUMO)}</td>
+                  <td className="hidden p-3 md:table-cell">{brl(p.qtd_atual * p.custo_unit)}</td>
+                  <td className="hidden p-3 lg:table-cell">{giro}%</td>
                   <td className="p-3">
                     <div className="flex gap-1.5">
-                      <Link href={`/admin/estoque/${p.id}`} className="rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
-                        abrir ficha
+                      <Link href={`/admin/estoque/${p.id}`} className="whitespace-nowrap rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
+                        <span className="sm:hidden">ficha</span>
+                        <span className="hidden sm:inline">abrir ficha</span>
                       </Link>
-                      <button onClick={() => setKardex(p)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)]" title="extrato de movimentações">extrato</button>
+                      <button onClick={() => setKardex(p)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] sm:block" title="extrato de movimentações">extrato</button>
                     </div>
                   </td>
                 </tr>

@@ -399,13 +399,13 @@ export function VendasClient() {
 
       {/* lista de vendas */}
       <div className="mt-5 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
               <th className="p-3">Data</th>
               <th className="p-3">Tipo</th>
-              <th className="p-3">Canal</th>
-              <th className="p-3">Itens</th>
+              <th className="hidden p-3 sm:table-cell">Canal</th>
+              <th className="hidden p-3 md:table-cell">Itens</th>
               <th className="p-3">Preço</th>
               <th className="p-3">Lucro</th>
               <th className="p-3"></th>
@@ -436,8 +436,8 @@ export function VendasClient() {
                       </span>
                     )}
                   </td>
-                  <td className="p-3 capitalize">{v.canal}</td>
-                  <td className="p-3">{qtdItens}</td>
+                  <td className="hidden p-3 capitalize sm:table-cell">{v.canal}</td>
+                  <td className="hidden p-3 md:table-cell">{qtdItens}</td>
                   <td className={`p-3 ${v.devolvida ? "text-[var(--ink)]/40 line-through" : ""}`}>{brl(v.preco_venda)}</td>
                   <td className={`p-3 font-bold ${l >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l)}</td>
                   <td className="p-3">
