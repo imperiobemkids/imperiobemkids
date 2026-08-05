@@ -12,9 +12,9 @@ export function LogoutButton() {
         await supabase!.auth.signOut();
         router.replace("/portal");
       }}
-      className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold text-[var(--ink)]/60 transition-colors hover:bg-[var(--purple)]/8 hover:text-[var(--purple-dark)]"
+      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--ink)]/60 transition-colors hover:bg-red-50 hover:text-red-500"
     >
-      Sair
+      <span className="text-base">🚪</span> Sair
     </button>
   );
 }

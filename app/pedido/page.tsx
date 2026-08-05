@@ -391,12 +391,6 @@ export default function Home() {
         <p className="font-[family-name:var(--font-baloo)] text-sm font-semibold text-[var(--purple)]/50">
           Império Bem Kids
         </p>
-        <p className="mt-1 text-xs text-[var(--ink)]/35">
-          Powered by{" "}
-          <a href="https://audaztiva.com" target="_blank" rel="noopener noreferrer" className="font-bold text-[var(--purple)]/60 hover:underline">
-            RichardKhalid
-          </a>
-        </p>
       </footer>
 
       {/* dados estruturados: produtos com preco e perguntas frequentes */}

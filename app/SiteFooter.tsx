@@ -68,7 +68,7 @@ export function SiteFooter() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--purple)]/10 pt-5 text-xs text-[var(--ink)]/45">
           <span>© {new Date().getFullYear()} Império Bem Kids</span>
           <span>
-            Powered by{" "}
+            Produzido por{" "}
             <a
               href="https://audaztiva.com"
               target="_blank"
