@@ -5,7 +5,7 @@ import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Sobre a loja | Império Bem Kids",
+  title: "Sobre a loja",
   description:
     "Quem é o Império Bem Kids: uma lojinha que garimpa roupa infantil bonita e que cabe no bolso, escolhida peça por peça, com atendimento de gente de verdade.",
   alternates: { canonical: "/sobre" },
