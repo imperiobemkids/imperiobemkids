@@ -1,11 +1,20 @@
--- Preco por item da venda (antes o preco ficava so no total, entao vender dois
--- produtos diferentes na mesma venda nao registrava quanto foi cada um).
+-- Registro de venda no formato de caixa.
+--
+-- Problemas do modelo anterior:
+-- 1) o preco ficava so na venda, entao vender dois produtos diferentes nao
+--    registrava quanto foi cada um;
+-- 2) nao existia forma de pagamento;
+-- 3) o campo frete misturava duas coisas: o que o cliente paga (receita) e o
+--    que a loja paga (custo).
 -- Idempotente. Rodar no SQL Editor.
 
 alter table ibk_venda_itens add column if not exists preco_unit numeric not null default 0;
 
 alter table ibk_vendas add column if not exists desconto numeric not null default 0;
 alter table ibk_vendas add column if not exists cliente text;
+alter table ibk_vendas add column if not exists forma_pagamento text;
+alter table ibk_vendas add column if not exists frete_cobrado numeric not null default 0; -- pago pelo cliente
+-- o campo "frete" que ja existia continua sendo o frete PAGO PELA LOJA (custo)
 
 -- Vendas antigas: distribui o preco total entre os itens, para o historico nao zerar
 update ibk_venda_itens vi

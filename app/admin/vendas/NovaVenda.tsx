@@ -50,7 +50,10 @@ export function NovaVenda({
   const [data, setData] = useState(hoje);
   const [cliente, setCliente] = useState("");
   const [desconto, setDesconto] = useState("0");
-  const [frete, setFrete] = useState("0");
+  const [descontoPct, setDescontoPct] = useState("0");
+  const [freteCobrado, setFreteCobrado] = useState("0"); // pago pelo cliente, entra na receita
+  const [freteLoja, setFreteLoja] = useState("0"); // pago pela loja, e custo
+  const [formaPagamento, setFormaPagamento] = useState("");
   const [escolhido, setEscolhido] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
@@ -81,14 +84,39 @@ export function NovaVenda({
     setLinhas((ls) => ls.map((l) => (l.produto.id === id ? { ...l, ...patch } : l)));
   const remover = (id: string) => setLinhas((ls) => ls.filter((l) => l.produto.id !== id));
 
-  // totais
+  /*
+    Fechamento. O desconto e a fonte da verdade e o total sai dele, mas o campo
+    do total tambem e editavel: quando o Richard digita o valor que o cliente
+    pagou de fato (cupom da plataforma, negociacao), o desconto se ajusta sozinho.
+    Frete cobrado do cliente entra na receita; frete pago pela loja e custo.
+  */
   const subtotal = linhas.reduce((s, l) => s + l.precoUnit * l.qtd, 0);
-  const descontoN = num(desconto);
-  const freteN = num(frete);
-  const total = subtotal - descontoN + freteN;
+  const descontoN = Math.min(num(desconto), subtotal);
+  const freteCobradoN = num(freteCobrado);
+  const freteLojaN = num(freteLoja);
+  const total = subtotal - descontoN + freteCobradoN;
+
   const custoProdutos = linhas.reduce((s, l) => s + l.produto.custo_unit * l.qtd, 0);
   const comissao = total * taxaPct;
-  const lucro = total - comissao - taxaFixa - insumo - custoProdutos - freteN;
+  const lucro = total - comissao - taxaFixa - insumo - custoProdutos - freteLojaN;
+
+  // digitar o total ajusta o desconto; digitar o percentual ajusta o valor
+  const mudarTotal = (v: string) => {
+    const novo = num(v);
+    const d = Math.max(0, subtotal + freteCobradoN - novo);
+    setDesconto(String(Math.round(d * 100) / 100).replace(".", ","));
+    setDescontoPct(subtotal > 0 ? String(Math.round((d / subtotal) * 1000) / 10).replace(".", ",") : "0");
+  };
+  const mudarDescontoValor = (v: string) => {
+    setDesconto(v);
+    const d = num(v);
+    setDescontoPct(subtotal > 0 ? String(Math.round((d / subtotal) * 1000) / 10).replace(".", ",") : "0");
+  };
+  const mudarDescontoPct = (v: string) => {
+    setDescontoPct(v);
+    const d = (num(v) / 100) * subtotal;
+    setDesconto(String(Math.round(d * 100) / 100).replace(".", ","));
+  };
 
   const registrar = async () => {
     if (!supabase) return;
@@ -110,12 +138,14 @@ export function NovaVenda({
         canal_id: canalId || null,
         tipo: linhas.length > 1 ? "kit" : "avulso",
         cliente: cliente.trim() || null,
+        forma_pagamento: formaPagamento || null,
         preco_venda: total,
         desconto: descontoN,
         taxa_pct: taxaPct,
         taxa_fixa: taxaFixa,
         insumo_custo: insumo,
-        frete: freteN,
+        frete_cobrado: freteCobradoN,
+        frete: freteLojaN,
       })
       .select("id")
       .single();
@@ -155,7 +185,9 @@ export function NovaVenda({
     setLinhas([]);
     setCliente("");
     setDesconto("0");
-    setFrete("0");
+    setDescontoPct("0");
+    setFreteCobrado("0");
+    setFreteLoja("0");
     aoRegistrar();
   };
 
@@ -256,30 +288,75 @@ export function NovaVenda({
 
       {/* fechamento */}
       {linhas.length > 0 && (
-        <div className="mt-4 grid gap-4 border-t border-[var(--purple)]/10 pt-4 sm:grid-cols-2">
-          <div className="flex flex-wrap items-end gap-2">
-            <Campo label="Desconto">
-              <input value={desconto} onChange={(e) => setDesconto(e.target.value)} className={`${inp} w-24`} />
-            </Campo>
-            <Campo label="Frete">
-              <input value={frete} onChange={(e) => setFrete(e.target.value)} className={`${inp} w-24`} />
-            </Campo>
+        <div className="mt-4 grid gap-4 border-t border-[var(--purple)]/10 pt-4 lg:grid-cols-2">
+          {/* fechamento editavel */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--ink)]/70">Subtotal dos produtos</span>
+              <span className="font-bold text-[var(--ink)]">{brl(subtotal)}</span>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-2">
+              <Campo label="Desconto R$">
+                <input value={desconto} onChange={(e) => mudarDescontoValor(e.target.value)} className={`${inp} w-24`} />
+              </Campo>
+              <Campo label="Desconto %">
+                <input value={descontoPct} onChange={(e) => mudarDescontoPct(e.target.value)} className={`${inp} w-20`} />
+              </Campo>
+              <Campo label="Frete cobrado do cliente">
+                <input value={freteCobrado} onChange={(e) => setFreteCobrado(e.target.value)} className={`${inp} w-28`} />
+              </Campo>
+            </div>
+
+            {/* o total e editavel: digitar aqui recalcula o desconto */}
+            <label className="flex flex-col gap-1 rounded-xl bg-[var(--purple)]/8 p-3">
+              <span className="text-[10px] font-bold uppercase text-[var(--purple)]">
+                Total da venda (o que o cliente pagou)
+              </span>
+              <input
+                value={String(Math.round(total * 100) / 100).replace(".", ",")}
+                onChange={(e) => mudarTotal(e.target.value)}
+                className="w-full rounded-lg border-2 border-[var(--purple)]/30 bg-white px-3 py-2 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)] outline-none focus:border-[var(--purple)]"
+              />
+              <span className="text-[11px] text-[var(--ink)]/50">
+                pode digitar direto o valor do pedido; o desconto se ajusta sozinho
+              </span>
+            </label>
+
+            <div className="flex flex-wrap items-end gap-2">
+              <Campo label="Forma de pagamento">
+                <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} className={inp}>
+                  <option value="">nao informada</option>
+                  <option value="pix">Pix</option>
+                  <option value="cartao">Cartão</option>
+                  <option value="boleto">Boleto</option>
+                  <option value="dinheiro">Dinheiro</option>
+                  <option value="transferencia">Transferência</option>
+                  <option value="marketplace">Pelo marketplace</option>
+                </select>
+              </Campo>
+              <Campo label="Frete pago pela loja">
+                <input value={freteLoja} onChange={(e) => setFreteLoja(e.target.value)} className={`${inp} w-28`} />
+              </Campo>
+            </div>
           </div>
 
-          <div className="rounded-xl bg-[var(--cream)] p-3 text-sm">
-            <Linha2 rotulo="Subtotal dos produtos" valor={brl(subtotal)} />
-            {descontoN > 0 && <Linha2 rotulo="Desconto" valor={`− ${brl(descontoN)}`} />}
-            {freteN > 0 && <Linha2 rotulo="Frete" valor={`+ ${brl(freteN)}`} />}
-            <div className="my-2 border-t border-[var(--purple)]/15" />
+          {/* resultado */}
+          <div className="self-start rounded-xl bg-[var(--cream)] p-3 text-sm">
             <Linha2 rotulo="Total da venda" valor={brl(total)} forte />
             <div className="my-2 border-t border-[var(--purple)]/15" />
             <Linha2 rotulo={`Comissão ${canal?.nome ?? ""} (${Math.round(taxaPct * 100)}%)`} valor={`− ${brl(comissao)}`} sutil />
             {taxaFixa > 0 && <Linha2 rotulo="Tarifa fixa" valor={`− ${brl(taxaFixa)}`} sutil />}
             <Linha2 rotulo="Embalagem" valor={`− ${brl(insumo)}`} sutil />
             <Linha2 rotulo="Custo dos produtos" valor={`− ${brl(custoProdutos)}`} sutil />
-            {freteN > 0 && <Linha2 rotulo="Frete pago" valor={`− ${brl(freteN)}`} sutil />}
+            {freteLojaN > 0 && <Linha2 rotulo="Frete pago pela loja" valor={`− ${brl(freteLojaN)}`} sutil />}
             <div className="my-2 border-t border-[var(--purple)]/15" />
             <Linha2 rotulo="Lucro da venda" valor={brl(lucro)} forte positivo={lucro >= 0} />
+            {total > 0 && (
+              <p className="mt-1 text-right text-[11px] text-[var(--ink)]/50">
+                margem de {Math.round((lucro / total) * 100)}%
+              </p>
+            )}
           </div>
         </div>
       )}
