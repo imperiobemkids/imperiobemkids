@@ -23,11 +23,18 @@ export type ProdutoVenda = {
   qtd_atual: number;
 };
 
-type Linha = { produto: ProdutoVenda; qtd: number; precoUnit: number };
+/*
+  O preco fica como TEXTO no estado, nao como numero. Guardando numero, a cada
+  tecla o valor era convertido e devolvido formatado, entao "49," virava "49" e
+  a virgula sumia antes de digitar os centavos.
+*/
+type Linha = { produto: ProdutoVenda; qtd: number; precoTexto: string };
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-const num = (s: string) => parseFloat(s.replace(",", ".")) || 0;
+const num = (s: string) => parseFloat(String(s).replace(",", ".")) || 0;
+// numero para texto com virgula, usado so quando o sistema preenche o campo
+const txt = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
 
 export const rotulo = (p: ProdutoVenda) => {
   if (p.nome && p.nome.trim()) return p.nome.trim() + (p.tamanho ? ` · ${p.tamanho}` : "");
@@ -54,6 +61,8 @@ export function NovaVenda({
   const [freteCobrado, setFreteCobrado] = useState("0"); // pago pelo cliente, entra na receita
   const [freteLoja, setFreteLoja] = useState("0"); // pago pela loja, e custo
   const [formaPagamento, setFormaPagamento] = useState("");
+  const [totalTexto, setTotalTexto] = useState("0");
+  const [editandoTotal, setEditandoTotal] = useState(false);
   const [escolhido, setEscolhido] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
@@ -75,7 +84,7 @@ export function NovaVenda({
     setLinhas((ls) => {
       const existe = ls.find((l) => l.produto.id === p.id);
       if (existe) return ls.map((l) => (l.produto.id === p.id ? { ...l, qtd: l.qtd + 1 } : l));
-      return [...ls, { produto: p, qtd: 1, precoUnit: p.preco_venda ?? 0 }];
+      return [...ls, { produto: p, qtd: 1, precoTexto: p.preco_venda ? txt(p.preco_venda) : "" }];
     });
     setEscolhido("");
   };
@@ -90,7 +99,7 @@ export function NovaVenda({
     pagou de fato (cupom da plataforma, negociacao), o desconto se ajusta sozinho.
     Frete cobrado do cliente entra na receita; frete pago pela loja e custo.
   */
-  const subtotal = linhas.reduce((s, l) => s + l.precoUnit * l.qtd, 0);
+  const subtotal = linhas.reduce((s, l) => s + num(l.precoTexto) * l.qtd, 0);
   const descontoN = Math.min(num(desconto), subtotal);
   const freteCobradoN = num(freteCobrado);
   const freteLojaN = num(freteLoja);
@@ -100,22 +109,28 @@ export function NovaVenda({
   const comissao = total * taxaPct;
   const lucro = total - comissao - taxaFixa - insumo - custoProdutos - freteLojaN;
 
-  // digitar o total ajusta o desconto; digitar o percentual ajusta o valor
+  /*
+    O campo do total tem texto proprio. Enquanto esta em foco o sistema nao
+    reescreve nele, senao a virgula seria apagada a cada tecla (o total se
+    recalcula a partir do desconto que a propria digitacao acabou de mudar).
+  */
+  useEffect(() => {
+    if (!editandoTotal) setTotalTexto(txt(total));
+  }, [total, editandoTotal]);
+
   const mudarTotal = (v: string) => {
-    const novo = num(v);
-    const d = Math.max(0, subtotal + freteCobradoN - novo);
-    setDesconto(String(Math.round(d * 100) / 100).replace(".", ","));
-    setDescontoPct(subtotal > 0 ? String(Math.round((d / subtotal) * 1000) / 10).replace(".", ",") : "0");
+    setTotalTexto(v);
+    const d = Math.max(0, subtotal + freteCobradoN - num(v));
+    setDesconto(txt(d));
+    setDescontoPct(subtotal > 0 ? txt((d / subtotal) * 100) : "0");
   };
   const mudarDescontoValor = (v: string) => {
     setDesconto(v);
-    const d = num(v);
-    setDescontoPct(subtotal > 0 ? String(Math.round((d / subtotal) * 1000) / 10).replace(".", ",") : "0");
+    setDescontoPct(subtotal > 0 ? txt((num(v) / subtotal) * 100) : "0");
   };
   const mudarDescontoPct = (v: string) => {
     setDescontoPct(v);
-    const d = (num(v) / 100) * subtotal;
-    setDesconto(String(Math.round(d * 100) / 100).replace(".", ","));
+    setDesconto(txt((num(v) / 100) * subtotal));
   };
 
   const registrar = async () => {
@@ -160,7 +175,7 @@ export function NovaVenda({
         venda_id: venda.id,
         produto_id: l.produto.id,
         qtd: l.qtd,
-        preco_unit: l.precoUnit,
+        preco_unit: num(l.precoTexto),
       })),
     );
     if (e2) {
@@ -268,12 +283,14 @@ export function NovaVenda({
                   </td>
                   <td className="py-2 pr-2">
                     <input
-                      value={String(l.precoUnit).replace(".", ",")}
-                      onChange={(e) => mudar(l.produto.id, { precoUnit: num(e.target.value) })}
+                      inputMode="decimal"
+                      value={l.precoTexto}
+                      onChange={(e) => mudar(l.produto.id, { precoTexto: e.target.value })}
+                      placeholder="0,00"
                       className={`${inp} w-24`}
                     />
                   </td>
-                  <td className="py-2 pr-2 font-bold text-[var(--purple-dark)]">{brl(l.precoUnit * l.qtd)}</td>
+                  <td className="py-2 pr-2 font-bold text-[var(--purple-dark)]">{brl(num(l.precoTexto) * l.qtd)}</td>
                   <td className="py-2">
                     <button onClick={() => remover(l.produto.id)} className="text-xs font-bold text-red-400 hover:text-red-600">
                       remover
@@ -298,13 +315,13 @@ export function NovaVenda({
 
             <div className="flex flex-wrap items-end gap-2">
               <Campo label="Desconto R$">
-                <input value={desconto} onChange={(e) => mudarDescontoValor(e.target.value)} className={`${inp} w-24`} />
+                <input inputMode="decimal" value={desconto} onChange={(e) => mudarDescontoValor(e.target.value)} className={`${inp} w-24`} />
               </Campo>
               <Campo label="Desconto %">
-                <input value={descontoPct} onChange={(e) => mudarDescontoPct(e.target.value)} className={`${inp} w-20`} />
+                <input inputMode="decimal" value={descontoPct} onChange={(e) => mudarDescontoPct(e.target.value)} className={`${inp} w-20`} />
               </Campo>
               <Campo label="Frete cobrado do cliente">
-                <input value={freteCobrado} onChange={(e) => setFreteCobrado(e.target.value)} className={`${inp} w-28`} />
+                <input inputMode="decimal" value={freteCobrado} onChange={(e) => setFreteCobrado(e.target.value)} className={`${inp} w-28`} />
               </Campo>
             </div>
 
@@ -314,8 +331,12 @@ export function NovaVenda({
                 Total da venda (o que o cliente pagou)
               </span>
               <input
-                value={String(Math.round(total * 100) / 100).replace(".", ",")}
+                inputMode="decimal"
+                value={totalTexto}
                 onChange={(e) => mudarTotal(e.target.value)}
+                onFocus={() => setEditandoTotal(true)}
+                onBlur={() => setEditandoTotal(false)}
+                placeholder="0,00"
                 className="w-full rounded-lg border-2 border-[var(--purple)]/30 bg-white px-3 py-2 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)] outline-none focus:border-[var(--purple)]"
               />
               <span className="text-[11px] text-[var(--ink)]/50">
@@ -336,7 +357,7 @@ export function NovaVenda({
                 </select>
               </Campo>
               <Campo label="Frete pago pela loja">
-                <input value={freteLoja} onChange={(e) => setFreteLoja(e.target.value)} className={`${inp} w-28`} />
+                <input inputMode="decimal" value={freteLoja} onChange={(e) => setFreteLoja(e.target.value)} className={`${inp} w-28`} />
               </Campo>
             </div>
           </div>
