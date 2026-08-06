@@ -6,7 +6,7 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
 import { KardexModal } from "./KardexModal";
-import { DesdobrarGrade } from "./DesdobrarGrade";
+import { GerarVariacoes } from "./GerarVariacoes";
 
 type Produto = {
   id: string;
@@ -22,7 +22,12 @@ type Produto = {
   fornecedor_id: string | null;
   estoque_minimo: number | null;
   produto_pai_id: string | null;
-  e_grade: boolean;
+  cor: string | null;
+  tem_variacoes: boolean;
+  peso_bruto: number | null;
+  comprimento_cm: number | null;
+  largura_cm: number | null;
+  altura_cm: number | null;
   ativo: boolean;
 };
 
@@ -67,7 +72,7 @@ export function EstoqueClient() {
   const [aberto, setAberto] = useState(false);
   const [form, setForm] = useState<Form>(formVazio);
   const [kardex, setKardex] = useState<Produto | null>(null);
-  const [desdobrar, setDesdobrar] = useState<Produto | null>(null);
+  const [variar, setVariar] = useState<Produto | null>(null);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
@@ -213,11 +218,11 @@ export function EstoqueClient() {
                 <tr key={p.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${filho ? "bg-[var(--purple)]/[0.03]" : ""}`}>
                   <td className={`p-3 ${filho ? "pl-8" : ""}`}>
                     <Link href={`/admin/estoque/${p.id}`} className="font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
-                      {filho ? `tam ${p.tamanho ?? "?"}` : nomeExibido(p)}
+                      {filho ? ([p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ") || "variação") : nomeExibido(p)}
                     </Link>
-                    {p.e_grade && (
+                    {p.tem_variacoes && (
                       <span className="ml-2 rounded-full bg-[var(--purple)]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--purple)]">
-                        grade
+                        variações
                       </span>
                     )}
                     <div className="text-xs text-[var(--ink)]/45">
@@ -243,9 +248,9 @@ export function EstoqueClient() {
                         <span className="sm:hidden">ficha</span>
                         <span className="hidden sm:inline">abrir ficha</span>
                       </Link>
-                      {!filho && !p.e_grade && p.qtd_atual > 0 && (
-                        <button onClick={() => setDesdobrar(p)} className="hidden whitespace-nowrap rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] lg:block" title="separar por tamanho">
-                          tamanhos
+                      {!filho && !p.tem_variacoes && p.qtd_atual > 0 && (
+                        <button onClick={() => setVariar(p)} className="hidden whitespace-nowrap rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] lg:block" title="criar variações de tamanho e cor">
+                          variações
                         </button>
                       )}
                       <button onClick={() => setKardex(p)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] sm:block" title="extrato de movimentações">extrato</button>
@@ -262,11 +267,11 @@ export function EstoqueClient() {
         <KardexModal produtoId={kardex.id} titulo={nomeExibido(kardex)} onClose={() => setKardex(null)} />
       )}
 
-      {desdobrar && (
-        <DesdobrarGrade
-          produto={desdobrar}
-          onFechar={() => setDesdobrar(null)}
-          onPronto={() => { setDesdobrar(null); carregar(); }}
+      {variar && (
+        <GerarVariacoes
+          produto={variar}
+          onFechar={() => setVariar(null)}
+          onPronto={() => { setVariar(null); carregar(); }}
         />
       )}
 
