@@ -24,11 +24,12 @@ export type ProdutoVenda = {
 };
 
 /*
-  O preco fica como TEXTO no estado, nao como numero. Guardando numero, a cada
-  tecla o valor era convertido e devolvido formatado, entao "49," virava "49" e
-  a virgula sumia antes de digitar os centavos.
+  precoTexto guarda o TEXTO digitado, nao um numero: convertendo a cada tecla,
+  "49," virava "49" e a virgula sumia antes dos centavos.
+  A linha tem id proprio (nao o do produto) para o mesmo produto poder entrar
+  duas vezes com precos diferentes na mesma venda.
 */
-type Linha = { produto: ProdutoVenda; qtd: number; precoTexto: string };
+type Linha = { id: string; produto: ProdutoVenda; qtd: number; precoTexto: string };
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -77,21 +78,26 @@ export function NovaVenda({
   const taxaFixa = canal?.taxa_fixa ?? 0;
   const insumo = canal?.insumo_custo ?? 0.4;
 
+  // cada clique cria uma linha nova, mesmo se o produto ja estiver na venda
   const adicionar = () => {
     const p = produtos.find((x) => x.id === escolhido);
     if (!p) return;
     setErro("");
-    setLinhas((ls) => {
-      const existe = ls.find((l) => l.produto.id === p.id);
-      if (existe) return ls.map((l) => (l.produto.id === p.id ? { ...l, qtd: l.qtd + 1 } : l));
-      return [...ls, { produto: p, qtd: 1, precoTexto: p.preco_venda ? txt(p.preco_venda) : "" }];
-    });
+    setLinhas((ls) => [
+      ...ls,
+      {
+        id: crypto.randomUUID(),
+        produto: p,
+        qtd: 1,
+        precoTexto: p.preco_venda ? txt(p.preco_venda) : "",
+      },
+    ]);
     setEscolhido("");
   };
 
   const mudar = (id: string, patch: Partial<Linha>) =>
-    setLinhas((ls) => ls.map((l) => (l.produto.id === id ? { ...l, ...patch } : l)));
-  const remover = (id: string) => setLinhas((ls) => ls.filter((l) => l.produto.id !== id));
+    setLinhas((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const remover = (id: string) => setLinhas((ls) => ls.filter((l) => l.id !== id));
 
   /*
     Fechamento. O desconto e a fonte da verdade e o total sai dele, mas o campo
@@ -137,9 +143,15 @@ export function NovaVenda({
     if (!supabase) return;
     if (linhas.length === 0) return setErro("adicione ao menos um produto");
     if (total <= 0) return setErro("informe o preço dos produtos");
+    // o mesmo produto pode estar em varias linhas, entao soma antes de conferir o estoque
+    const porProduto = new Map<string, { p: ProdutoVenda; qtd: number }>();
     for (const l of linhas) {
-      if (l.qtd > l.produto.qtd_atual) {
-        return setErro(`estoque insuficiente de ${rotulo(l.produto)} (tem ${l.produto.qtd_atual})`);
+      const atual = porProduto.get(l.produto.id);
+      porProduto.set(l.produto.id, { p: l.produto, qtd: (atual?.qtd ?? 0) + l.qtd });
+    }
+    for (const { p, qtd } of porProduto.values()) {
+      if (qtd > p.qtd_atual) {
+        return setErro(`estoque insuficiente de ${rotulo(p)}: pedindo ${qtd}, tem ${p.qtd_atual}`);
       }
     }
     setErro("");
@@ -206,7 +218,7 @@ export function NovaVenda({
     aoRegistrar();
   };
 
-  const disponiveis = produtos.filter((p) => !linhas.some((l) => l.produto.id === p.id));
+  // a lista nao filtra o que ja foi adicionado: o mesmo produto pode entrar de novo
 
   return (
     <div className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
@@ -235,7 +247,7 @@ export function NovaVenda({
             className={`${inp} min-w-[200px]`}
           >
             <option value="">selecione...</option>
-            {disponiveis.map((p) => (
+            {produtos.map((p) => (
               <option key={p.id} value={p.id}>
                 {rotulo(p)} ({p.qtd_atual} em estoque)
               </option>
@@ -270,14 +282,14 @@ export function NovaVenda({
             </thead>
             <tbody>
               {linhas.map((l) => (
-                <tr key={l.produto.id} className="border-b border-[var(--purple)]/6 last:border-0">
+                <tr key={l.id} className="border-b border-[var(--purple)]/6 last:border-0">
                   <td className="py-2 pr-2 font-semibold text-[var(--ink)]">{rotulo(l.produto)}</td>
                   <td className="py-2 pr-2">
                     <input
                       type="number"
                       min={1}
                       value={l.qtd}
-                      onChange={(e) => mudar(l.produto.id, { qtd: parseInt(e.target.value, 10) || 1 })}
+                      onChange={(e) => mudar(l.id, { qtd: parseInt(e.target.value, 10) || 1 })}
                       className={`${inp} w-16`}
                     />
                   </td>
@@ -285,14 +297,14 @@ export function NovaVenda({
                     <input
                       inputMode="decimal"
                       value={l.precoTexto}
-                      onChange={(e) => mudar(l.produto.id, { precoTexto: e.target.value })}
+                      onChange={(e) => mudar(l.id, { precoTexto: e.target.value })}
                       placeholder="0,00"
                       className={`${inp} w-24`}
                     />
                   </td>
                   <td className="py-2 pr-2 font-bold text-[var(--purple-dark)]">{brl(num(l.precoTexto) * l.qtd)}</td>
                   <td className="py-2">
-                    <button onClick={() => remover(l.produto.id)} className="text-xs font-bold text-red-400 hover:text-red-600">
+                    <button onClick={() => remover(l.id)} className="text-xs font-bold text-red-400 hover:text-red-600">
                       remover
                     </button>
                   </td>
