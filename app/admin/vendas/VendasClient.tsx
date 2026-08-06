@@ -355,11 +355,10 @@ export function VendasClient() {
               )}
             </div>
           ))}
-          {tipo === "kit" && (
-            <button onClick={addItem} className="text-sm font-bold text-[var(--purple)] hover:text-[var(--purple-dark)]">
-              + adicionar item ao kit
-            </button>
-          )}
+          {/* um pedido pode ter varios produtos, seja avulso ou kit */}
+          <button onClick={addItem} className="text-sm font-bold text-[var(--purple)] hover:text-[var(--purple-dark)]">
+            + adicionar produto
+          </button>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--purple)]/10 pt-3">
