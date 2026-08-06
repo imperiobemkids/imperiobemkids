@@ -6,6 +6,7 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
 import { KardexModal } from "./KardexModal";
+import { DesdobrarGrade } from "./DesdobrarGrade";
 
 type Produto = {
   id: string;
@@ -15,10 +16,13 @@ type Produto = {
   genero: "menino" | "menina" | "unissex" | null;
   tamanho: string | null;
   custo_unit: number;
+  preco_venda: number | null;
   qtd_inicial: number;
   qtd_atual: number;
   fornecedor_id: string | null;
   estoque_minimo: number | null;
+  produto_pai_id: string | null;
+  e_grade: boolean;
   ativo: boolean;
 };
 
@@ -63,6 +67,7 @@ export function EstoqueClient() {
   const [aberto, setAberto] = useState(false);
   const [form, setForm] = useState<Form>(formVazio);
   const [kardex, setKardex] = useState<Produto | null>(null);
+  const [desdobrar, setDesdobrar] = useState<Produto | null>(null);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
@@ -139,6 +144,20 @@ export function EstoqueClient() {
     }
   };
 
+  /*
+    Ordena para a grade aparecer junta: o pai e, logo abaixo, os tamanhos dele.
+    Produtos sem grade seguem soltos na lista.
+  */
+  const filhosDe = (id: string) => rows.filter((r) => r.produto_pai_id === id);
+  const listaOrdenada: { p: Produto; filho: boolean }[] = [];
+  for (const r of rows) {
+    if (r.produto_pai_id) continue; // entra junto do pai
+    listaOrdenada.push({ p: r, filho: false });
+    for (const f of filhosDe(r.id).sort((a, b) => (a.tamanho ?? "").localeCompare(b.tamanho ?? "", "pt-BR", { numeric: true }))) {
+      listaOrdenada.push({ p: f, filho: true });
+    }
+  }
+
   const unidades = rows.reduce((s, p) => s + p.qtd_atual, 0);
   const valorEstoque = rows.reduce((s, p) => s + p.qtd_atual * p.custo_unit, 0);
   const fornMap = new Map(fornecedores.map((f) => [f.id, f.nome]));
@@ -188,14 +207,19 @@ export function EstoqueClient() {
             {!loading && rows.length === 0 && (
               <tr><td colSpan={9} className="p-6 text-center text-[var(--ink)]/50">nenhum produto. clique em "+ Novo produto".</td></tr>
             )}
-            {rows.map((p) => {
+            {listaOrdenada.map(({ p, filho }) => {
               const giro = p.qtd_inicial > 0 ? Math.round(((p.qtd_inicial - p.qtd_atual) / p.qtd_inicial) * 100) : 0;
               return (
-                <tr key={p.id} className="border-b border-[var(--purple)]/6 last:border-0">
-                  <td className="p-3">
+                <tr key={p.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${filho ? "bg-[var(--purple)]/[0.03]" : ""}`}>
+                  <td className={`p-3 ${filho ? "pl-8" : ""}`}>
                     <Link href={`/admin/estoque/${p.id}`} className="font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
-                      {nomeExibido(p)}
+                      {filho ? `tam ${p.tamanho ?? "?"}` : nomeExibido(p)}
                     </Link>
+                    {p.e_grade && (
+                      <span className="ml-2 rounded-full bg-[var(--purple)]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--purple)]">
+                        grade
+                      </span>
+                    )}
                     <div className="text-xs text-[var(--ink)]/45">
                       {[p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "", p.genero, p.tamanho && `tam ${p.tamanho}`].filter(Boolean).join(" · ")}
                     </div>
@@ -219,6 +243,11 @@ export function EstoqueClient() {
                         <span className="sm:hidden">ficha</span>
                         <span className="hidden sm:inline">abrir ficha</span>
                       </Link>
+                      {!filho && !p.e_grade && p.qtd_atual > 0 && (
+                        <button onClick={() => setDesdobrar(p)} className="hidden whitespace-nowrap rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] lg:block" title="separar por tamanho">
+                          tamanhos
+                        </button>
+                      )}
                       <button onClick={() => setKardex(p)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] sm:block" title="extrato de movimentações">extrato</button>
                     </div>
                   </td>
@@ -231,6 +260,14 @@ export function EstoqueClient() {
 
       {kardex && (
         <KardexModal produtoId={kardex.id} titulo={nomeExibido(kardex)} onClose={() => setKardex(null)} />
+      )}
+
+      {desdobrar && (
+        <DesdobrarGrade
+          produto={desdobrar}
+          onFechar={() => setDesdobrar(null)}
+          onPronto={() => { setDesdobrar(null); carregar(); }}
+        />
       )}
 
       {/* modal cadastro/edicao */}
