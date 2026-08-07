@@ -4,7 +4,8 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 /*
-  Gera as variacoes de um produto (tamanho, cor ou os dois combinados).
+  Painel inline (dentro da aba Geral da ficha, sem abrir janela) que gera as
+  variacoes de um produto (tamanho, cor ou os dois combinados).
   Cada variacao vira um produto filho com estoque, custo, peso e dimensoes
   proprios, entao o resto do sistema continua tratando ela como produto normal.
 
@@ -171,11 +172,11 @@ export function GerarVariacoes({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" onClick={onFechar}>
-      <div className="mt-6 w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
+    <div className="rounded-xl border-2 border-[var(--purple)]/25 bg-[var(--cream)]/60 p-4">
+      <div>
+        <h4 className="font-[family-name:var(--font-baloo)] text-base font-extrabold text-[var(--purple-dark)]">
           Gerar variações
-        </h2>
+        </h4>
         <p className="mt-1 text-sm text-[var(--ink)]/70">
           {produto.nome ?? "Produto"} tem <strong>{produto.qtd_atual} peças</strong> num registro só.
           Cada variação passa a ter estoque, peso e dimensões próprios.

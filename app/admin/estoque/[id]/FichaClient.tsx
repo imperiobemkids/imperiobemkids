@@ -7,6 +7,7 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../../SetupCard";
 import { KardexModal } from "../KardexModal";
+import { GerarVariacoes } from "../GerarVariacoes";
 
 type Produto = Record<string, unknown> & {
   id: string;
@@ -72,14 +73,17 @@ export function FichaClient({ id }: { id: string }) {
   const [ok, setOk] = useState(false);
   const [aba, setAba] = useState<Aba>("geral");
   const [verKardex, setVerKardex] = useState(false);
+  const [gerando, setGerando] = useState(false);
+  const [variacoes, setVariacoes] = useState<Produto[]>([]);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [{ data, error }, { data: forns }, { data: cans }] = await Promise.all([
+    const [{ data, error }, { data: forns }, { data: cans }, { data: vars }] = await Promise.all([
       supabase.from("ibk_produtos").select("*").eq("id", id).single(),
       supabase.from("ibk_fornecedores").select("id, nome").order("nome"),
       supabase.from("ibk_canais").select("id, nome, limite_titulo").eq("ativo", true).order("ordem"),
+      supabase.from("ibk_produtos").select("*").eq("produto_pai_id", id).eq("ativo", true),
     ]);
     if (error) setErro(error.message);
     else if (data) {
@@ -95,6 +99,7 @@ export function FichaClient({ id }: { id: string }) {
     }
     setFornecedores((forns as Fornecedor[]) ?? []);
     setCanais((cans as Canal[]) ?? []);
+    setVariacoes((vars as Produto[]) ?? []);
     setLoading(false);
   }, [id]);
 
@@ -233,6 +238,63 @@ export function FichaClient({ id }: { id: string }) {
                 <strong className={margem >= 0 ? "text-emerald-600" : "text-red-500"}>{margem.toFixed(1)}%</strong>.
               </div>
             )}
+
+
+            {/* variacoes: configuradas aqui dentro, sem abrir janela */}
+            <div className="col-span-2 rounded-xl border-2 border-[var(--purple)]/15 p-4">
+              <h3 className="font-[family-name:var(--font-baloo)] text-base font-extrabold text-[var(--purple-dark)]">
+                Variações
+              </h3>
+
+              {variacoes.length > 0 ? (
+                <>
+                  <p className="mt-1 text-sm text-[var(--ink)]/65">
+                    {variacoes.length} variações. O estoque fica em cada uma; clique para ajustar
+                    peso e dimensões, que mudam conforme o tamanho.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {variacoes.map((v) => (
+                      <Link
+                        key={v.id}
+                        href={`/admin/estoque/${v.id}`}
+                        className="rounded-full bg-[var(--purple)]/8 px-3 py-1.5 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16"
+                      >
+                        {[v.tamanho && `tam ${v.tamanho}`, v.cor as string].filter(Boolean).join(" · ") || "variação"}
+                        <span className="ml-1.5 text-[var(--ink)]/45">{String(v.qtd_atual)} un</span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              ) : produto.produto_pai_id ? (
+                <p className="mt-1 text-sm text-[var(--ink)]/65">
+                  Este item é uma variação.{" "}
+                  <Link href={`/admin/estoque/${produto.produto_pai_id}`} className="font-bold text-[var(--purple)] hover:underline">
+                    abrir o produto principal
+                  </Link>
+                </p>
+              ) : gerando ? (
+                <div className="mt-3">
+                  <GerarVariacoes
+                    produto={produto as never}
+                    onFechar={() => setGerando(false)}
+                    onPronto={() => { setGerando(false); carregar(); }}
+                  />
+                </div>
+              ) : (
+                <>
+                  <p className="mt-1 text-sm text-[var(--ink)]/65">
+                    Se este produto tem tamanhos ou cores diferentes, separe em variações para
+                    saber qual está acabando.
+                  </p>
+                  <button
+                    onClick={() => setGerando(true)}
+                    className="mt-3 rounded-xl bg-[var(--purple)] px-4 py-2.5 text-sm font-extrabold text-white hover:bg-[var(--purple-dark)]"
+                  >
+                    Gerar variações
+                  </button>
+                </>
+              )}
+            </div>
           </Grade>
         )}
 
@@ -411,6 +473,7 @@ export function FichaClient({ id }: { id: string }) {
       {verKardex && (
         <KardexModal produtoId={id} titulo={nomeExibido(produto)} onClose={() => setVerKardex(false)} />
       )}
+
     </div>
   );
 }

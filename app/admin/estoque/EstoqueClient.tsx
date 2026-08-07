@@ -6,7 +6,6 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
 import { KardexModal } from "./KardexModal";
-import { GerarVariacoes } from "./GerarVariacoes";
 
 type Produto = {
   id: string;
@@ -50,7 +49,6 @@ type Form = {
   categoria: string;
   linha: string;
   genero: string;
-  tamanho: string;
   custo: string;
   qtdAtual: string;
   qtdInicial: string;
@@ -58,7 +56,7 @@ type Form = {
   estoqueMinimo: string;
 };
 const formVazio: Form = {
-  nome: "", categoria: "", linha: "", genero: "", tamanho: "",
+  nome: "", categoria: "", linha: "", genero: "",
   custo: "", qtdAtual: "", qtdInicial: "", fornecedorId: "", estoqueMinimo: "3",
 };
 
@@ -72,7 +70,6 @@ export function EstoqueClient() {
   const [aberto, setAberto] = useState(false);
   const [form, setForm] = useState<Form>(formVazio);
   const [kardex, setKardex] = useState<Produto | null>(null);
-  const [variar, setVariar] = useState<Produto | null>(null);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
@@ -115,7 +112,6 @@ export function EstoqueClient() {
       categoria: form.categoria.trim() || null,
       linha: form.linha || null,
       genero: form.genero || null,
-      tamanho: form.tamanho.trim() || null,
       custo_unit: custo,
       qtd_atual: qtdAtual,
       qtd_inicial: qtdInicial,
@@ -248,11 +244,6 @@ export function EstoqueClient() {
                         <span className="sm:hidden">ficha</span>
                         <span className="hidden sm:inline">abrir ficha</span>
                       </Link>
-                      {!filho && !p.tem_variacoes && p.qtd_atual > 0 && (
-                        <button onClick={() => setVariar(p)} className="hidden whitespace-nowrap rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] lg:block" title="criar variações de tamanho e cor">
-                          variações
-                        </button>
-                      )}
                       <button onClick={() => setKardex(p)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] sm:block" title="extrato de movimentações">extrato</button>
                     </div>
                   </td>
@@ -265,14 +256,6 @@ export function EstoqueClient() {
 
       {kardex && (
         <KardexModal produtoId={kardex.id} titulo={nomeExibido(kardex)} onClose={() => setKardex(null)} />
-      )}
-
-      {variar && (
-        <GerarVariacoes
-          produto={variar}
-          onFechar={() => setVariar(null)}
-          onPronto={() => { setVariar(null); carregar(); }}
-        />
       )}
 
       {/* modal cadastro/edicao */}
@@ -291,9 +274,10 @@ export function EstoqueClient() {
               <Campo label="Categoria">
                 <input value={form.categoria} onChange={(e) => set({ categoria: e.target.value })} placeholder="ex: Conjunto, Body, Calçado" className={inputCls} />
               </Campo>
-              <Campo label="Tamanho">
-                <input value={form.tamanho} onChange={(e) => set({ tamanho: e.target.value })} placeholder="ex: 2, P, 6-9m" className={inputCls} />
-              </Campo>
+              <div className="col-span-2 rounded-xl bg-[var(--purple)]/6 p-3 text-xs leading-relaxed text-[var(--ink)]/70">
+                Tamanho e cor não entram aqui: depois de salvar, abra a ficha do produto e use a
+                aba Variações para criar cada tamanho e cor com estoque próprio.
+              </div>
               <Campo label="Linha (opcional)">
                 <select value={form.linha} onChange={(e) => set({ linha: e.target.value })} className={inputCls}>
                   <option value="">nenhuma</option>
