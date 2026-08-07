@@ -17,11 +17,14 @@ type Produto = Record<string, unknown> & {
   linha: string | null;
   genero: string | null;
   tamanho: string | null;
+  cor: string | null;
   custo_unit: number;
   qtd_atual: number;
   qtd_inicial: number;
   fornecedor_id: string | null;
   estoque_minimo: number | null;
+  produto_pai_id: string | null;
+  tem_variacoes: boolean;
   ativo: boolean;
 };
 
@@ -221,7 +224,17 @@ export function FichaClient({ id }: { id: string }) {
                 <option value="">nenhum</option><option value="menino">Menino</option><option value="menina">Menina</option><option value="unissex">Unissex</option>
               </select>
             </Campo>
-            <Campo label="Tamanho"><input value={form.tamanho ?? ""} onChange={(e) => set("tamanho", e.target.value)} className={inp} /></Campo>
+            {/*
+              Tamanho e cor so aparecem quando o item E uma variacao: e o que
+              define ela. No produto principal eles nao existem, porque o que
+              varia fica nas variacoes.
+            */}
+            {produto.produto_pai_id && (
+              <>
+                <Campo label="Tamanho"><input value={form.tamanho ?? ""} onChange={(e) => set("tamanho", e.target.value)} className={inp} /></Campo>
+                <Campo label="Cor"><input value={form.cor ?? ""} onChange={(e) => set("cor", e.target.value)} className={inp} /></Campo>
+              </>
+            )}
             <Campo label="Fornecedor">
               <select value={form.fornecedor_id ?? ""} onChange={(e) => set("fornecedor_id", e.target.value)} className={inp}>
                 <option value="">sem fornecedor</option>
@@ -409,7 +422,6 @@ export function FichaClient({ id }: { id: string }) {
           <Grade>
             <Campo label="Marca"><input value={form.marca ?? ""} onChange={(e) => set("marca", e.target.value)} className={inp} /></Campo>
             <Campo label="Modelo"><input value={form.modelo ?? ""} onChange={(e) => set("modelo", e.target.value)} className={inp} /></Campo>
-            <Campo label="Cor"><input value={form.cor ?? ""} onChange={(e) => set("cor", e.target.value)} placeholder="sortido" className={inp} /></Campo>
             <Campo label="Material"><input value={form.material ?? ""} onChange={(e) => set("material", e.target.value)} placeholder="algodão" className={inp} /></Campo>
             <Campo label="Composição" larga dica="como vem na etiqueta"><input value={form.composicao ?? ""} onChange={(e) => set("composicao", e.target.value)} placeholder="100% algodão" className={inp} /></Campo>
             <Campo label="Faixa etária"><input value={form.faixa_etaria ?? ""} onChange={(e) => set("faixa_etaria", e.target.value)} placeholder="2 a 8 anos" className={inp} /></Campo>
