@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
+import { MetaPixel } from "./MetaPixel";
 
 const baloo = Baloo_2({
   variable: "--font-baloo",
@@ -36,7 +37,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${baloo.variable} ${nunito.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <MetaPixel />
+      </body>
     </html>
   );
 }
