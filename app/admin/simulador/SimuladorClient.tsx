@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import type { Canal } from "../canais/CanaisClient";
+import { taxaDoPreco } from "@/lib/canais";
 
 type SKU = {
   id: string;
@@ -123,10 +124,18 @@ export function SimuladorClient() {
   // comparativo: mesmo produto em todos os canais ativos
   const custoBaseComparativo = custoConjN * qtd;
   const comparativo = canais.map((c) => {
-    const custoFixo = custoBaseComparativo + c.insumo_custo + c.taxa_fixa + cpaN + freteN;
-    const preco = precoPorMargem(custoFixo, c.taxa_pct, margemAlvoN);
-    const lucro = preco * (1 - c.taxa_pct) - custoFixo;
-    return { canal: c, preco, lucro, margem: preco > 0 ? lucro / preco : 0 };
+    /*
+      Canal com faixa cobra diferente conforme o preco, e o preco depende da taxa.
+      Resolve em duas passadas: calcula com a faixa de um preco estimado e refaz
+      com a faixa do preco encontrado, o que ja estabiliza nos casos reais.
+    */
+    let t = taxaDoPreco(c, custoBaseComparativo + c.insumo_custo);
+    let preco = precoPorMargem(custoBaseComparativo + c.insumo_custo + t.fixo + cpaN + freteN, t.pct, margemAlvoN);
+    t = taxaDoPreco(c, preco);
+    const custoFixo = custoBaseComparativo + c.insumo_custo + t.fixo + cpaN + freteN;
+    preco = precoPorMargem(custoFixo, t.pct, margemAlvoN);
+    const lucro = preco * (1 - t.pct) - custoFixo;
+    return { canal: c, preco, lucro, margem: preco > 0 ? lucro / preco : 0, taxaPct: t.pct, taxaFixa: t.fixo };
   });
 
   const linhasTabela = skus.map((s) => {
@@ -382,8 +391,8 @@ export function SimuladorClient() {
                 {comparativo.map((l) => (
                   <tr key={l.canal.id} className="border-b border-[var(--purple)]/6 last:border-0">
                     <td className="p-3 font-semibold text-[var(--ink)]">{l.canal.nome}</td>
-                    <td className="p-3">{Math.round(l.canal.taxa_pct * 1000) / 10}%</td>
-                    <td className="p-3">{l.canal.taxa_fixa ? brl(l.canal.taxa_fixa) : "-"}</td>
+                    <td className="p-3">{Math.round(l.taxaPct * 1000) / 10}%</td>
+                    <td className="p-3">{l.taxaFixa ? brl(l.taxaFixa) : "-"}</td>
                     <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(l.preco)}</td>
                     <td className={`p-3 font-bold ${l.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucro)}</td>
                     <td className="p-3">{Math.round(l.margem * 100)}%</td>

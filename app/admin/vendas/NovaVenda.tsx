@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { saidaEstoque } from "@/lib/estoque";
 import type { Canal } from "../canais/CanaisClient";
+import { taxaDoPreco, descreverFaixas } from "@/lib/canais";
 
 /*
   Registro de venda no formato de caixa: o produto entra como linha com preco
@@ -74,8 +75,6 @@ export function NovaVenda({
   }, [canais, canalId]);
 
   const canal = canais.find((c) => c.id === canalId);
-  const taxaPct = canal?.taxa_pct ?? 0.2;
-  const taxaFixa = canal?.taxa_fixa ?? 0;
   const insumo = canal?.insumo_custo ?? 0.4;
 
   // cada clique cria uma linha nova, mesmo se o produto ja estiver na venda
@@ -110,6 +109,10 @@ export function NovaVenda({
   const freteCobradoN = num(freteCobrado);
   const freteLojaN = num(freteLoja);
   const total = subtotal - descontoN + freteCobradoN;
+
+  // a taxa sai da faixa em que o total cai (TikTok cobra diferente abaixo de R$ 50)
+  const { pct: taxaPct, fixo: taxaFixa } = taxaDoPreco(canal, total);
+  const regraFaixas = descreverFaixas(canal);
 
   const custoProdutos = linhas.reduce((s, l) => s + l.produto.custo_unit * l.qtd, 0);
   const comissao = total * taxaPct;
@@ -378,7 +381,12 @@ export function NovaVenda({
           <div className="self-start rounded-xl bg-[var(--cream)] p-3 text-sm">
             <Linha2 rotulo="Total da venda" valor={brl(total)} forte />
             <div className="my-2 border-t border-[var(--purple)]/15" />
-            <Linha2 rotulo={`Comissão ${canal?.nome ?? ""} (${Math.round(taxaPct * 100)}%)`} valor={`− ${brl(comissao)}`} sutil />
+            <Linha2 rotulo={`Comissão ${canal?.nome ?? ""} (${Math.round(taxaPct * 1000) / 10}%)`} valor={`− ${brl(comissao)}`} sutil />
+            {regraFaixas && (
+              <p className="py-0.5 text-[11px] leading-snug text-[var(--ink)]/45">
+                faixa aplicada pelo total: {regraFaixas}
+              </p>
+            )}
             {taxaFixa > 0 && <Linha2 rotulo="Tarifa fixa" valor={`− ${brl(taxaFixa)}`} sutil />}
             <Linha2 rotulo="Embalagem" valor={`− ${brl(insumo)}`} sutil />
             <Linha2 rotulo="Custo dos produtos" valor={`− ${brl(custoProdutos)}`} sutil />

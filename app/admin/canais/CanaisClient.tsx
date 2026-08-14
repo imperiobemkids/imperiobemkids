@@ -11,6 +11,7 @@ export type Canal = {
   taxa_fixa: number;
   insumo_custo: number;
   limite_titulo: number | null;
+  faixas: { ate: number | null; pct: number; fixo: number }[] | null;
   ordem: number;
   ativo: boolean;
   obs: string | null;
@@ -146,7 +147,19 @@ export function CanaisClient() {
                   <div className="font-semibold text-[var(--ink)]">{c.nome}</div>
                   {c.obs && <div className="text-[11px] text-[var(--ink)]/45">{c.obs}</div>}
                 </td>
-                <td className="p-3">{Math.round(c.taxa_pct * 1000) / 10}%</td>
+                <td className="p-3">
+                  {c.faixas && c.faixas.length > 0 ? (
+                    <span className="text-[11px] leading-tight text-[var(--ink)]/70">
+                      {c.faixas.map((f, i) => (
+                        <span key={i} className="block">
+                          {f.ate === null ? "acima" : `ate R$ ${f.ate}`}: {Math.round(f.pct * 1000) / 10}% + {brl(f.fixo)}
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    `${Math.round(c.taxa_pct * 1000) / 10}%`
+                  )}
+                </td>
                 <td className="p-3">{brl(c.taxa_fixa)}</td>
                 <td className="p-3">{brl(c.insumo_custo)}</td>
                 <td className="p-3">{c.limite_titulo ? `${c.limite_titulo} car.` : "-"}</td>
