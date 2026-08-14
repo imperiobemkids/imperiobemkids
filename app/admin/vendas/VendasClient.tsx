@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { devolucaoEstoque } from "@/lib/estoque";
 import { NovaVenda, type ProdutoVenda } from "./NovaVenda";
+import { DetalheVenda, type VendaDetalhe } from "./DetalheVenda";
 import type { Canal } from "../canais/CanaisClient";
 import { SetupCard } from "../SetupCard";
 
@@ -29,10 +30,30 @@ type VendaRow = {
   insumo_custo: number;
   frete: number;
   taxa_fixa: number;
+  canal_id: string | null;
+  cliente: string | null;
+  forma_pagamento: string | null;
+  desconto: number;
+  frete_cobrado: number;
+  qtd_itens: number;
   devolvida: boolean;
   data_devolucao: string | null;
   custo_devolucao: number;
-  ibk_venda_itens: { qtd: number; produto_id: string | null; produto: { custo_unit: number } | null }[];
+  ibk_venda_itens: {
+    qtd: number;
+    preco_unit: number;
+    produto_id: string | null;
+    produto: { nome: string | null; tamanho: string | null; cor: string | null; custo_unit: number } | null;
+  }[];
+};
+
+// primeiro produto da venda, com "+N" quando ha mais de um
+const resumoProdutos = (v: VendaRow) => {
+  const itens = v.ibk_venda_itens ?? [];
+  if (itens.length === 0) return "venda sem itens";
+  const p = itens[0].produto;
+  const nome = [p?.nome?.trim() || "Produto", p?.tamanho && `tam ${p.tamanho}`, p?.cor].filter(Boolean).join(" · ");
+  return itens.length > 1 ? `${nome} +${itens.length - 1}` : nome;
 };
 
 const brl = (v: number) =>
@@ -65,6 +86,8 @@ export function VendasClient() {
   const [canais, setCanais] = useState<Canal[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
+  const [caixaAberto, setCaixaAberto] = useState(false);
+  const [detalhe, setDetalhe] = useState<VendaDetalhe | null>(null);
 
 
   const carregar = useCallback(async () => {
@@ -78,7 +101,7 @@ export function VendasClient() {
         .order("created_at", { ascending: false }),
       supabase
         .from("ibk_vendas")
-        .select("*, ibk_venda_itens(qtd, produto_id, produto:ibk_produtos(custo_unit))")
+        .select("*, ibk_venda_itens(qtd, preco_unit, produto_id, produto:ibk_produtos(nome, tamanho, cor, custo_unit))")
         .order("data", { ascending: false })
         .limit(50),
       supabase
@@ -172,14 +195,35 @@ export function VendasClient() {
               valor={`${devolvidas.length} (${Math.round((devolvidas.length / vendas.length) * 100)}%)`}
             />
           )}
+          <button
+            onClick={() => setCaixaAberto((v) => !v)}
+            className="rounded-xl bg-[var(--purple)] px-5 py-2.5 text-sm font-extrabold text-white transition-colors hover:bg-[var(--purple-dark)]"
+          >
+            {caixaAberto ? "fechar caixa" : "+ Nova venda"}
+          </button>
         </div>
       </div>
 
-      {/* nova venda, no formato de caixa */}
-      <div className="mt-5">
-        <NovaVenda produtos={produtos as unknown as ProdutoVenda[]} canais={canais} aoRegistrar={carregar} />
-      </div>
+      {/* o caixa abre pelo botao, para nao ocupar a tela o tempo todo */}
+      {caixaAberto && (
+        <div className="mt-5">
+          <NovaVenda
+            produtos={produtos as unknown as ProdutoVenda[]}
+            canais={canais}
+            aoRegistrar={() => { carregar(); setCaixaAberto(false); }}
+          />
+        </div>
+      )}
 
+
+      {detalhe && (
+        <DetalheVenda
+          venda={detalhe}
+          canais={canais}
+          onFechar={() => setDetalhe(null)}
+          onSalvo={() => { setDetalhe(null); carregar(); }}
+        />
+      )}
 
       {/* payback bar */}
       <div className="mt-5 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
@@ -198,10 +242,10 @@ export function VendasClient() {
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
               <th className="p-3">Data</th>
-              <th className="p-3">Tipo</th>
+              <th className="p-3">Produtos</th>
               <th className="hidden p-3 sm:table-cell">Canal</th>
-              <th className="hidden p-3 md:table-cell">Itens</th>
-              <th className="p-3">Preço</th>
+              <th className="hidden p-3 lg:table-cell">Taxas</th>
+              <th className="p-3">Total</th>
               <th className="p-3">Lucro</th>
               <th className="p-3"></th>
             </tr>
@@ -222,25 +266,39 @@ export function VendasClient() {
               const qtdItens = v.ibk_venda_itens.reduce((s, it) => s + it.qtd, 0);
               return (
                 <tr key={v.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${v.devolvida ? "bg-red-50/60" : ""}`}>
-                  <td className="p-3">{new Date(v.data).toLocaleDateString("pt-BR")}</td>
-                  <td className="p-3 capitalize">
-                    {v.tipo}
+                  <td className="whitespace-nowrap p-3">{new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}</td>
+                  <td className="p-3">
+                    <button onClick={() => setDetalhe(v as unknown as VendaDetalhe)} className="text-left font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
+                      {resumoProdutos(v)}
+                    </button>
+                    <div className="text-[11px] text-[var(--ink)]/45">
+                      {qtdItens} {qtdItens === 1 ? "item" : "itens"}
+                      {v.cliente ? ` · ${v.cliente}` : ""}
+                      {v.forma_pagamento ? ` · ${v.forma_pagamento}` : ""}
+                    </div>
                     {v.devolvida && (
-                      <span className="ml-1.5 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-extrabold uppercase text-red-600">
+                      <span className="mt-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-extrabold uppercase text-red-600">
                         devolvida
                       </span>
                     )}
                   </td>
                   <td className="hidden p-3 capitalize sm:table-cell">{v.canal}</td>
-                  <td className="hidden p-3 md:table-cell">{qtdItens}</td>
-                  <td className={`p-3 ${v.devolvida ? "text-[var(--ink)]/40 line-through" : ""}`}>{brl(v.preco_venda)}</td>
-                  <td className={`p-3 font-bold ${l >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l)}</td>
+                  <td className="hidden p-3 text-[var(--ink)]/60 lg:table-cell">
+                    {brl(v.preco_venda * v.taxa_pct + (v.taxa_fixa ?? 0))}
+                  </td>
+                  <td className={`whitespace-nowrap p-3 font-semibold ${v.devolvida ? "text-[var(--ink)]/40 line-through" : ""}`}>{brl(v.preco_venda)}</td>
+                  <td className={`whitespace-nowrap p-3 font-bold ${l >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l)}</td>
                   <td className="p-3">
-                    {!v.devolvida && (
-                      <button onClick={() => devolver(v)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-red-600" title="registrar devolução">
-                        devolver
+                    <div className="flex gap-1">
+                      <button onClick={() => setDetalhe(v as unknown as VendaDetalhe)} className="whitespace-nowrap rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
+                        detalhes
                       </button>
-                    )}
+                      {!v.devolvida && (
+                        <button onClick={() => devolver(v)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-red-600 lg:block" title="registrar devolução">
+                          devolver
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
