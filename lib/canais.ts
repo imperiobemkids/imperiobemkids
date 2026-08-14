@@ -14,6 +14,7 @@ export type CanalTaxas = {
   taxa_pct: number;
   taxa_fixa: number;
   faixas?: Faixa[] | null;
+  taxa_fixa_por_item?: boolean | null;
 };
 
 /** Devolve a comissao e a tarifa fixa que valem para este preco. */
@@ -37,6 +38,54 @@ export function taxaDoPreco(canal: CanalTaxas | undefined, preco: number) {
   }
   const ultima = ordenadas[ordenadas.length - 1];
   return { pct: ultima.pct, fixo: ultima.fixo };
+}
+
+export type ItemVenda = { precoUnit: number; qtd: number };
+
+/*
+  Taxa total do pedido.
+
+  A tarifa fixa e cobrada POR ITEM do pedido ("Taxa por item vendido" no extrato
+  da Shopee): item aqui e a quantidade pedida, nao a peca fisica, entao um
+  produto que ja vem com 3 pecas dentro conta como um item so.
+
+  A faixa e resolvida pelo PRECO DO ITEM, nao pelo total do pedido: a regra do
+  TikTok fala em "itens com preco inferior a R$ 50".
+
+  O desconto do vendedor reduz a base, rateado entre os itens.
+*/
+export function calcularTaxas(
+  canal: CanalTaxas | undefined,
+  itens: ItemVenda[],
+  desconto = 0,
+) {
+  const subtotal = itens.reduce((s, i) => s + i.precoUnit * i.qtd, 0);
+  const proporcao = subtotal > 0 ? Math.max(0, subtotal - desconto) / subtotal : 1;
+  const porItem = canal?.taxa_fixa_por_item ?? true;
+
+  let comissao = 0;
+  let fixa = 0;
+  let unidades = 0;
+
+  for (const i of itens) {
+    const precoLiquido = i.precoUnit * proporcao;
+    const t = taxaDoPreco(canal, precoLiquido);
+    comissao += precoLiquido * i.qtd * t.pct;
+    unidades += i.qtd;
+    if (porItem) fixa += t.fixo * i.qtd;
+  }
+
+  // canal que cobra por pedido paga a tarifa uma vez, pela faixa do total
+  if (!porItem && itens.length > 0) {
+    fixa = taxaDoPreco(canal, subtotal * proporcao).fixo;
+  }
+
+  return {
+    comissao: Math.round(comissao * 100) / 100,
+    fixa: Math.round(fixa * 100) / 100,
+    total: Math.round((comissao + fixa) * 100) / 100,
+    unidades,
+  };
 }
 
 /** Texto curto da regra, para explicar na tela de onde saiu a taxa. */

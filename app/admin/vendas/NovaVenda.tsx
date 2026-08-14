@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { saidaEstoque } from "@/lib/estoque";
 import type { Canal } from "../canais/CanaisClient";
-import { taxaDoPreco, descreverFaixas } from "@/lib/canais";
+import { calcularTaxas, descreverFaixas } from "@/lib/canais";
 
 /*
   Registro de venda no formato de caixa: o produto entra como linha com preco
@@ -110,12 +110,22 @@ export function NovaVenda({
   const freteLojaN = num(freteLoja);
   const total = subtotal - descontoN + freteCobradoN;
 
-  // a taxa sai da faixa em que o total cai (TikTok cobra diferente abaixo de R$ 50)
-  const { pct: taxaPct, fixo: taxaFixa } = taxaDoPreco(canal, total);
+  /*
+    A tarifa fixa e cobrada por item do pedido e a faixa sai do preco de cada
+    item, nao do total. O calculo fica em lib/canais para venda e precificacao
+    usarem a mesma regra.
+  */
+  const taxas = calcularTaxas(
+    canal,
+    linhas.map((l) => ({ precoUnit: num(l.precoTexto), qtd: l.qtd })),
+    descontoN,
+  );
+  const comissao = taxas.comissao;
+  const taxaFixa = taxas.fixa;
+  const taxaPct = total > 0 ? comissao / total : 0;
   const regraFaixas = descreverFaixas(canal);
 
   const custoProdutos = linhas.reduce((s, l) => s + l.produto.custo_unit * l.qtd, 0);
-  const comissao = total * taxaPct;
   const lucro = total - comissao - taxaFixa - insumo - custoProdutos - freteLojaN;
 
   /*
@@ -176,6 +186,7 @@ export function NovaVenda({
         insumo_custo: insumo,
         frete_cobrado: freteCobradoN,
         frete: freteLojaN,
+        qtd_itens: taxas.unidades,
       })
       .select("id")
       .single();
@@ -389,7 +400,13 @@ export function NovaVenda({
                 faixa aplicada pelo total: {regraFaixas}
               </p>
             )}
-            {taxaFixa > 0 && <Linha2 rotulo="Tarifa fixa" valor={`− ${brl(taxaFixa)}`} sutil />}
+            {taxaFixa > 0 && (
+              <Linha2
+                rotulo={`Tarifa fixa (${taxas.unidades} ${taxas.unidades === 1 ? "item" : "itens"})`}
+                valor={`− ${brl(taxaFixa)}`}
+                sutil
+              />
+            )}
             <Linha2 rotulo="Embalagem" valor={`− ${brl(insumo)}`} sutil />
             <Linha2 rotulo="Custo dos produtos" valor={`− ${brl(custoProdutos)}`} sutil />
             {freteLojaN > 0 && <Linha2 rotulo="Frete pago pela loja" valor={`− ${brl(freteLojaN)}`} sutil />}
