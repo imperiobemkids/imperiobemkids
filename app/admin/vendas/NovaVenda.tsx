@@ -343,7 +343,7 @@ export function NovaVenda({
             {/* o total e editavel: digitar aqui recalcula o desconto */}
             <label className="flex flex-col gap-1 rounded-xl bg-[var(--purple)]/8 p-3">
               <span className="text-[10px] font-bold uppercase text-[var(--purple)]">
-                Total da venda (o que o cliente pagou)
+                Total da venda (base de cálculo da comissão)
               </span>
               <input
                 inputMode="decimal"
@@ -355,7 +355,9 @@ export function NovaVenda({
                 className="w-full rounded-lg border-2 border-[var(--purple)]/30 bg-white px-3 py-2 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)] outline-none focus:border-[var(--purple)]"
               />
               <span className="text-[11px] text-[var(--ink)]/50">
-                pode digitar direto o valor do pedido; o desconto se ajusta sozinho
+                digite o valor sobre o qual a plataforma cobra a taxa. Em marketplace é o
+                subtotal dos produtos, mesmo que o comprador tenha pago menos com moedas ou
+                cupom da plataforma, porque esse desconto não sai do seu bolso
               </span>
             </label>
 
