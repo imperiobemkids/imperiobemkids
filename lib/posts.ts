@@ -6,6 +6,8 @@
 
 export type Bloco =
   | { tipo: "p"; texto: string }
+  // paragrafo com link interno: o texto ancora ajuda a busca a entender o destino
+  | { tipo: "p-link"; antes: string; ancora: string; href: string; depois: string }
   | { tipo: "h2"; texto: string }
   | { tipo: "lista"; itens: string[] }
   | { tipo: "destaque"; texto: string }
@@ -91,6 +93,13 @@ export const POSTS: Post[] = [
         ],
       },
       {
+        tipo: "p-link",
+        antes: "Depois de descobrir o tamanho, vale dar uma olhada nos ",
+        ancora: "kits de roupa infantil com pronta entrega",
+        href: "/pedido",
+        depois: ", que vêm com quatro peças e já saem no tamanho que você escolher.",
+      },
+      {
         tipo: "p",
         texto:
           "E se bater dúvida, chama a gente no WhatsApp. A gente confere a medida do kit junto com você antes de fechar o pedido. 💜",
@@ -145,6 +154,13 @@ export const POSTS: Post[] = [
           "Comprar muitos números acima achando que vai durar. A peça fica guardada, sai de estação, e quando serve já não combina com o clima. Prefira comprar para agora e no máximo um tamanho à frente.",
       },
       {
+        tipo: "p-link",
+        antes: "É por isso que a gente trabalha com ",
+        ancora: "kit de roupa infantil com peças que combinam",
+        href: "/pedido",
+        depois: ": rende mais combinação com menos peça no guarda-roupa.",
+      },
+      {
         tipo: "p",
         texto:
           "Se quiser, a gente monta uma sugestão de enxoval enxuto para a idade do seu filho. É só chamar. 💜",
@@ -195,6 +211,13 @@ export const POSTS: Post[] = [
         tipo: "destaque",
         texto:
           "Secar na sombra parece bobagem, mas é o que mais preserva a cor. Sol forte desbota em poucas lavagens.",
+      },
+      {
+        tipo: "p-link",
+        antes: "E para a peça durar de verdade, ela precisa servir direito desde o começo: veja a ",
+        ancora: "tabela de tamanhos de roupa infantil",
+        href: "/blog/tabela-de-tamanhos-roupa-infantil",
+        depois: " antes de comprar.",
       },
       {
         tipo: "p",

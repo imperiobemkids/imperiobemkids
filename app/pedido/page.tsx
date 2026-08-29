@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { Assistant } from "../Assistant";
 import { jsonLdScript, listaDeProdutos, perguntas, FAQ } from "@/lib/seo";
+import { POSTS } from "@/lib/posts";
 
 export const metadata: Metadata = {
   // titulo escrito para a busca ("kit de roupa infantil"), nao so para a marca
@@ -338,6 +340,13 @@ export default function Home() {
         />
       </div>
 
+      {/*
+        H1 com a palavra que a cliente busca. A pagina nao tinha titulo nenhum,
+        entao o Google nao sabia do que ela trata.
+      */}
+      <h1 className="relative z-10 mb-2 max-w-sm text-center font-[family-name:var(--font-baloo)] text-2xl font-extrabold leading-tight text-[var(--purple-dark)]">
+        Roupa infantil com preço que cabe no bolso
+      </h1>
       <p className="relative z-10 mb-6 max-w-xs text-center text-[15px] leading-relaxed text-[var(--ink)]/75">
         Achadinhos e promoções para o universo infantil, escolhidos com carinho
         de quem entende de criança. 💜
@@ -383,6 +392,33 @@ export default function Home() {
               </summary>
               <p className="mt-2 pl-5 text-sm leading-relaxed text-[var(--ink)]/75">{f.resposta}</p>
             </details>
+          ))}
+        </div>
+      </section>
+
+      {/*
+        Guias do blog. Alem de ajudar a cliente antes da compra, tira a pagina
+        do isolamento: ate aqui ela nao apontava para nenhuma outra do site.
+      */}
+      <section className="relative z-10 mt-10 w-full">
+        <h2 className="mb-3 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
+          Guias que ajudam na hora de escolher
+        </h2>
+        <div className="flex flex-col gap-2">
+          {POSTS.map((post) => (
+            <Link
+              key={post.slug}
+              href={`/blog/${post.slug}`}
+              className="group flex items-center gap-3 rounded-2xl border-2 border-transparent bg-white p-3 shadow-[0_4px_0_rgba(109,40,184,0.1)] transition-all hover:-translate-y-0.5 hover:border-[var(--purple)]"
+            >
+              <span className="text-2xl">{post.emoji}</span>
+              <span className="flex-1 text-sm font-bold leading-snug text-[var(--purple-dark)]">
+                {post.titulo}
+              </span>
+              <span className="text-[var(--purple)] transition-transform group-hover:translate-x-1">
+                →
+              </span>
+            </Link>
           ))}
         </div>
       </section>

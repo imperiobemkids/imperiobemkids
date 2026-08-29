@@ -43,6 +43,19 @@ function RenderBloco({ bloco }: { bloco: Bloco }) {
       );
     case "p":
       return <p className="mt-3 text-[16px] leading-relaxed text-[var(--ink)]/80">{bloco.texto}</p>;
+    case "p-link":
+      return (
+        <p className="mt-3 text-[16px] leading-relaxed text-[var(--ink)]/80">
+          {bloco.antes}
+          <Link
+            href={bloco.href}
+            className="font-bold text-[var(--purple)] underline decoration-[var(--purple)]/30 underline-offset-2 hover:decoration-[var(--purple)]"
+          >
+            {bloco.ancora}
+          </Link>
+          {bloco.depois}
+        </p>
+      );
     case "lista":
       return (
         <ul className="mt-3 space-y-2">
