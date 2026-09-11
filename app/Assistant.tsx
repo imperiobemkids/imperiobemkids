@@ -25,9 +25,9 @@ type Destino = {
 const DESTINOS: Destino[] = [
   {
     key: "tendencia",
-    label: "ver os kits de verão ☀️",
+    label: "ver os kits de 4 peças 👕",
     anchor: "tendencia",
-    resposta: "amei! temos kit com 4 peças por R$ 49,90, menino e menina. dá uma olhada 👇",
+    resposta: "amei! temos kit com 4 peças por R$ 49,90, de verão e de inverno, menino e menina. dá uma olhada 👇",
     cta: "ver os kits 👇",
   },
   {
