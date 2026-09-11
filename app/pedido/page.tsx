@@ -37,7 +37,7 @@ const WHATSAPP = "https://wa.me/5511947956479?text=" +
   encodeURIComponent("Oi! Vim pelo site do Império Bem Kids e quero fazer um pedido 💜");
 
 const LOJA_SHOPEE =
-  "https://shopee.com.br/douglasben?categoryId=100633&entryPoint=ShopByPDP&itemId=58265431662";
+  "https://shopee.com.br/imperiobemkids";
 
 const GRUPO_ACHADINHOS = "https://chat.whatsapp.com/GKQ58djmnyGHG2HMrPUxYb";
 
@@ -116,7 +116,7 @@ const VITRINES: Vitrine[] = [
     subtitulo: "kit com 4 peças, pronta entrega",
     produtos: [
       {
-        href: "https://shopee.com.br/product/1389538624/58215469217/",
+        href: "https://shopee.com.br/product/473738677/23495182424/",
         image: "/produtos/kit-verao-menino.jpg",
         emoji: "👕",
         accent: "var(--teal)",
@@ -124,11 +124,27 @@ const VITRINES: Vitrine[] = [
         preco: "R$ 49,90",
       },
       {
-        href: "https://shopee.com.br/product/1389538624/58265431662/",
+        href: "https://shopee.com.br/product/473738677/58266950240/",
         image: "/produtos/kit-verao-menina.jpg",
         emoji: "👗",
         accent: "var(--pink)",
         nome: "Kit 4 peças verão menina",
+        preco: "R$ 49,90",
+      },
+      {
+        href: "https://shopee.com.br/product/473738677/58266942727/",
+        image: null,
+        emoji: "🧥",
+        accent: "var(--mint)",
+        nome: "Kit inverno menino",
+        preco: "R$ 49,90",
+      },
+      {
+        href: "https://shopee.com.br/product/473738677/58266951555/",
+        image: null,
+        emoji: "🧣",
+        accent: "var(--yellow)",
+        nome: "Kit inverno menina",
         preco: "R$ 49,90",
       },
     ],

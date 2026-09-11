@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 
 const WHATSAPP = "https://wa.me/5511947956479?text=";
 const LOJA_SHOPEE =
-  "https://shopee.com.br/douglasben?categoryId=100633&entryPoint=ShopByPDP&itemId=58265431662";
+  "https://shopee.com.br/imperiobemkids";
 const GRUPO_ACHADINHOS = "https://chat.whatsapp.com/GKQ58djmnyGHG2HMrPUxYb";
 
 type Destino = {
