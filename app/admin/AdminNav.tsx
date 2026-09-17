@@ -13,6 +13,11 @@ import { LogoutButton } from "./LogoutButton";
 */
 export const GRUPOS = [
   {
+    nome: "Operação",
+    emoji: "📅",
+    itens: [{ href: "/admin/tarefas", label: "Tarefas", emoji: "📅" }],
+  },
+  {
     nome: "Suprimentos",
     emoji: "📦",
     itens: [
