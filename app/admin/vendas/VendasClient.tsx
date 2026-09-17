@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { STATUS, estornada, estornarVenda, situacaoDespacho, type StatusPedido } from "@/lib/pedidos";
@@ -182,6 +183,12 @@ export function VendasClient() {
               valor={`${devolvidas.length} (${Math.round((devolvidas.length / vendas.length) * 100)}%)`}
             />
           )}
+          <Link
+            href="/admin/vendas/importar"
+            className="rounded-xl bg-[var(--purple)]/8 px-4 py-2.5 text-sm font-bold text-[var(--purple)] transition-colors hover:bg-[var(--purple)]/16"
+          >
+            importar planilha
+          </Link>
           <button
             onClick={() => setCaixaAberto((v) => !v)}
             className="rounded-xl bg-[var(--purple)] px-5 py-2.5 text-sm font-extrabold text-white transition-colors hover:bg-[var(--purple-dark)]"
