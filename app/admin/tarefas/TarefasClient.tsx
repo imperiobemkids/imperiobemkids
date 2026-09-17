@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
+import { SkeletonCards, Vazio, btnPrimario } from "../ui";
 
 /*
   Visao semanal: uma coluna por dia (segunda a domingo) e, dentro dela, o que
@@ -243,9 +244,24 @@ export function TarefasClient() {
 
       {erro && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
 
-      {loading && <p className="mt-6 text-[var(--ink)]/50">carregando...</p>}
+      {loading && (
+        <div className="mt-4 grid gap-3 lg:grid-cols-7">
+          <SkeletonCards n={7} alto />
+        </div>
+      )}
       {!loading && rotinas.length === 0 && (
-        <p className="mt-6 text-[var(--ink)]/50">nenhuma rotina ainda. Clique em "+ rotina" pra começar.</p>
+        <div className="mt-6">
+          <Vazio
+            emoji="📅"
+            titulo="Nenhuma rotina ainda"
+            texto="Cadastre o que se repete na semana: postar, conferir estoque, responder chat."
+            acao={
+              <button onClick={() => setNovoAberto(true)} className={btnPrimario}>
+                + primeira rotina
+              </button>
+            }
+          />
+        </div>
       )}
 
       {/* abas de dia, so no celular */}

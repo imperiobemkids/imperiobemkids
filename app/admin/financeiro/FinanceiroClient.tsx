@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
+import { SkeletonRows } from "../ui";
 
 type Mov = {
   id: string;
@@ -251,7 +252,7 @@ export function FinanceiroClient() {
               </tr>
             </thead>
             <tbody>
-              {loading && (<tr><td colSpan={5} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
+              {loading && <SkeletonRows cols={5} />}
               {!loading && movs.length === 0 && (
                 <tr><td colSpan={5} className="p-6 text-center text-[var(--ink)]/50">nenhum lançamento ainda.</td></tr>
               )}
@@ -295,7 +296,7 @@ export function FinanceiroClient() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={4} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>
+              <SkeletonRows cols={4} />
             )}
             {!loading && porCategoria.length === 0 && (
               <tr><td colSpan={4} className="p-6 text-center text-[var(--ink)]/50">nenhum movimento ainda.</td></tr>

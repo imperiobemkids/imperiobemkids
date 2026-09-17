@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "./SetupCard";
 import { GRUPOS } from "./AdminNav";
+import { SkeletonCards } from "./ui";
 
 type Produto = {
   id: string;
@@ -30,7 +31,17 @@ type Venda = {
   ibk_venda_itens: { qtd: number; produto: { custo_unit: number } | null }[];
 };
 
+type Rotina = { id: string; area: string; titulo: string; dias: number[] };
+
 const ESTOQUE_BAIXO = 3;
+
+const isoLocal = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const saudacao = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+};
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -52,7 +63,11 @@ export function PainelClient() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [movs, setMovs] = useState<Mov[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
+  const [rotinas, setRotinas] = useState<Rotina[]>([]);
+  const [feitas, setFeitas] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const hoje = isoLocal(new Date());
+  const diaSemana = ((new Date().getDay() + 6) % 7) + 1; // 1 = segunda
 
   useEffect(() => {
     if (!supabaseConfigured || !supabase) {
@@ -60,19 +75,45 @@ export function PainelClient() {
       return;
     }
     (async () => {
-      const [{ data: p }, { data: m }, { data: v }] = await Promise.all([
+      const [{ data: p }, { data: m }, { data: v }, { data: r }, { data: c }] = await Promise.all([
         supabase!.from("ibk_produtos").select("*").eq("ativo", true),
         supabase!.from("ibk_movimentos").select("tipo, categoria, valor, data, pago"),
         supabase!.from("ibk_vendas").select("*, ibk_venda_itens(qtd, produto:ibk_produtos(custo_unit))"),
+        // rotinas de hoje: se a migration 0019 ainda nao rodou, vem erro e o bloco some
+        supabase!.from("ibk_rotinas").select("id, area, titulo, dias").eq("ativo", true).contains("dias", [diaSemana]).order("area").order("ordem"),
+        supabase!.from("ibk_rotina_checks").select("rotina_id").eq("data", hoje),
       ]);
       setProdutos((p as Produto[]) ?? []);
       setMovs((m as Mov[]) ?? []);
       setVendas((v as unknown as Venda[]) ?? []);
+      setRotinas((r as Rotina[]) ?? []);
+      setFeitas(new Set(((c as { rotina_id: string }[]) ?? []).map((x) => x.rotina_id)));
       setLoading(false);
     })();
   }, []);
 
   if (!supabaseConfigured) return <SetupCard />;
+
+  const alternarRotina = async (r: Rotina) => {
+    if (!supabase) return;
+    const feito = feitas.has(r.id);
+    setFeitas((f) => {
+      const n = new Set(f);
+      if (feito) n.delete(r.id);
+      else n.add(r.id);
+      return n;
+    });
+    const { error } = feito
+      ? await supabase.from("ibk_rotina_checks").delete().eq("rotina_id", r.id).eq("data", hoje)
+      : await supabase.from("ibk_rotina_checks").insert({ rotina_id: r.id, data: hoje });
+    if (error)
+      setFeitas((f) => {
+        const n = new Set(f);
+        if (feito) n.add(r.id);
+        else n.delete(r.id);
+        return n;
+      });
+  };
 
   // estoque
   const unidades = produtos.reduce((s, p) => s + p.qtd_atual, 0);
@@ -110,14 +151,27 @@ export function PainelClient() {
   const roas = ads > 0 ? lucroBruto / ads : null;
 
   if (loading)
-    return <p className="p-6 text-center text-[var(--ink)]/50">carregando painel...</p>;
+    return (
+      <div className="page-in">
+        <div className="skel h-3 w-20" />
+        <div className="skel mt-2 h-8 w-56" />
+        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <SkeletonCards n={4} />
+        </div>
+        <div className="skel mt-4 h-16" />
+        <div className="skel mt-4 h-40" />
+      </div>
+    );
+
+  const dataLonga = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  const rotinasFeitas = rotinas.filter((r) => feitas.has(r.id)).length;
 
   return (
-    <div>
-      <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold text-[var(--purple-dark)]">
-        Painel do Império
+    <div className="page-in">
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--ink)]/45">{dataLonga}</p>
+      <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold tracking-tight text-[var(--purple-dark)]">
+        {saudacao()}, Império 🧸
       </h1>
-      <p className="text-sm text-[var(--ink)]/70">Visão geral da operação.</p>
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -131,6 +185,52 @@ export function PainelClient() {
         />
       </div>
 
+      {/* hoje: as rotinas do dia, marcaveis daqui mesmo */}
+      {rotinas.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+          <div className="flex items-center justify-between">
+            <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
+              Hoje
+            </h2>
+            <span
+              className={`num rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+                rotinasFeitas === rotinas.length ? "bg-emerald-100 text-emerald-700" : "bg-[var(--purple)]/8 text-[var(--purple)]"
+              }`}
+            >
+              {rotinasFeitas}/{rotinas.length}
+            </span>
+          </div>
+          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+            {rotinas.map((r) => {
+              const feito = feitas.has(r.id);
+              return (
+                <li key={r.id}>
+                  <button
+                    onClick={() => alternarRotina(r)}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-semibold ${
+                      feito ? "bg-emerald-50 text-emerald-800" : "bg-[var(--purple)]/5 text-[var(--ink)] hover:bg-[var(--purple)]/10"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 text-[10px] font-extrabold ${
+                        feito ? "border-emerald-500 bg-emerald-500 text-white" : "border-[var(--purple)]/30"
+                      }`}
+                    >
+                      {feito && "✓"}
+                    </span>
+                    <span className={`flex-1 ${feito ? "line-through opacity-70" : ""}`}>{r.titulo}</span>
+                    <span className="text-[10px] font-bold uppercase text-[var(--ink)]/35">{r.area}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <Link href="/admin/tarefas" className="mt-3 inline-block text-sm font-bold text-[var(--purple)] hover:text-[var(--purple-dark)]">
+            ver a semana
+          </Link>
+        </div>
+      )}
+
       {/* payback */}
       <div className="mt-4 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
         <div className="mb-1.5 flex flex-wrap justify-between gap-2 text-xs font-bold text-[var(--ink)]/60">
@@ -138,7 +238,7 @@ export function PainelClient() {
           <span>{brl(lucroBruto)} recuperado · {paybackPct}%</span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-[var(--purple)]/10">
-          <div className="h-full rounded-full bg-[var(--purple)] transition-all" style={{ width: `${paybackPct}%` }} />
+          <div className="h-full rounded-full bg-[var(--purple)] transition-[transform,border-color,box-shadow,background-color]" style={{ width: `${paybackPct}%` }} />
         </div>
         {investido > 0 && lucroBruto < investido && (
           <p className="mt-2 text-xs text-[var(--ink)]/55">
@@ -166,8 +266,8 @@ export function PainelClient() {
         </div>
       )}
 
-      {/* atalhos agrupados por area, na mesma ordem do menu */}
-      <div className="mt-6 flex flex-col gap-5">
+      {/* atalhos so no celular: no desktop o menu lateral ja faz esse papel */}
+      <div className="mt-6 flex flex-col gap-5 lg:hidden">
         {GRUPOS.map((g) => (
           <div key={g.nome}>
             <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/40">
@@ -178,7 +278,7 @@ export function PainelClient() {
                 <Link
                   key={c.href}
                   href={c.href}
-                  className="flex items-center gap-3 rounded-2xl border-2 border-transparent bg-white p-3 shadow-[0_4px_0_rgba(109,40,184,0.1)] transition-all hover:-translate-y-0.5 hover:border-[var(--purple)]"
+                  className="flex items-center gap-3 rounded-2xl border-2 border-transparent bg-white p-3 shadow-[0_4px_0_rgba(109,40,184,0.1)] transition-[transform,border-color,box-shadow,background-color] hover:-translate-y-0.5 hover:border-[var(--purple)]"
                 >
                   <span className="text-xl">{c.emoji}</span>
                   <span className="font-[family-name:var(--font-baloo)] font-bold text-[var(--purple-dark)]">{c.label}</span>
@@ -196,7 +296,7 @@ function Kpi({ titulo, valor, sub, negativo }: { titulo: string; valor: string; 
   return (
     <div className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
       <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
-      <div className={`mt-1 font-[family-name:var(--font-baloo)] text-xl font-extrabold ${negativo ? "text-red-500" : "text-[var(--purple-dark)]"}`}>
+      <div className={`num mt-1 font-[family-name:var(--font-baloo)] text-xl font-extrabold ${negativo ? "text-red-500" : "text-[var(--purple-dark)]"}`}>
         {valor}
       </div>
       {sub && <div className="mt-0.5 text-[11px] text-[var(--ink)]/50">{sub}</div>}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { SkeletonRows } from "../ui";
 
 type Mov = {
   id: string;
@@ -70,7 +71,7 @@ export function KardexModal({ produtoId, titulo, onClose }: { produtoId: string;
               </tr>
             </thead>
             <tbody>
-              {loading && (<tr><td colSpan={6} className="p-5 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
+              {loading && <SkeletonRows cols={6} />}
               {!loading && movs.length === 0 && (
                 <tr><td colSpan={6} className="p-5 text-center text-[var(--ink)]/50">sem movimentações registradas.</td></tr>
               )}

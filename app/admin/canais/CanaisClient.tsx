@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
+import { SkeletonRows } from "../ui";
 
 export type Canal = {
   id: string;
@@ -137,7 +138,7 @@ export function CanaisClient() {
             </tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
+            {loading && <SkeletonRows cols={7} />}
             {!loading && rows.length === 0 && (
               <tr><td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">nenhum canal. rode a migration 0009 ou cadastre um.</td></tr>
             )}

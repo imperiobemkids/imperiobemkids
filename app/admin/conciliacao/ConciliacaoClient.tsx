@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
+import { SkeletonRows } from "../ui";
 
 type Venda = {
   id: string;
@@ -180,7 +181,7 @@ export function ConciliacaoClient() {
             </tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
+            {loading && <SkeletonRows cols={7} />}
             {!loading && lista.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">

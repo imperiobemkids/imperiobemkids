@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
+import { SkeletonCards, Vazio } from "../ui";
 
 type Fornecedor = {
   id: string;
@@ -118,9 +119,11 @@ export function FornecedoresClient() {
 
       {/* lista */}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        {loading && <p className="text-[var(--ink)]/50">carregando...</p>}
+        {loading && <SkeletonCards n={4} />}
         {!loading && rows.length === 0 && (
-          <p className="text-[var(--ink)]/50">nenhum fornecedor ainda.</p>
+          <div className="sm:col-span-2">
+            <Vazio emoji="🏭" titulo="Nenhum fornecedor ainda" texto="Cadastre quem vende pra você. Cada SKU do estoque pode apontar pra um deles." />
+          </div>
         )}
         {rows.map((f) => (
           <div key={f.id} className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">

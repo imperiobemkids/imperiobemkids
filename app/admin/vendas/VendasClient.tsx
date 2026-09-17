@@ -7,6 +7,7 @@ import { NovaVenda, type ProdutoVenda } from "./NovaVenda";
 import { DetalheVenda, type VendaDetalhe } from "./DetalheVenda";
 import type { Canal } from "../canais/CanaisClient";
 import { SetupCard } from "../SetupCard";
+import { SkeletonRows } from "../ui";
 
 type Produto = {
   id: string;
@@ -232,7 +233,7 @@ export function VendasClient() {
           <span>{brl(lucroAcum)} de lucro</span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-[var(--purple)]/10">
-          <div className="h-full rounded-full bg-[var(--purple)] transition-all" style={{ width: `${paybackPct}%` }} />
+          <div className="h-full rounded-full bg-[var(--purple)] transition-[transform,border-color,box-shadow,background-color]" style={{ width: `${paybackPct}%` }} />
         </div>
       </div>
 
@@ -251,11 +252,7 @@ export function VendasClient() {
             </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">carregando...</td>
-              </tr>
-            )}
+            {loading && <SkeletonRows cols={7} />}
             {!loading && vendas.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">nenhuma venda registrada ainda.</td>

@@ -6,6 +6,7 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
 import { KardexModal } from "./KardexModal";
+import { SkeletonRows } from "../ui";
 
 type Produto = {
   id: string;
@@ -204,7 +205,7 @@ export function EstoqueClient() {
             </tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={9} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
+            {loading && <SkeletonRows cols={9} />}
             {!loading && rows.length === 0 && (
               <tr><td colSpan={9} className="p-6 text-center text-[var(--ink)]/50">nenhum produto. clique em "+ Novo produto".</td></tr>
             )}

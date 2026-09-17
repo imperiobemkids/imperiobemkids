@@ -164,8 +164,8 @@ export function AdminNav() {
       {/* gaveta do celular */}
       {drawer && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setDrawer(false)} />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-2xl">
+          <div className="fade-in absolute inset-0 bg-[rgba(60,40,80,0.45)]" onClick={() => setDrawer(false)} />
+          <aside className="drawer-in absolute inset-y-0 left-0 w-64 bg-white shadow-2xl">
             <Conteudo aoNavegar={() => setDrawer(false)} />
           </aside>
         </div>

@@ -8,6 +8,7 @@ import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../../SetupCard";
 import { KardexModal } from "../KardexModal";
 import { GerarVariacoes } from "../GerarVariacoes";
+import { SkeletonCards } from "../../ui";
 
 type Produto = Record<string, unknown> & {
   id: string;
@@ -112,7 +113,16 @@ export function FichaClient({ id }: { id: string }) {
   }, [carregar]);
 
   if (!supabaseConfigured) return <SetupCard />;
-  if (loading) return <p className="p-8 text-center text-[var(--ink)]/50">carregando ficha...</p>;
+  if (loading)
+    return (
+      <div className="page-in">
+        <div className="skel h-3 w-24" />
+        <div className="skel mt-3 h-8 w-64" />
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <SkeletonCards n={4} />
+        </div>
+      </div>
+    );
   if (!produto) return <p className="p-8 text-center text-[var(--ink)]/50">produto não encontrado.</p>;
 
   const set = (campo: string, valor: string) => {

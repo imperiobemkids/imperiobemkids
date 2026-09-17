@@ -9,6 +9,10 @@
   --yellow: #fde68a;
   --teal: #2dd4bf;
   --ink: #3b2b4f;
+
+  /* movimento: curvas com mais intencao que as nativas do navegador */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @theme inline {
@@ -43,6 +47,61 @@ body {
   }
 }
 
+/*
+  Detalhes que o usuario nao percebe um a um, mas sente no conjunto:
+  botao afunda ao pressionar, foco por teclado e visivel, numero nao danca.
+*/
+button,
+[role="button"],
+a.press {
+  transition: transform 160ms var(--ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+button:active:not(:disabled),
+[role="button"]:active,
+a.press:active {
+  transform: scale(0.97);
+}
+:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+table,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* skeleton de carregamento: pulsa devagar, sem brilho correndo */
+.skel {
+  background: color-mix(in srgb, var(--purple) 8%, white);
+  border-radius: 8px;
+  animation: skel 1.4s ease-in-out infinite;
+}
+@keyframes skel {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* entrada de pagina e de gaveta: rapida, ease-out, so transform e opacity */
+.page-in {
+  animation: page-in 220ms var(--ease-out) both;
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.drawer-in {
+  animation: drawer-in 260ms var(--ease-drawer) both;
+}
+@keyframes drawer-in {
+  from { transform: translateX(-100%); }
+}
+.fade-in {
+  animation: fade-in 200ms ease-out both;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -59,4 +118,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-float { animation: none; }
+  .page-in, .drawer-in { animation-duration: 1ms; }
+  button:active:not(:disabled) { transform: none; }
 }

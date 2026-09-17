@@ -13,7 +13,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <AdminNav />
       {/* o conteudo desvia da lateral fixa a partir de lg */}
       <div className="lg:pl-60">
-        <main className="mx-auto max-w-5xl px-5 py-6">
+        <main className="mx-auto max-w-5xl px-5 py-6 pb-12">
           <AuthGuard>{children}</AuthGuard>
         </main>
       </div>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { entradaEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
+import { SkeletonRows } from "../ui";
 
 type Fornecedor = { id: string; nome: string };
 type Produto = { id: string; nome: string | null; linha: string | null; genero: string | null; tamanho: string | null; custo_unit: number; qtd_atual: number };
@@ -204,7 +205,7 @@ export function ComprasClient() {
             </tr>
           </thead>
           <tbody>
-            {loading && (<tr><td colSpan={5} className="p-6 text-center text-[var(--ink)]/50">carregando...</td></tr>)}
+            {loading && <SkeletonRows cols={5} />}
             {!loading && lotes.length === 0 && (
               <tr><td colSpan={5} className="p-6 text-center text-[var(--ink)]/50">nenhuma compra registrada. clique em "+ Nova compra".</td></tr>
             )}
