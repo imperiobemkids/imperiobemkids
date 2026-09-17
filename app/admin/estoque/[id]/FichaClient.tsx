@@ -9,6 +9,7 @@ import { SetupCard } from "../../SetupCard";
 import { KardexModal } from "../KardexModal";
 import { GerarVariacoes } from "../GerarVariacoes";
 import { SkeletonCards } from "../../ui";
+import { CodigosCanal } from "./CodigosCanal";
 import { ArrowLeft } from "@phosphor-icons/react";
 
 type Produto = Record<string, unknown> & {
@@ -324,6 +325,20 @@ export function FichaClient({ id }: { id: string }) {
 
         {aba === "anuncio" && (
           <>
+            {/* codigos na plataforma: so faz sentido no produto pai (ou num avulso) */}
+            {!produto.produto_pai_id && (
+              <CodigosCanal
+                canais={canais}
+                linhas={[
+                  { id: produto.id, rotulo: nomeExibido(produto), principal: true },
+                  ...variacoes.map((v) => ({
+                    id: v.id,
+                    rotulo: [v.tamanho && `tam ${v.tamanho}`, v.cor as string].filter(Boolean).join(" · ") || "variação",
+                  })),
+                ]}
+              />
+            )}
+
             <div className="mb-4">
               <Campo label="Palavras-chave" larga dica="separadas por vírgula, valem para todos os canais">
                 <input value={form.palavras_chave ?? ""} onChange={(e) => set("palavras_chave", e.target.value)} placeholder="conjunto infantil, roupa menino, kit verão" className={inp} />
