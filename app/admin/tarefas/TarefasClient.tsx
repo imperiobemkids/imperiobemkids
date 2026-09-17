@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
+import { CaretLeft, CaretRight, Check, X, Plus } from "@phosphor-icons/react";
 import { SkeletonCards, Vazio, btnPrimario } from "../ui";
 
 /*
@@ -168,7 +169,7 @@ export function TarefasClient() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setSemana((s) => somarDias(s, -7))} aria-label="Semana anterior" className={btnSec}>
-            ‹
+            <CaretLeft size={16} weight="bold" />
           </button>
           <button
             onClick={() => setSemana(inicioDaSemana(new Date()))}
@@ -177,19 +178,20 @@ export function TarefasClient() {
             {semanaAtual ? "esta semana" : rotuloSemana}
           </button>
           <button onClick={() => setSemana((s) => somarDias(s, 7))} aria-label="Próxima semana" className={btnSec}>
-            ›
+            <CaretRight size={16} weight="bold" />
           </button>
           <button
             onClick={() => setNovoAberto((v) => !v)}
-            className="rounded-xl bg-[var(--purple)] px-4 py-2 text-sm font-extrabold text-white transition-colors hover:bg-[var(--purple-dark)]"
+            className="flex items-center gap-1.5 rounded-xl bg-[var(--purple)] px-4 py-2 text-sm font-extrabold text-white transition-colors hover:bg-[var(--purple-dark)]"
           >
-            {novoAberto ? "fechar" : "+ rotina"}
+            {novoAberto ? <X size={16} weight="bold" /> : <Plus size={16} weight="bold" />}
+            {novoAberto ? "fechar" : "rotina"}
           </button>
         </div>
       </div>
 
       {novoAberto && (
-        <div className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+        <div className="mt-4 flex flex-wrap items-end gap-3 card p-4">
           <Campo label="Área">
             <input
               list="areas"
@@ -289,7 +291,7 @@ export function TarefasClient() {
       </div>
 
       {/* semana: 7 colunas no desktop, 1 dia no celular */}
-      <div className="mt-4 grid gap-3 lg:grid-cols-7">
+      <div className="cascata mt-4 grid gap-3 lg:grid-cols-7">
         {DIAS.map((d, i) => {
           const data = datas[i];
           const eHoje = data === hoje;
@@ -301,7 +303,7 @@ export function TarefasClient() {
           return (
             <section
               key={d.n}
-              className={`${diaMobile === i ? "" : "hidden lg:block"} rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)] ${
+              className={`${diaMobile === i ? "" : "hidden lg:block"} card ${
                 eHoje ? "ring-2 ring-[var(--purple)]" : ""
               }`}
             >
@@ -334,7 +336,7 @@ export function TarefasClient() {
                     <div className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--ink)]/45">
                       {nomeArea}
                     </div>
-                    <ul className="flex flex-col gap-1">
+                    <ul className="cascata flex flex-col gap-1">
                       {lista.map((r) => {
                         const feito = checks.has(`${r.id}|${data}`);
                         const passou = data < hoje && !feito;
@@ -359,7 +361,7 @@ export function TarefasClient() {
                                       : "border-[var(--purple)]/30"
                                 }`}
                               >
-                                {feito && "✓"}
+                                {feito && <Check size={10} weight="bold" />}
                               </span>
                               <span className={feito ? "line-through opacity-70" : ""}>{r.titulo}</span>
                             </button>
@@ -368,7 +370,7 @@ export function TarefasClient() {
                               aria-label="Remover rotina"
                               className="mt-1 text-[10px] font-bold text-[var(--ink)]/0 transition-colors hover:text-red-500 group-hover:text-[var(--ink)]/30"
                             >
-                              ✕
+                              <X size={12} weight="bold" />
                             </button>
                           </li>
                         );

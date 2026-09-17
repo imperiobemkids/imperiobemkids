@@ -235,7 +235,7 @@ export function NovaVenda({
   // a lista nao filtra o que ja foi adicionado: o mesmo produto pode entrar de novo
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+    <div className="card p-4">
       {/* dados da venda */}
       <div className="flex flex-wrap items-end gap-2">
         <Campo label="Data">

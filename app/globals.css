@@ -71,6 +71,88 @@ table,
   font-variant-numeric: tabular-nums;
 }
 
+/*
+  Painel: grao de papel sobre a tela (tira a cara de vetor liso), luz ambiente
+  atras do cabecalho nas cores da marca e uma unica linguagem de card.
+*/
+.admin-shell { position: relative; isolation: isolate; }
+.admin-shell::after {
+  content: "";
+  position: fixed; inset: 0; z-index: 200; pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 160px 160px;
+}
+.pagina { position: relative; isolation: isolate; }
+.pagina::before {
+  content: "";
+  position: absolute; inset: -24px -20px auto -20px; height: 380px; z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(560px 280px at 8% -10%, rgba(249, 168, 212, 0.28), transparent 70%),
+    radial-gradient(520px 260px at 92% -20%, rgba(110, 231, 183, 0.22), transparent 70%),
+    radial-gradient(420px 220px at 55% -30%, rgba(253, 230, 138, 0.18), transparent 70%);
+}
+
+/*
+  Card do painel: branco, canto 16px, fio de luz no topo e a sombra solida
+  roxa que e assinatura da marca, mais um halo difuso bem leve embaixo pra
+  parecer apoiado no creme. Hover so em ponteiro fino: sobe 2px, sombra cresce.
+*/
+.card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(109, 40, 184, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 4px 0 rgba(109, 40, 184, 0.1),
+    0 14px 28px -20px rgba(76, 29, 128, 0.25);
+  transition: box-shadow 200ms ease, border-color 200ms ease, transform 200ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(109, 40, 184, 0.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 6px 0 rgba(109, 40, 184, 0.14),
+      0 20px 36px -20px rgba(76, 29, 128, 0.35);
+  }
+}
+
+/*
+  Cascata de entrada: filhos de .cascata entram um atras do outro, 30ms de
+  passo, doze passos e dai em diante junto. Chave estavel nao reanima.
+*/
+.cascata > * {
+  animation: linha-entra 260ms var(--ease-out) both;
+}
+.cascata > :nth-child(1)  { animation-delay: 0ms; }
+.cascata > :nth-child(2)  { animation-delay: 30ms; }
+.cascata > :nth-child(3)  { animation-delay: 60ms; }
+.cascata > :nth-child(4)  { animation-delay: 90ms; }
+.cascata > :nth-child(5)  { animation-delay: 120ms; }
+.cascata > :nth-child(6)  { animation-delay: 150ms; }
+.cascata > :nth-child(7)  { animation-delay: 180ms; }
+.cascata > :nth-child(8)  { animation-delay: 210ms; }
+.cascata > :nth-child(9)  { animation-delay: 240ms; }
+.cascata > :nth-child(10) { animation-delay: 270ms; }
+.cascata > :nth-child(11) { animation-delay: 300ms; }
+.cascata > :nth-child(12) { animation-delay: 330ms; }
+@keyframes linha-entra {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+/* traco do sparkline desenha uma vez na entrada */
+.traco {
+  stroke-dasharray: 600;
+  animation: traco 900ms var(--ease-out) both;
+}
+@keyframes traco {
+  from { stroke-dashoffset: 600; }
+  to { stroke-dashoffset: 0; }
+}
+
 /* skeleton de carregamento: pulsa devagar, sem brilho correndo */
 .skel {
   background: color-mix(in srgb, var(--purple) 8%, white);
@@ -119,5 +201,8 @@ table,
 @media (prefers-reduced-motion: reduce) {
   .animate-float { animation: none; }
   .page-in, .drawer-in { animation-duration: 1ms; }
+  .cascata > * { animation: fade-in 200ms ease both; animation-delay: 0ms; }
+  .traco { animation: none; stroke-dasharray: none; }
+  .card-hover:hover { transform: none; }
   button:active:not(:disabled) { transform: none; }
 }

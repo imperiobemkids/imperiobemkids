@@ -187,7 +187,7 @@ export function SimuladorClient() {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
         {/* entradas */}
-        <div className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+        <div className="card p-4">
           {skus.length > 0 && (
             <Campo label="Puxar custo de um SKU">
               <select onChange={(e) => prefill(e.target.value)} className={inputCls} defaultValue="">
@@ -251,7 +251,7 @@ export function SimuladorClient() {
       </div>
 
       {/* escada de precos */}
-      <div className="mt-5 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-5 overflow-x-auto card">
         <table className="w-full min-w-[420px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -260,7 +260,7 @@ export function SimuladorClient() {
               <th className="p-3">Margem</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="cascata">
             {escada.map((e, i) => (
               <tr key={i} className={`border-b border-[var(--purple)]/6 last:border-0 ${e.p === precoN ? "bg-[var(--purple)]/5" : ""}`}>
                 <td className="p-3 font-semibold">{brl(e.p)}{e.p === precoN ? " (atual)" : ""}</td>
@@ -308,7 +308,7 @@ export function SimuladorClient() {
           </div>
         </div>
 
-        <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+        <div className="mt-3 overflow-x-auto card">
           <table className="w-full min-w-[860px] text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -324,7 +324,7 @@ export function SimuladorClient() {
                 <th className="p-3">Lucro potencial</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="cascata">
               {linhasTabela.length === 0 && (
                 <tr><td colSpan={10} className="p-6 text-center text-[var(--ink)]/50">nenhum produto no estoque.</td></tr>
               )}
@@ -375,7 +375,7 @@ export function SimuladorClient() {
             Mostra quanto cobrar em cada lugar para ganhar a mesma coisa.
           </p>
 
-          <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+          <div className="mt-3 overflow-x-auto card">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -387,7 +387,7 @@ export function SimuladorClient() {
                   <th className="p-3">Margem</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="cascata">
                 {comparativo.map((l) => (
                   <tr key={l.canal.id} className="border-b border-[var(--purple)]/6 last:border-0">
                     <td className="p-3 font-semibold text-[var(--ink)]">{l.canal.nome}</td>
@@ -426,7 +426,7 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 
 function Res({ titulo, valor, destaque, big }: { titulo: string; valor: string; destaque?: boolean; big?: boolean }) {
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+    <div className="card p-4">
       <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
       <div
         className={`mt-1 font-[family-name:var(--font-baloo)] font-extrabold ${big ? "text-2xl" : "text-lg"} ${

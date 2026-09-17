@@ -5,7 +5,8 @@ import Link from "next/link";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "./SetupCard";
 import { GRUPOS } from "./AdminNav";
-import { SkeletonCards } from "./ui";
+import { SkeletonCards, Sparkline } from "./ui";
+import { Check } from "@phosphor-icons/react";
 
 type Produto = {
   id: string;
@@ -147,6 +148,13 @@ export function PainelClient() {
     .reduce((s, v) => s + (v.preco_venda * (1 - v.taxa_pct) - (v.taxa_fixa ?? 0) - v.frete), 0);
   const lucroLiquido = lucroBruto - ads;
   const vendidoMes = vendas.filter((v) => noMes(v.data)).reduce((s, v) => s + v.preco_venda, 0);
+  // vendido por dia nos ultimos 14 dias, pro sparkline
+  const serie14 = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - i));
+    const dia = isoLocal(d);
+    return vendas.filter((v) => v.data.slice(0, 10) === dia && !v.devolvida).reduce((s, v) => s + v.preco_venda, 0);
+  });
   const paybackPct = investido > 0 ? Math.min(100, Math.round((lucroBruto / investido) * 100)) : 0;
   const roas = ads > 0 ? lucroBruto / ads : null;
 
@@ -174,7 +182,7 @@ export function PainelClient() {
       </h1>
 
       {/* KPIs */}
-      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="cascata mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi titulo="Valor em estoque" valor={brl(valorEstoque)} sub={`${unidades} unidades`} />
         <Kpi titulo="Saldo de caixa" valor={brl(caixa)} negativo={caixa < 0} sub={aPagar > 0 ? `${brl(aPagar)} a pagar` : "sem contas abertas"} />
         <Kpi titulo="Lucro das vendas" valor={brl(lucroBruto)} negativo={lucroBruto < 0} sub={ads > 0 ? `${brl(lucroLiquido)} após ads` : `${vendas.length} vendas`} />
@@ -182,12 +190,13 @@ export function PainelClient() {
           titulo={aReceber > 0 ? "A receber" : "Vendido no mês"}
           valor={brl(aReceber > 0 ? aReceber : vendidoMes)}
           sub={aReceber > 0 ? "repasse ainda não conciliado" : ads > 0 ? `ads: ${brl(ads)}${roas ? ` · ROAS ${roas.toFixed(1)}x` : ""}` : "sem gasto de ads"}
+          grafico={<Sparkline valores={serie14} />}
         />
       </div>
 
       {/* hoje: as rotinas do dia, marcaveis daqui mesmo */}
       {rotinas.length > 0 && (
-        <div className="mt-4 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+        <div className="mt-4 card p-4">
           <div className="flex items-center justify-between">
             <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
               Hoje
@@ -200,7 +209,7 @@ export function PainelClient() {
               {rotinasFeitas}/{rotinas.length}
             </span>
           </div>
-          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+          <ul className="cascata mt-2 grid gap-1 sm:grid-cols-2">
             {rotinas.map((r) => {
               const feito = feitas.has(r.id);
               return (
@@ -216,7 +225,7 @@ export function PainelClient() {
                         feito ? "border-emerald-500 bg-emerald-500 text-white" : "border-[var(--purple)]/30"
                       }`}
                     >
-                      {feito && "✓"}
+                      {feito && <Check size={10} weight="bold" />}
                     </span>
                     <span className={`flex-1 ${feito ? "line-through opacity-70" : ""}`}>{r.titulo}</span>
                     <span className="text-[10px] font-bold uppercase text-[var(--ink)]/35">{r.area}</span>
@@ -232,7 +241,7 @@ export function PainelClient() {
       )}
 
       {/* payback */}
-      <div className="mt-4 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-4 card p-4">
         <div className="mb-1.5 flex flex-wrap justify-between gap-2 text-xs font-bold text-[var(--ink)]/60">
           <span>Payback do investimento ({brl(investido)})</span>
           <span>{brl(lucroBruto)} recuperado · {paybackPct}%</span>
@@ -249,7 +258,7 @@ export function PainelClient() {
 
       {/* alerta de estoque */}
       {baixos.length > 0 && (
-        <div className="mt-4 rounded-2xl border-2 border-[var(--sun)] bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+        <div className="mt-4 card border-[var(--sun)] p-4">
           <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
             Estoque baixo ({baixos.length})
           </h2>
@@ -278,9 +287,9 @@ export function PainelClient() {
                 <Link
                   key={c.href}
                   href={c.href}
-                  className="flex items-center gap-3 rounded-2xl border-2 border-transparent bg-white p-3 shadow-[0_4px_0_rgba(109,40,184,0.1)] transition-[transform,border-color,box-shadow,background-color] hover:-translate-y-0.5 hover:border-[var(--purple)]"
+                  className="flex items-center gap-3 card card-hover p-3"
                 >
-                  <span className="text-xl">{c.emoji}</span>
+                  <c.icone size={22} weight="duotone" className="text-[var(--purple)]" />
                   <span className="font-[family-name:var(--font-baloo)] font-bold text-[var(--purple-dark)]">{c.label}</span>
                 </Link>
               ))}
@@ -292,14 +301,27 @@ export function PainelClient() {
   );
 }
 
-function Kpi({ titulo, valor, sub, negativo }: { titulo: string; valor: string; sub?: string; negativo?: boolean }) {
+function Kpi({
+  titulo,
+  valor,
+  sub,
+  negativo,
+  grafico,
+}: {
+  titulo: string;
+  valor: string;
+  sub?: string;
+  negativo?: boolean;
+  grafico?: React.ReactNode;
+}) {
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+    <div className="card p-4">
       <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
       <div className={`num mt-1 font-[family-name:var(--font-baloo)] text-xl font-extrabold ${negativo ? "text-red-500" : "text-[var(--purple-dark)]"}`}>
         {valor}
       </div>
       {sub && <div className="mt-0.5 text-[11px] text-[var(--ink)]/50">{sub}</div>}
+      {grafico}
     </div>
   );
 }

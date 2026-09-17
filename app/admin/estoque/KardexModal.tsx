@@ -70,7 +70,7 @@ export function KardexModal({ produtoId, titulo, onClose }: { produtoId: string;
                 <th className="p-2">Custo médio</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="cascata">
               {loading && <SkeletonRows cols={6} />}
               {!loading && movs.length === 0 && (
                 <tr><td colSpan={6} className="p-5 text-center text-[var(--ink)]/50">sem movimentações registradas.</td></tr>

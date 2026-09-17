@@ -9,6 +9,7 @@ import { SetupCard } from "../../SetupCard";
 import { KardexModal } from "../KardexModal";
 import { GerarVariacoes } from "../GerarVariacoes";
 import { SkeletonCards } from "../../ui";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 type Produto = Record<string, unknown> & {
   id: string;
@@ -180,7 +181,7 @@ export function FichaClient({ id }: { id: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link href="/admin/estoque" className="text-sm font-bold text-[var(--purple)] hover:underline">
-            ← voltar para o estoque
+            <ArrowLeft size={14} weight="bold" className="inline-block align-[-2px]" /> voltar para o estoque
           </Link>
           <h1 className="mt-1 font-[family-name:var(--font-baloo)] text-2xl font-extrabold text-[var(--purple-dark)]">
             {nomeExibido(produto)}
@@ -218,7 +219,7 @@ export function FichaClient({ id }: { id: string }) {
         ))}
       </div>
 
-      <div className="mt-4 rounded-2xl bg-white p-5 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-4 card p-5">
         {aba === "geral" && (
           <Grade>
             <Campo label="Nome do produto" larga><input value={form.nome ?? ""} onChange={(e) => set("nome", e.target.value)} className={inp} /></Campo>

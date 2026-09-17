@@ -227,7 +227,7 @@ export function VendasClient() {
       )}
 
       {/* payback bar */}
-      <div className="mt-5 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-5 card p-4">
         <div className="mb-1 flex justify-between text-xs font-bold text-[var(--ink)]/60">
           <span>Payback do investido ({brl(investido)})</span>
           <span>{brl(lucroAcum)} de lucro</span>
@@ -238,7 +238,7 @@ export function VendasClient() {
       </div>
 
       {/* lista de vendas */}
-      <div className="mt-5 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-5 overflow-x-auto card">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -251,7 +251,7 @@ export function VendasClient() {
               <th className="p-3"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="cascata">
             {loading && <SkeletonRows cols={7} />}
             {!loading && vendas.length === 0 && (
               <tr>

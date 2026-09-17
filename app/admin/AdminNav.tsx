@@ -5,42 +5,56 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { LogoutButton } from "./LogoutButton";
+import {
+  House,
+  CalendarCheck,
+  Package,
+  ShoppingBag,
+  Factory,
+  Receipt,
+  Calculator,
+  Storefront,
+  Wallet,
+  MagnifyingGlass,
+  Globe,
+  List,
+  CaretDown,
+  type Icon,
+} from "@phosphor-icons/react";
 
 /*
   Menu lateral agrupado por area. Compras fica em Suprimentos porque o que ela faz
   primeiro e entrar mercadoria no estoque (o caixa e consequencia); Precificacao
   fica em Comercial porque define preco, nao movimenta dinheiro.
 */
-export const GRUPOS = [
+export type ItemNav = { href: string; label: string; icone: Icon };
+
+export const GRUPOS: { nome: string; itens: ItemNav[] }[] = [
   {
     nome: "Operação",
-    emoji: "📅",
-    itens: [{ href: "/admin/tarefas", label: "Tarefas", emoji: "📅" }],
+    itens: [{ href: "/admin/tarefas", label: "Tarefas", icone: CalendarCheck }],
   },
   {
     nome: "Suprimentos",
-    emoji: "📦",
     itens: [
-      { href: "/admin/estoque", label: "Estoque", emoji: "📦" },
-      { href: "/admin/compras", label: "Compras", emoji: "🛍️" },
-      { href: "/admin/fornecedores", label: "Fornecedores", emoji: "🏭" },
+      { href: "/admin/estoque", label: "Estoque", icone: Package },
+      { href: "/admin/compras", label: "Compras", icone: ShoppingBag },
+      { href: "/admin/fornecedores", label: "Fornecedores", icone: Factory },
     ],
   },
   {
     nome: "Comercial",
-    emoji: "🧾",
     itens: [
-      { href: "/admin/vendas", label: "Vendas", emoji: "🧾" },
-      { href: "/admin/simulador", label: "Precificação", emoji: "🧮" },
-      { href: "/admin/canais", label: "Canais", emoji: "🏬" },
+      { href: "/admin/vendas", label: "Vendas", icone: Receipt },
+      { href: "/admin/simulador", label: "Precificação", icone: Calculator },
+      { href: "/admin/canais", label: "Canais", icone: Storefront },
     ],
   },
   {
     nome: "Financeiro",
-    emoji: "💰",
     itens: [
-      { href: "/admin/financeiro", label: "Caixa", emoji: "💰" },
-      { href: "/admin/conciliacao", label: "Conciliação", emoji: "🔎" },
+      { href: "/admin/financeiro", label: "Caixa", icone: Wallet },
+      { href: "/admin/conciliacao", label: "Conciliação", icone: MagnifyingGlass },
     ],
   },
 ];
@@ -80,7 +94,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">
         <Link href="/admin" onClick={aoNavegar} className={itemCls(pathname === "/admin")}>
-          <span className="text-base">🏠</span> Painel
+          <House size={20} weight={pathname === "/admin" ? "fill" : "duotone"} /> Painel
         </Link>
 
         <div className="mt-3 flex flex-col gap-1">
@@ -97,20 +111,24 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
                       : "text-[var(--ink)]/55 hover:bg-[var(--purple)]/6 hover:text-[var(--purple)]"
                   }`}
                 >
-                  <span className="text-sm">{g.emoji}</span>
                   <span>{g.nome}</span>
-                  <span className={`ml-auto text-[10px] opacity-60 transition-transform ${aberto ? "rotate-180" : ""}`}>
-                    ▾
-                  </span>
+                  <CaretDown
+                    size={12}
+                    weight="bold"
+                    className={`ml-auto opacity-60 transition-transform duration-200 ${aberto ? "rotate-180" : ""}`}
+                  />
                 </button>
 
                 {aberto && (
                   <div className="mt-0.5 ml-4 flex flex-col gap-0.5 border-l-2 border-[var(--purple)]/12 pl-2">
-                    {g.itens.map((i) => (
-                      <Link key={i.href} href={i.href} onClick={aoNavegar} className={itemCls(pathname.startsWith(i.href))}>
-                        <span className="text-base">{i.emoji}</span> {i.label}
-                      </Link>
-                    ))}
+                    {g.itens.map((i) => {
+                      const ativo = pathname.startsWith(i.href);
+                      return (
+                        <Link key={i.href} href={i.href} onClick={aoNavegar} className={itemCls(ativo)}>
+                          <i.icone size={20} weight={ativo ? "fill" : "duotone"} /> {i.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -125,7 +143,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
           onClick={aoNavegar}
           className="mb-1 flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--ink)]/60 hover:bg-[var(--purple)]/8 hover:text-[var(--purple-dark)]"
         >
-          <span className="text-base">🌐</span> Ver o site
+          <Globe size={20} weight="duotone" /> Ver o site
         </Link>
         <LogoutButton />
       </div>
@@ -152,9 +170,9 @@ export function AdminNav() {
         <button
           onClick={() => setDrawer(true)}
           aria-label="Abrir menu"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--purple)]/8 text-lg text-[var(--purple)]"
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--purple)]/8 text-[var(--purple)]"
         >
-          ☰
+          <List size={20} weight="bold" />
         </button>
         <Link href="/admin" className="font-[family-name:var(--font-baloo)] text-base font-extrabold text-[var(--purple-dark)]">
           Império <span className="text-[var(--purple)]">Admin</span>

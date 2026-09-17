@@ -189,7 +189,7 @@ export function EstoqueClient() {
         Colunas secundarias somem no celular para a tabela caber sem espremer.
         A informacao completa continua na ficha do produto.
       */}
-      <div className="mt-5 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-5 overflow-x-auto card">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -204,7 +204,7 @@ export function EstoqueClient() {
               <th className="p-3"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="cascata">
             {loading && <SkeletonRows cols={9} />}
             {!loading && rows.length === 0 && (
               <tr><td colSpan={9} className="p-6 text-center text-[var(--ink)]/50">nenhum produto. clique em "+ Novo produto".</td></tr>

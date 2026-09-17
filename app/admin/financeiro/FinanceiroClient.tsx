@@ -151,7 +151,7 @@ export function FinanceiroClient() {
       </div>
 
       {/* novo movimento */}
-      <div className="mt-5 flex flex-wrap items-end gap-2 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-5 flex flex-wrap items-end gap-2 card p-4">
         <Campo label="Data">
           <input type="date" value={data} onChange={(e) => setData(e.target.value)} className={inputCls} />
         </Campo>
@@ -211,7 +211,7 @@ export function FinanceiroClient() {
 
       {/* contas a pagar */}
       {aPagar.length > 0 && (
-        <div className="mt-5 rounded-2xl border-2 border-[var(--sun)] bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+        <div className="mt-5 card border-[var(--sun)] p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
               Contas a pagar
@@ -240,7 +240,7 @@ export function FinanceiroClient() {
         <h2 className="mb-2 font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
           Últimos lançamentos
         </h2>
-        <div className="overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+        <div className="overflow-x-auto card">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -251,7 +251,7 @@ export function FinanceiroClient() {
                 <th className="p-3">Valor</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="cascata">
               {loading && <SkeletonRows cols={5} />}
               {!loading && movs.length === 0 && (
                 <tr><td colSpan={5} className="p-6 text-center text-[var(--ink)]/50">nenhum lançamento ainda.</td></tr>
@@ -284,7 +284,7 @@ export function FinanceiroClient() {
       </div>
 
       {/* por categoria */}
-      <div className="mt-5 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-5 overflow-x-auto card">
         <table className="w-full min-w-[480px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -294,7 +294,7 @@ export function FinanceiroClient() {
               <th className="p-3">Líquido</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="cascata">
             {loading && (
               <SkeletonRows cols={4} />
             )}
@@ -341,7 +341,7 @@ function Kpi({ titulo, valor, destaque }: { titulo: string; valor: string; desta
 
 function Card({ titulo, valor, destaque }: { titulo: string; valor: string; destaque?: boolean }) {
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+    <div className="card p-4">
       <div className="text-xs font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
       <div className={`mt-1 font-[family-name:var(--font-baloo)] text-xl font-extrabold ${destaque === false ? "text-red-500" : "text-[var(--purple-dark)]"}`}>
         {valor}

@@ -124,7 +124,7 @@ export function CanaisClient() {
 
       {erro && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
 
-      <div className="mt-5 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-5 overflow-x-auto card">
         <table className="w-full min-w-[620px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -137,7 +137,7 @@ export function CanaisClient() {
               <th className="p-3"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="cascata">
             {loading && <SkeletonRows cols={7} />}
             {!loading && rows.length === 0 && (
               <tr><td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">nenhum canal. rode a migration 0009 ou cadastre um.</td></tr>

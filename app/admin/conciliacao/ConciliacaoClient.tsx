@@ -168,7 +168,7 @@ export function ConciliacaoClient() {
 
       {erro && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
 
-      <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-3 overflow-x-auto card">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
@@ -180,7 +180,7 @@ export function ConciliacaoClient() {
               <th className="p-3"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="cascata">
             {loading && <SkeletonRows cols={7} />}
             {!loading && lista.length === 0 && (
               <tr>

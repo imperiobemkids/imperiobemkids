@@ -90,7 +90,7 @@ export function FornecedoresClient() {
       <p className="text-sm text-[var(--ink)]/70">Quem fornece, contatos e quantos SKUs vieram de cada um.</p>
 
       {/* novo fornecedor */}
-      <div className="mt-5 flex flex-wrap items-end gap-2 rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+      <div className="mt-5 flex flex-wrap items-end gap-2 card p-4">
         <Campo label="Nome">
           <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="ex: ConectaVenda" className={`${inputCls} w-44`} />
         </Campo>
@@ -118,7 +118,7 @@ export function FornecedoresClient() {
       {erro && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
 
       {/* lista */}
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="cascata mt-5 grid gap-3 sm:grid-cols-2">
         {loading && <SkeletonCards n={4} />}
         {!loading && rows.length === 0 && (
           <div className="sm:col-span-2">
@@ -126,7 +126,7 @@ export function FornecedoresClient() {
           </div>
         )}
         {rows.map((f) => (
-          <div key={f.id} className="rounded-2xl bg-white p-4 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+          <div key={f.id} className="card p-4">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="font-[family-name:var(--font-baloo)] text-lg font-bold text-[var(--purple-dark)]">
