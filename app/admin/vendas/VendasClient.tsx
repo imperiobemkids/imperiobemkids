@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
-import { devolucaoEstoque } from "@/lib/estoque";
+import { STATUS, estornada, estornarVenda, situacaoDespacho, type StatusPedido } from "@/lib/pedidos";
 import { NovaVenda, type ProdutoVenda } from "./NovaVenda";
 import { DetalheVenda, type VendaDetalhe } from "./DetalheVenda";
 import type { Canal } from "../canais/CanaisClient";
@@ -40,6 +40,9 @@ type VendaRow = {
   devolvida: boolean;
   data_devolucao: string | null;
   custo_devolucao: number;
+  status: StatusPedido;
+  pedido_externo: string | null;
+  rastreio: string | null;
   ibk_venda_itens: {
     qtd: number;
     preco_unit: number;
@@ -66,7 +69,8 @@ const brl = (v: number) =>
   prejuizo da devolucao (frete reverso + parte da comissao que nao volta).
 */
 const lucroVenda = (v: VendaRow) => {
-  if (v.devolvida) return -(v.custo_devolucao ?? 0);
+  if (v.status === "cancelado") return 0;
+  if (v.devolvida || v.status === "devolvido") return -(v.custo_devolucao ?? 0);
   const custoItens = v.ibk_venda_itens.reduce(
     (s, it) => s + (it.produto?.custo_unit ?? 0) * it.qtd,
     0,
@@ -89,6 +93,7 @@ export function VendasClient() {
   const [erro, setErro] = useState("");
   const [caixaAberto, setCaixaAberto] = useState(false);
   const [detalhe, setDetalhe] = useState<VendaDetalhe | null>(null);
+  const [filtro, setFiltro] = useState<"todos" | StatusPedido>("todos");
 
 
   const carregar = useCallback(async () => {
@@ -133,44 +138,25 @@ export function VendasClient() {
     lanca o custo da devolucao (frete reverso + parte da comissao que nao volta).
   */
   const devolver = async (v: VendaRow) => {
-    if (!supabase) return;
     const resposta = prompt(
       `Devolver a venda de ${brl(v.preco_venda)}?\n\nQuanto essa devolução vai custar (frete reverso + comissão que a Shopee não devolve)?`,
       "0",
     );
     if (resposta === null) return;
     const custoDev = parseFloat(resposta.replace(",", ".")) || 0;
-    const dataDev = new Date().toISOString().slice(0, 10);
     setErro("");
-
-    // 1) peca volta ao estoque (custo medio nao muda)
-    for (const it of v.ibk_venda_itens) {
-      if (it.produto_id) await devolucaoEstoque(it.produto_id, it.qtd, { vendaId: v.id, data: dataDev });
-    }
-
-    // 2) caixa: estorna a entrada da venda e devolve a taxa que havia saido
-    const movs: Record<string, unknown>[] = [
-      { data: dataDev, tipo: "saida", categoria: "venda", valor: v.preco_venda, descricao: "Estorno de venda devolvida", ref_venda_id: v.id },
-      { data: dataDev, tipo: "entrada", categoria: "taxa_shopee", valor: v.preco_venda * v.taxa_pct, descricao: "Estorno da taxa (venda devolvida)", ref_venda_id: v.id },
-    ];
-    // 3) custo da devolucao
-    if (custoDev > 0) {
-      movs.push({ data: dataDev, tipo: "saida", categoria: "frete", valor: custoDev, descricao: "Custo da devolução (frete reverso e taxa retida)", ref_venda_id: v.id });
-    }
-    await supabase.from("ibk_movimentos").insert(movs);
-
-    // 4) marca a venda
-    const { error } = await supabase
-      .from("ibk_vendas")
-      .update({ devolvida: true, data_devolucao: dataDev, custo_devolucao: custoDev })
-      .eq("id", v.id);
-    if (error) setErro(error.message);
+    const erro = await estornarVenda(v, "devolvido", custoDev);
+    if (erro) setErro(erro);
     carregar();
   };
 
   // somas gerais (venda devolvida sai do faturamento)
-  const totalVendido = vendas.filter((v) => !v.devolvida).reduce((s, v) => s + v.preco_venda, 0);
-  const devolvidas = vendas.filter((v) => v.devolvida);
+  const totalVendido = vendas.filter((v) => !estornada(v.status)).reduce((s, v) => s + v.preco_venda, 0);
+  const devolvidas = vendas.filter((v) => v.status === "devolvido");
+  const aguardando = vendas.filter((v) => v.status === "aguardando");
+  const atrasadas = aguardando.filter((v) => situacaoDespacho(v.data, v.status)?.nivel === "atrasado");
+  const contagem = (s: StatusPedido) => vendas.filter((v) => v.status === s).length;
+  const visiveis = filtro === "todos" ? vendas : vendas.filter((v) => v.status === filtro);
   const lucroAcum = vendas.reduce((s, v) => s + lucroVenda(v), 0);
   // investido = tudo que saiu em mercadoria, insumo e capex (nao fixar no codigo)
   const paybackPct = investido > 0 ? Math.min(100, Math.round((lucroAcum / investido) * 100)) : 0;
@@ -238,11 +224,36 @@ export function VendasClient() {
       </div>
 
       {/* lista de vendas */}
-      <div className="mt-5 overflow-x-auto card">
+      {/* filtro por status; atrasado e o que mais importa ver primeiro */}
+      <div className="mt-5 flex flex-wrap items-center gap-1.5">
+        {(["todos", "aguardando", "enviado", "entregue", "cancelado", "devolvido"] as const).map((f) => {
+          const n = f === "todos" ? vendas.length : contagem(f);
+          if (f !== "todos" && n === 0 && filtro !== f) return null;
+          const ativo = filtro === f;
+          return (
+            <button
+              key={f}
+              onClick={() => setFiltro(f)}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                ativo ? "bg-[var(--purple)] text-white" : "bg-white text-[var(--ink)]/65 hover:bg-[var(--purple)]/8"
+              }`}
+            >
+              {f === "todos" ? "todos" : STATUS[f].rotulo} <span className="num opacity-60">{n}</span>
+            </button>
+          );
+        })}
+        {atrasadas.length > 0 && (
+          <span className="ml-auto rounded-full bg-red-100 px-3 py-1 text-xs font-extrabold text-red-600">
+            {atrasadas.length} {atrasadas.length === 1 ? "pedido atrasado" : "pedidos atrasados"}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3 overflow-x-auto card">
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
-              <th className="p-3">Data</th>
+              <th className="p-3">Pedido</th>
               <th className="p-3">Produtos</th>
               <th className="hidden p-3 sm:table-cell">Canal</th>
               <th className="hidden p-3 lg:table-cell">Taxas</th>
@@ -253,17 +264,27 @@ export function VendasClient() {
           </thead>
           <tbody className="cascata">
             {loading && <SkeletonRows cols={7} />}
-            {!loading && vendas.length === 0 && (
+            {!loading && visiveis.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">nenhuma venda registrada ainda.</td>
+                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">
+                  {vendas.length === 0 ? "nenhuma venda registrada ainda." : "nada nesse status."}
+                </td>
               </tr>
             )}
-            {vendas.map((v) => {
+            {visiveis.map((v) => {
               const l = lucroVenda(v);
               const qtdItens = v.ibk_venda_itens.reduce((s, it) => s + it.qtd, 0);
+              const st = STATUS[v.status] ?? STATUS.entregue;
+              const desp = situacaoDespacho(v.data, v.status);
               return (
-                <tr key={v.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${v.devolvida ? "bg-red-50/60" : ""}`}>
-                  <td className="whitespace-nowrap p-3">{new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}</td>
+                <tr key={v.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${estornada(v.status) ? "bg-red-50/40" : ""}`}>
+                  <td className="whitespace-nowrap p-3">
+                    <div>{new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}</div>
+                    {v.pedido_externo && <div className="num text-[11px] text-[var(--ink)]/45">#{v.pedido_externo}</div>}
+                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${desp?.nivel === "atrasado" ? "bg-red-100 text-red-600" : st.cor}`}>
+                      {desp?.nivel === "atrasado" ? `atrasado ${desp.dias}d` : st.rotulo}
+                    </span>
+                  </td>
                   <td className="p-3">
                     <button onClick={() => setDetalhe(v as unknown as VendaDetalhe)} className="text-left font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
                       {resumoProdutos(v)}
@@ -273,24 +294,19 @@ export function VendasClient() {
                       {v.cliente ? ` · ${v.cliente}` : ""}
                       {v.forma_pagamento ? ` · ${v.forma_pagamento}` : ""}
                     </div>
-                    {v.devolvida && (
-                      <span className="mt-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-extrabold uppercase text-red-600">
-                        devolvida
-                      </span>
-                    )}
                   </td>
                   <td className="hidden p-3 capitalize sm:table-cell">{v.canal}</td>
                   <td className="hidden p-3 text-[var(--ink)]/60 lg:table-cell">
                     {brl(v.preco_venda * v.taxa_pct + (v.taxa_fixa ?? 0))}
                   </td>
-                  <td className={`whitespace-nowrap p-3 font-semibold ${v.devolvida ? "text-[var(--ink)]/40 line-through" : ""}`}>{brl(v.preco_venda)}</td>
+                  <td className={`whitespace-nowrap p-3 font-semibold ${estornada(v.status) ? "text-[var(--ink)]/40 line-through" : ""}`}>{brl(v.preco_venda)}</td>
                   <td className={`whitespace-nowrap p-3 font-bold ${l >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l)}</td>
                   <td className="p-3">
                     <div className="flex gap-1">
                       <button onClick={() => setDetalhe(v as unknown as VendaDetalhe)} className="whitespace-nowrap rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
                         detalhes
                       </button>
-                      {!v.devolvida && (
+                      {v.status === "entregue" && (
                         <button onClick={() => devolver(v)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-red-600 lg:block" title="registrar devolução">
                           devolver
                         </button>

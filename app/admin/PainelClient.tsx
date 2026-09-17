@@ -6,7 +6,8 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "./SetupCard";
 import { GRUPOS } from "./AdminNav";
 import { SkeletonCards, Sparkline } from "./ui";
-import { Check } from "@phosphor-icons/react";
+import { Check, Truck } from "@phosphor-icons/react";
+import { situacaoDespacho, estornada, type StatusPedido } from "@/lib/pedidos";
 
 type Produto = {
   id: string;
@@ -29,6 +30,8 @@ type Venda = {
   devolvida: boolean;
   custo_devolucao: number;
   recebido: number | null;
+  status: StatusPedido;
+  pedido_externo: string | null;
   ibk_venda_itens: { qtd: number; produto: { custo_unit: number } | null }[];
 };
 
@@ -137,23 +140,28 @@ export function PainelClient() {
 
   // lucro das vendas
   const lucroVenda = (v: Venda) => {
-    if (v.devolvida) return -(v.custo_devolucao ?? 0);
+    if (v.status === "cancelado") return 0;
+    if (v.devolvida || v.status === "devolvido") return -(v.custo_devolucao ?? 0);
     const custo = v.ibk_venda_itens.reduce((s, it) => s + (it.produto?.custo_unit ?? 0) * it.qtd, 0);
     return v.preco_venda * (1 - v.taxa_pct) - custo - v.insumo_custo - (v.taxa_fixa ?? 0) - v.frete;
   };
   const lucroBruto = vendas.reduce((s, v) => s + lucroVenda(v), 0);
   // dinheiro ja vendido que a plataforma ainda nao repassou
   const aReceber = vendas
-    .filter((v) => !v.devolvida && v.recebido === null)
+    .filter((v) => !estornada(v.status) && v.recebido === null)
     .reduce((s, v) => s + (v.preco_venda * (1 - v.taxa_pct) - (v.taxa_fixa ?? 0) - v.frete), 0);
   const lucroLiquido = lucroBruto - ads;
-  const vendidoMes = vendas.filter((v) => noMes(v.data)).reduce((s, v) => s + v.preco_venda, 0);
+  const vendidoMes = vendas.filter((v) => noMes(v.data) && !estornada(v.status)).reduce((s, v) => s + v.preco_venda, 0);
+  // expedicao: o que ainda nao foi postado, e o que ja estourou o prazo
+  const aguardando = vendas.filter((v) => v.status === "aguardando");
+  const atrasados = aguardando.filter((v) => situacaoDespacho(v.data, v.status)?.nivel === "atrasado");
+  const vencendo = aguardando.filter((v) => situacaoDespacho(v.data, v.status)?.nivel === "vence");
   // vendido por dia nos ultimos 14 dias, pro sparkline
   const serie14 = Array.from({ length: 14 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (13 - i));
     const dia = isoLocal(d);
-    return vendas.filter((v) => v.data.slice(0, 10) === dia && !v.devolvida).reduce((s, v) => s + v.preco_venda, 0);
+    return vendas.filter((v) => v.data.slice(0, 10) === dia && !estornada(v.status)).reduce((s, v) => s + v.preco_venda, 0);
   });
   const paybackPct = investido > 0 ? Math.min(100, Math.round((lucroBruto / investido) * 100)) : 0;
   const roas = ads > 0 ? lucroBruto / ads : null;
@@ -193,6 +201,29 @@ export function PainelClient() {
           grafico={serie14.some((v) => v > 0) ? <Sparkline valores={serie14} /> : null}
         />
       </div>
+
+      {/* expedicao: a Shopee cobra postagem em 2 dias uteis; atrasado derruba a loja */}
+      {aguardando.length > 0 && (
+        <Link
+          href="/admin/vendas"
+          className={`card card-hover mt-4 flex items-center gap-3 p-4 ${atrasados.length > 0 ? "border-2 border-red-300" : vencendo.length > 0 ? "border-2 border-[var(--sun)]" : ""}`}
+        >
+          <Truck size={26} weight="duotone" className={atrasados.length > 0 ? "text-red-500" : "text-[var(--purple)]"} />
+          <div className="flex-1">
+            <div className="font-[family-name:var(--font-baloo)] text-lg font-extrabold leading-tight text-[var(--purple-dark)]">
+              <span className="num">{aguardando.length}</span> {aguardando.length === 1 ? "pedido pra postar" : "pedidos pra postar"}
+            </div>
+            <div className="text-xs text-[var(--ink)]/55">
+              {atrasados.length > 0
+                ? `${atrasados.length} fora do prazo de 2 dias úteis`
+                : vencendo.length > 0
+                  ? `${vencendo.length} ${vencendo.length === 1 ? "vence" : "vencem"} hoje`
+                  : "tudo dentro do prazo"}
+            </div>
+          </div>
+          <span className="text-sm font-bold text-[var(--purple)]">ver vendas</span>
+        </Link>
+      )}
 
       {/* hoje: as rotinas do dia, marcaveis daqui mesmo */}
       {rotinas.length > 0 && (

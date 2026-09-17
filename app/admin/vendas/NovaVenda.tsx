@@ -58,6 +58,7 @@ export function NovaVenda({
   const [canalId, setCanalId] = useState(canais[0]?.id ?? "");
   const [data, setData] = useState(hoje);
   const [cliente, setCliente] = useState("");
+  const [pedidoExterno, setPedidoExterno] = useState("");
   const [desconto, setDesconto] = useState("0");
   const [descontoPct, setDescontoPct] = useState("0");
   const [freteCobrado, setFreteCobrado] = useState("0"); // pago pelo cliente, entra na receita
@@ -178,6 +179,9 @@ export function NovaVenda({
         canal_id: canalId || null,
         tipo: linhas.length > 1 ? "kit" : "avulso",
         cliente: cliente.trim() || null,
+        pedido_externo: pedidoExterno.trim() || null,
+        // venda no balcao ja saiu entregue; o resto precisa ser enviado
+        status: canal && /fisica/i.test(canal.nome) ? "entregue" : "aguardando",
         forma_pagamento: formaPagamento || null,
         preco_venda: total,
         desconto: descontoN,
@@ -247,8 +251,11 @@ export function NovaVenda({
             {canais.map((c) => (<option key={c.id} value={c.id}>{c.nome}</option>))}
           </select>
         </Campo>
+        <Campo label="Nº do pedido">
+          <input value={pedidoExterno} onChange={(e) => setPedidoExterno(e.target.value)} placeholder="da Shopee / TikTok" className={`${inp} w-40`} />
+        </Campo>
         <Campo label="Cliente (opcional)">
-          <input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="nome ou pedido" className={`${inp} w-40`} />
+          <input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="nome" className={`${inp} w-40`} />
         </Campo>
       </div>
 

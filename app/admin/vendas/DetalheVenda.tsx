@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { calcularTaxas } from "@/lib/canais";
+import { STATUS, estornarVenda, hojeIso, type StatusPedido } from "@/lib/pedidos";
 import type { Canal } from "../canais/CanaisClient";
 
 /*
@@ -32,6 +33,13 @@ export type VendaDetalhe = {
   devolvida: boolean;
   custo_devolucao: number;
   qtd_itens: number;
+  status: StatusPedido;
+  pedido_externo: string | null;
+  rastreio: string | null;
+  enviado_em: string | null;
+  entregue_em: string | null;
+  nf_numero: string | null;
+  nf_chave: string | null;
   ibk_venda_itens: {
     qtd: number;
     preco_unit: number;
@@ -70,6 +78,58 @@ export function DetalheVenda({
   const [totalTexto, setTotalTexto] = useState(txt(venda.preco_venda));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+
+  // ciclo do pedido
+  const [rastreio, setRastreio] = useState(venda.rastreio ?? "");
+  const [nfNumero, setNfNumero] = useState(venda.nf_numero ?? "");
+  const [nfChave, setNfChave] = useState(venda.nf_chave ?? "");
+  const [pedidoExterno, setPedidoExterno] = useState(venda.pedido_externo ?? "");
+  const [confirmando, setConfirmando] = useState<"cancelar" | null>(null);
+  const status: StatusPedido = venda.status ?? (venda.devolvida ? "devolvido" : "entregue");
+
+  const mudarStatus = async (novo: StatusPedido) => {
+    if (!supabase) return;
+    setErro("");
+    setSalvando(true);
+    const hoje = hojeIso();
+    const patch: Record<string, unknown> = { status: novo, pedido_externo: pedidoExterno.trim() || null };
+    if (novo === "enviado") {
+      patch.rastreio = rastreio.trim() || null;
+      patch.enviado_em = venda.enviado_em ?? hoje;
+    }
+    if (novo === "entregue") patch.entregue_em = venda.entregue_em ?? hoje;
+    const { error } = await supabase.from("ibk_vendas").update(patch).eq("id", venda.id);
+    setSalvando(false);
+    if (error) return setErro(error.message);
+    onSalvo();
+  };
+
+  const salvarPedido = async () => {
+    if (!supabase) return;
+    setErro("");
+    setSalvando(true);
+    const { error } = await supabase
+      .from("ibk_vendas")
+      .update({
+        pedido_externo: pedidoExterno.trim() || null,
+        rastreio: rastreio.trim() || null,
+        nf_numero: nfNumero.trim() || null,
+        nf_chave: nfChave.trim() || null,
+      })
+      .eq("id", venda.id);
+    setSalvando(false);
+    if (error) return setErro(error.message);
+    onSalvo();
+  };
+
+  const cancelar = async () => {
+    setErro("");
+    setSalvando(true);
+    const erro = await estornarVenda(venda, "cancelado", 0);
+    setSalvando(false);
+    if (erro) return setErro(erro);
+    onSalvo();
+  };
 
   const canal = canais.find((c) => c.id === venda.canal_id);
   const custoProdutos = venda.ibk_venda_itens.reduce(
@@ -195,6 +255,71 @@ export function DetalheVenda({
           {venda.frete > 0 && <Linha rotulo="Frete pago pela loja" valor={`− ${brl(venda.frete)}`} sutil />}
           <div className="my-2 border-t border-[var(--purple)]/15" />
           <Linha rotulo="Lucro" valor={brl(lucro)} forte positivo={lucro >= 0} />
+          {/* ciclo do pedido: status, rastreio, nota fiscal */}
+          <div className="mt-4 rounded-2xl border border-[var(--purple)]/10 bg-[var(--cream)] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Pedido</span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${STATUS[status].cor}`}>
+                  {STATUS[status].rotulo}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {status === "aguardando" && (
+                  <>
+                    <button onClick={() => mudarStatus("enviado")} disabled={salvando} className={btnP}>
+                      marcar enviado
+                    </button>
+                    {confirmando === "cancelar" ? (
+                      <span className="flex items-center gap-1.5 text-xs">
+                        <span className="font-semibold text-[var(--ink)]/70">estoque e caixa voltam. cancelar?</span>
+                        <button onClick={cancelar} disabled={salvando} className="rounded-lg bg-red-500 px-2.5 py-1 text-xs font-extrabold text-white">
+                          sim
+                        </button>
+                        <button onClick={() => setConfirmando(null)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 text-xs font-bold text-[var(--purple)]">
+                          não
+                        </button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setConfirmando("cancelar")} className={btnS}>
+                        cancelar pedido
+                      </button>
+                    )}
+                  </>
+                )}
+                {status === "enviado" && (
+                  <button onClick={() => mudarStatus("entregue")} disabled={salvando} className={btnP}>
+                    marcar entregue
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Campo label="Nº do pedido na plataforma">
+                <input value={pedidoExterno} onChange={(e) => setPedidoExterno(e.target.value)} placeholder="ex: 2509171234ABCD" className={`${inp} num`} />
+              </Campo>
+              <Campo label="Código de rastreio">
+                <input value={rastreio} onChange={(e) => setRastreio(e.target.value)} placeholder="BR123456789BR" className={`${inp} num`} />
+              </Campo>
+              <Campo label="Nota fiscal (número)">
+                <input value={nfNumero} onChange={(e) => setNfNumero(e.target.value)} placeholder="000123" className={`${inp} num`} />
+              </Campo>
+              <Campo label="Chave da NF-e (44 dígitos)">
+                <input value={nfChave} onChange={(e) => setNfChave(e.target.value)} placeholder="opcional" className={`${inp} num`} />
+              </Campo>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--ink)]/50">
+              <span>
+                {venda.enviado_em && `enviado em ${new Date(venda.enviado_em + "T12:00:00").toLocaleDateString("pt-BR")}`}
+                {venda.entregue_em && ` · entregue em ${new Date(venda.entregue_em + "T12:00:00").toLocaleDateString("pt-BR")}`}
+              </span>
+              <button onClick={salvarPedido} disabled={salvando} className={btnS}>
+                {salvando ? "salvando..." : "salvar dados do pedido"}
+              </button>
+            </div>
+          </div>
+
           {venda.preco_venda > 0 && !venda.devolvida && (
             <p className="mt-1 text-right text-[11px] text-[var(--ink)]/50">
               margem de {Math.round((lucro / venda.preco_venda) * 100)}%
@@ -255,6 +380,9 @@ export function DetalheVenda({
 
 const inp =
   "rounded-lg border border-[var(--purple)]/20 bg-white px-2.5 py-2 text-sm outline-none focus:border-[var(--purple)]";
+
+const btnP = "rounded-lg bg-[var(--purple)] px-3 py-1.5 text-xs font-extrabold text-white hover:bg-[var(--purple-dark)] disabled:opacity-60";
+const btnS = "rounded-lg bg-[var(--purple)]/8 px-3 py-1.5 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16 disabled:opacity-60";
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
