@@ -224,7 +224,7 @@ function desconto(precoDe?: string, preco?: string) {
   return Math.round((1 - por / de) * 100);
 }
 
-function ProdutoCard({ produto }: { produto: Produto }) {
+function ProdutoCard({ produto, prioridade }: { produto: Produto; prioridade?: boolean }) {
   const off = desconto(produto.precoDe, produto.preco);
   const inner = (
     <div className="group flex h-full flex-col overflow-hidden rounded-3xl border-2 border-transparent bg-white shadow-[0_4px_0_rgba(109,40,184,0.12)] transition-all hover:-translate-y-1 hover:border-[var(--purple)] hover:shadow-[0_8px_0_rgba(109,40,184,0.18)]">
@@ -242,6 +242,7 @@ function ProdutoCard({ produto }: { produto: Produto }) {
             src={produto.image}
             alt={produto.nome}
             fill
+            priority={prioridade}
             className="object-cover"
             sizes="(max-width: 448px) 50vw, 224px"
           />
@@ -310,8 +311,9 @@ function VitrineSecao({ vitrine }: { vitrine: Vitrine }) {
       </div>
       {vitrine.produtos.length > 0 ? (
         <div className="grid grid-cols-2 gap-3">
-          {vitrine.produtos.map((p) => (
-            <ProdutoCard key={p.nome} produto={p} />
+          {vitrine.produtos.map((p, i) => (
+            // as duas primeiras fotos ficam acima da dobra no celular
+            <ProdutoCard key={p.nome} produto={p} prioridade={vitrine.id === "tendencia" && i < 2} />
           ))}
         </div>
       ) : (

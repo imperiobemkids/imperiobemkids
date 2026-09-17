@@ -255,76 +255,76 @@ export function DetalheVenda({
           {venda.frete > 0 && <Linha rotulo="Frete pago pela loja" valor={`− ${brl(venda.frete)}`} sutil />}
           <div className="my-2 border-t border-[var(--purple)]/15" />
           <Linha rotulo="Lucro" valor={brl(lucro)} forte positivo={lucro >= 0} />
-          {/* ciclo do pedido: status, rastreio, nota fiscal */}
-          <div className="mt-4 rounded-2xl border border-[var(--purple)]/10 bg-[var(--cream)] p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Pedido</span>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${STATUS[status].cor}`}>
-                  {STATUS[status].rotulo}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {status === "aguardando" && (
-                  <>
-                    <button onClick={() => mudarStatus("enviado")} disabled={salvando} className={btnP}>
-                      marcar enviado
-                    </button>
-                    {confirmando === "cancelar" ? (
-                      <span className="flex items-center gap-1.5 text-xs">
-                        <span className="font-semibold text-[var(--ink)]/70">estoque e caixa voltam. cancelar?</span>
-                        <button onClick={cancelar} disabled={salvando} className="rounded-lg bg-red-500 px-2.5 py-1 text-xs font-extrabold text-white">
-                          sim
-                        </button>
-                        <button onClick={() => setConfirmando(null)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 text-xs font-bold text-[var(--purple)]">
-                          não
-                        </button>
-                      </span>
-                    ) : (
-                      <button onClick={() => setConfirmando("cancelar")} className={btnS}>
-                        cancelar pedido
-                      </button>
-                    )}
-                  </>
-                )}
-                {status === "enviado" && (
-                  <button onClick={() => mudarStatus("entregue")} disabled={salvando} className={btnP}>
-                    marcar entregue
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <Campo label="Nº do pedido na plataforma">
-                <input value={pedidoExterno} onChange={(e) => setPedidoExterno(e.target.value)} placeholder="ex: 2509171234ABCD" className={`${inp} num`} />
-              </Campo>
-              <Campo label="Código de rastreio">
-                <input value={rastreio} onChange={(e) => setRastreio(e.target.value)} placeholder="BR123456789BR" className={`${inp} num`} />
-              </Campo>
-              <Campo label="Nota fiscal (número)">
-                <input value={nfNumero} onChange={(e) => setNfNumero(e.target.value)} placeholder="000123" className={`${inp} num`} />
-              </Campo>
-              <Campo label="Chave da NF-e (44 dígitos)">
-                <input value={nfChave} onChange={(e) => setNfChave(e.target.value)} placeholder="opcional" className={`${inp} num`} />
-              </Campo>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--ink)]/50">
-              <span>
-                {venda.enviado_em && `enviado em ${new Date(venda.enviado_em + "T12:00:00").toLocaleDateString("pt-BR")}`}
-                {venda.entregue_em && ` · entregue em ${new Date(venda.entregue_em + "T12:00:00").toLocaleDateString("pt-BR")}`}
-              </span>
-              <button onClick={salvarPedido} disabled={salvando} className={btnS}>
-                {salvando ? "salvando..." : "salvar dados do pedido"}
-              </button>
-            </div>
-          </div>
-
           {venda.preco_venda > 0 && !venda.devolvida && (
             <p className="mt-1 text-right text-[11px] text-[var(--ink)]/50">
               margem de {Math.round((lucro / venda.preco_venda) * 100)}%
             </p>
           )}
+        </div>
+
+        {/* ciclo do pedido: status, rastreio, nota fiscal */}
+        <div className="mt-4 rounded-2xl border border-[var(--purple)]/10 bg-[var(--cream)] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Pedido</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${STATUS[status].cor}`}>
+                {STATUS[status].rotulo}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {status === "aguardando" && (
+                <>
+                  <button onClick={() => mudarStatus("enviado")} disabled={salvando} className={btnP}>
+                    marcar enviado
+                  </button>
+                  {confirmando === "cancelar" ? (
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <span className="font-semibold text-[var(--ink)]/70">estoque e caixa voltam. cancelar?</span>
+                      <button onClick={cancelar} disabled={salvando} className="rounded-lg bg-red-500 px-2.5 py-1 text-xs font-extrabold text-white">
+                        sim
+                      </button>
+                      <button onClick={() => setConfirmando(null)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 text-xs font-bold text-[var(--purple)]">
+                        não
+                      </button>
+                    </span>
+                  ) : (
+                    <button onClick={() => setConfirmando("cancelar")} className={btnS}>
+                      cancelar pedido
+                    </button>
+                  )}
+                </>
+              )}
+              {status === "enviado" && (
+                <button onClick={() => mudarStatus("entregue")} disabled={salvando} className={btnP}>
+                  marcar entregue
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Campo label="Nº do pedido na plataforma">
+              <input value={pedidoExterno} onChange={(e) => setPedidoExterno(e.target.value)} placeholder="ex: 2509171234ABCD" className={`${inp} num`} />
+            </Campo>
+            <Campo label="Código de rastreio">
+              <input value={rastreio} onChange={(e) => setRastreio(e.target.value)} placeholder="BR123456789BR" className={`${inp} num`} />
+            </Campo>
+            <Campo label="Nota fiscal (número)">
+              <input value={nfNumero} onChange={(e) => setNfNumero(e.target.value)} placeholder="000123" className={`${inp} num`} />
+            </Campo>
+            <Campo label="Chave da NF-e (44 dígitos)">
+              <input value={nfChave} onChange={(e) => setNfChave(e.target.value)} placeholder="opcional" className={`${inp} num`} />
+            </Campo>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--ink)]/50">
+            <span>
+              {venda.enviado_em && `enviado em ${new Date(venda.enviado_em + "T12:00:00").toLocaleDateString("pt-BR")}`}
+              {venda.entregue_em && ` · entregue em ${new Date(venda.entregue_em + "T12:00:00").toLocaleDateString("pt-BR")}`}
+            </span>
+            <button onClick={salvarPedido} disabled={salvando} className={btnS}>
+              {salvando ? "salvando..." : "salvar dados do pedido"}
+            </button>
+          </div>
         </div>
 
         {/* edicao */}

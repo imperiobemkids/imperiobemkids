@@ -21,7 +21,8 @@ const csp = [
   "frame-src https://www.facebook.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // o Pixel manda o evento como form para facebook.com/tr
+  "form-action 'self' https://www.facebook.com",
   "object-src 'none'",
   ...(dev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
