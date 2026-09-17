@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
-import { EMPRESA } from "@/lib/empresa";
+import { EMPRESA, enderecoLinha } from "@/lib/empresa";
 
 export const metadata: Metadata = {
   title: "Sobre a loja",
@@ -141,7 +141,7 @@ export default function SobrePage() {
             <p className="mt-1">
               {EMPRESA.razaoSocial}, CNPJ {EMPRESA.cnpj}
               <br />
-              {EMPRESA.endereco}, {EMPRESA.cidadeUf}, CEP {EMPRESA.cep}
+              {enderecoLinha()}
               <br />
               {EMPRESA.email} · WhatsApp {EMPRESA.whatsapp}
             </p>

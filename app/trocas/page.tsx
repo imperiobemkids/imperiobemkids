@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PaginaLegal, Secao } from "../PaginaLegal";
-import { EMPRESA } from "@/lib/empresa";
+import { EMPRESA, enderecoLinha } from "@/lib/empresa";
 
 export const metadata: Metadata = {
   title: "Trocas e devoluções",
@@ -76,7 +76,7 @@ export default function TrocasPage() {
 
       <Secao titulo="Dados da loja">
         <p>
-          {EMPRESA.razaoSocial}, CNPJ {EMPRESA.cnpj}. {EMPRESA.endereco}, {EMPRESA.cidadeUf}, CEP {EMPRESA.cep}.
+          {EMPRESA.razaoSocial}, CNPJ {EMPRESA.cnpj}. {enderecoLinha()}.
           E-mail {EMPRESA.email}.
         </p>
         <p>

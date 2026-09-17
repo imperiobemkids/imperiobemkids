@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EMPRESA } from "@/lib/empresa";
+import { EMPRESA, enderecoLinha } from "@/lib/empresa";
 
 /*
   Rodape publico do site. Usado nas paginas do site e no Portal do Cliente.
@@ -91,8 +91,7 @@ export function SiteFooter() {
 
         {/* identificacao exigida do comercio eletronico (Decreto 7.962/2013) */}
         <p className="text-xs leading-relaxed text-[var(--ink)]/50">
-          {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj} · {EMPRESA.endereco}, {EMPRESA.cidadeUf}, CEP {EMPRESA.cep} ·{" "}
-          {EMPRESA.email}
+          {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj} · {enderecoLinha()} · {EMPRESA.email}
         </p>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--purple)]/10 pt-5 text-xs text-[var(--ink)]/45">

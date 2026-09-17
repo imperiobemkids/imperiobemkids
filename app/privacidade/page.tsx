@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PaginaLegal, Secao } from "../PaginaLegal";
-import { EMPRESA } from "@/lib/empresa";
+import { EMPRESA, enderecoLinha } from "@/lib/empresa";
 
 export const metadata: Metadata = {
   title: "Política de privacidade",
@@ -23,8 +23,7 @@ export default function PrivacidadePage() {
     >
       <Secao titulo="Quem cuida dos seus dados">
         <p>
-          {EMPRESA.razaoSocial} ({EMPRESA.nomeFantasia}), CNPJ {EMPRESA.cnpj}, com endereço em {EMPRESA.endereco},{" "}
-          {EMPRESA.cidadeUf}. Para qualquer assunto sobre privacidade, fale pelo e-mail {EMPRESA.email} ou pelo{" "}
+          {EMPRESA.razaoSocial} ({EMPRESA.nomeFantasia}), CNPJ {EMPRESA.cnpj}, com endereço em {enderecoLinha()}. Para qualquer assunto sobre privacidade, fale pelo e-mail {EMPRESA.email} ou pelo{" "}
           <a href={EMPRESA.whatsappLink} target="_blank" rel="noopener noreferrer" className="font-bold text-[var(--purple)] underline">
             WhatsApp
           </a>
