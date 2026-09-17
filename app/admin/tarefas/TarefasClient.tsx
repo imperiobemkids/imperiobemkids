@@ -5,9 +5,9 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 
 /*
-  Board de rotinas: uma tabela por area, colunas de segunda a domingo.
-  A celula so existe nos dias em que a rotina acontece; clicar marca "feito"
-  naquela data. A semana navega com as setas, sempre comecando na segunda.
+  Visao semanal: uma coluna por dia (segunda a domingo) e, dentro dela, o que
+  fazer naquele dia agrupado por area. Clicar na tarefa marca "feito" na data.
+  No celular mostra um dia por vez, com abas; no desktop, os sete lado a lado.
 */
 
 type Rotina = {
@@ -62,6 +62,7 @@ export function TarefasClient() {
 
   const hoje = isoLocal(new Date());
   const datas = useMemo(() => DIAS.map((d) => isoLocal(somarDias(semana, d.n - 1))), [semana]);
+  const [diaMobile, setDiaMobile] = useState(() => (new Date().getDay() + 6) % 7);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
@@ -162,7 +163,7 @@ export function TarefasClient() {
           <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold text-[var(--purple-dark)]">
             Tarefas
           </h1>
-          <p className="text-sm text-[var(--ink)]/70">Rotinas da semana por área. Toque no dia pra marcar como feito.</p>
+          <p className="text-sm text-[var(--ink)]/70">O que fazer em cada dia da semana, por área. Toque na tarefa pra marcar como feita.</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setSemana((s) => somarDias(s, -7))} aria-label="Semana anterior" className={btnSec}>
@@ -247,87 +248,122 @@ export function TarefasClient() {
         <p className="mt-6 text-[var(--ink)]/50">nenhuma rotina ainda. Clique em "+ rotina" pra começar.</p>
       )}
 
-      <div className="mt-5 flex flex-col gap-5">
-        {areas.map(([nomeArea, lista]) => (
-          <section key={nomeArea} className="overflow-hidden rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--purple)]/10">
-                    <th className="px-4 py-3 text-left font-[family-name:var(--font-baloo)] text-base font-extrabold text-[var(--purple-dark)]">
+      {/* abas de dia, so no celular */}
+      <div className="mt-4 flex gap-1 lg:hidden">
+        {DIAS.map((d, i) => {
+          const eHoje = datas[i] === hoje;
+          const ativo = diaMobile === i;
+          return (
+            <button
+              key={d.n}
+              onClick={() => setDiaMobile(i)}
+              className={`flex flex-1 flex-col items-center rounded-xl py-1.5 text-[11px] font-bold uppercase transition-colors ${
+                ativo
+                  ? "bg-[var(--purple)] text-white"
+                  : eHoje
+                    ? "bg-[var(--purple)]/10 text-[var(--purple)]"
+                    : "bg-white text-[var(--ink)]/50"
+              }`}
+            >
+              <span>{d.curto}</span>
+              <span className="text-sm">{datas[i].slice(8)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* semana: 7 colunas no desktop, 1 dia no celular */}
+      <div className="mt-4 grid gap-3 lg:grid-cols-7">
+        {DIAS.map((d, i) => {
+          const data = datas[i];
+          const eHoje = data === hoje;
+          const doDia = rotinas.filter((r) => r.dias.includes(d.n));
+          const feitos = doDia.filter((r) => checks.has(`${r.id}|${data}`)).length;
+          const porArea = new Map<string, Rotina[]>();
+          for (const r of doDia) porArea.set(r.area, [...(porArea.get(r.area) ?? []), r]);
+
+          return (
+            <section
+              key={d.n}
+              className={`${diaMobile === i ? "" : "hidden lg:block"} rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)] ${
+                eHoje ? "ring-2 ring-[var(--purple)]" : ""
+              }`}
+            >
+              <header className="flex items-center justify-between border-b border-[var(--purple)]/10 px-3 py-2.5">
+                <div>
+                  <div className={`text-[11px] font-bold uppercase ${eHoje ? "text-[var(--purple)]" : "text-[var(--ink)]/45"}`}>
+                    {d.curto} {eHoje && "· hoje"}
+                  </div>
+                  <div className="font-[family-name:var(--font-baloo)] text-lg font-extrabold leading-tight text-[var(--purple-dark)]">
+                    {data.slice(8)}
+                  </div>
+                </div>
+                {doDia.length > 0 && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+                      feitos === doDia.length
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-[var(--purple)]/8 text-[var(--purple)]"
+                    }`}
+                  >
+                    {feitos}/{doDia.length}
+                  </span>
+                )}
+              </header>
+
+              <div className="flex flex-col gap-3 p-3">
+                {doDia.length === 0 && <p className="py-4 text-center text-xs text-[var(--ink)]/35">dia livre</p>}
+                {[...porArea.entries()].map(([nomeArea, lista]) => (
+                  <div key={nomeArea}>
+                    <div className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--ink)]/45">
                       {nomeArea}
-                    </th>
-                    {DIAS.map((d, i) => {
-                      const eHoje = datas[i] === hoje;
-                      return (
-                        <th
-                          key={d.n}
-                          className={`w-12 px-1 py-2 text-center text-[11px] font-bold uppercase ${
-                            eHoje ? "text-[var(--purple)]" : "text-[var(--ink)]/45"
-                          }`}
-                        >
-                          <div>{d.curto}</div>
-                          <div
-                            className={`mx-auto mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                              eHoje ? "bg-[var(--purple)] text-white" : ""
-                            }`}
-                          >
-                            {datas[i].slice(8)}
-                          </div>
-                        </th>
-                      );
-                    })}
-                    <th className="w-8" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {lista.map((r) => (
-                    <tr key={r.id} className="group border-b border-[var(--purple)]/5 last:border-0">
-                      <td className="px-4 py-2 font-semibold text-[var(--ink)]">{r.titulo}</td>
-                      {DIAS.map((d, i) => {
-                        const data = datas[i];
-                        if (!r.dias.includes(d.n))
-                          return (
-                            <td key={d.n} className="text-center text-[var(--ink)]/15">
-                              ·
-                            </td>
-                          );
+                    </div>
+                    <ul className="flex flex-col gap-1">
+                      {lista.map((r) => {
                         const feito = checks.has(`${r.id}|${data}`);
                         const passou = data < hoje && !feito;
                         return (
-                          <td key={d.n} className="px-1 py-1.5 text-center">
+                          <li key={r.id} className="group flex items-start gap-1">
                             <button
                               onClick={() => alternar(r, data)}
-                              aria-label={`${r.titulo}, ${d.curto} ${data.slice(8)}`}
-                              className={`mx-auto flex h-8 w-8 items-center justify-center rounded-lg border-2 text-sm font-extrabold transition-all ${
+                              className={`flex flex-1 items-start gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold leading-snug transition-colors ${
                                 feito
-                                  ? "border-emerald-500 bg-emerald-500 text-white"
+                                  ? "bg-emerald-50 text-emerald-800"
                                   : passou
-                                    ? "border-red-300 bg-red-50 text-red-300 hover:border-red-400"
-                                    : "border-[var(--purple)]/25 bg-[var(--purple)]/5 text-transparent hover:border-[var(--purple)]"
+                                    ? "bg-red-50 text-red-700 hover:bg-red-100"
+                                    : "bg-[var(--purple)]/5 text-[var(--ink)] hover:bg-[var(--purple)]/10"
                               }`}
                             >
-                              ✓
+                              <span
+                                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 text-[10px] font-extrabold ${
+                                  feito
+                                    ? "border-emerald-500 bg-emerald-500 text-white"
+                                    : passou
+                                      ? "border-red-300"
+                                      : "border-[var(--purple)]/30"
+                                }`}
+                              >
+                                {feito && "✓"}
+                              </span>
+                              <span className={feito ? "line-through opacity-70" : ""}>{r.titulo}</span>
                             </button>
-                          </td>
+                            <button
+                              onClick={() => remover(r)}
+                              aria-label="Remover rotina"
+                              className="mt-1 text-[10px] font-bold text-[var(--ink)]/0 transition-colors hover:text-red-500 group-hover:text-[var(--ink)]/30"
+                            >
+                              ✕
+                            </button>
+                          </li>
                         );
                       })}
-                      <td className="pr-2 text-right">
-                        <button
-                          onClick={() => remover(r)}
-                          aria-label="Remover rotina"
-                          className="text-xs font-bold text-[var(--ink)]/25 transition-colors hover:text-red-500"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
