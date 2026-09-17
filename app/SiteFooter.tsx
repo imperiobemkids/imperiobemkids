@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EMPRESA } from "@/lib/empresa";
 
 /*
   Rodape publico do site. Usado nas paginas do site e no Portal do Cliente.
@@ -43,6 +44,29 @@ export function SiteFooter() {
 
           <div>
             <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/45">
+              Ajuda
+            </div>
+            <ul className="space-y-1.5">
+              <li>
+                <Link href="/trocas" className="text-sm font-semibold text-[var(--ink)]/70 hover:text-[var(--purple)]">
+                  Trocas e devoluções
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacidade" className="text-sm font-semibold text-[var(--ink)]/70 hover:text-[var(--purple)]">
+                  Privacidade
+                </Link>
+              </li>
+              <li>
+                <Link href="/sobre#loja" className="text-sm font-semibold text-[var(--ink)]/70 hover:text-[var(--purple)]">
+                  Dados da loja
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/45">
               Fale com a gente
             </div>
             <ul className="space-y-1.5">
@@ -64,6 +88,12 @@ export function SiteFooter() {
             </ul>
           </div>
         </div>
+
+        {/* identificacao exigida do comercio eletronico (Decreto 7.962/2013) */}
+        <p className="text-xs leading-relaxed text-[var(--ink)]/50">
+          {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj} · {EMPRESA.endereco}, {EMPRESA.cidadeUf}, CEP {EMPRESA.cep} ·{" "}
+          {EMPRESA.email}
+        </p>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--purple)]/10 pt-5 text-xs text-[var(--ink)]/45">
           <span>© {new Date().getFullYear()} Império Bem Kids</span>

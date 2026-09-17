@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Assistant } from "../Assistant";
 import { jsonLdScript, listaDeProdutos, perguntas, FAQ } from "@/lib/seo";
 import { POSTS } from "@/lib/posts";
+import { EMPRESA } from "@/lib/empresa";
 
 export const metadata: Metadata = {
   // titulo escrito para a busca ("kit de roupa infantil"), nao so para a marca
@@ -442,6 +443,13 @@ export default function Home() {
       <footer className="relative z-10 mt-10 text-center">
         <p className="font-[family-name:var(--font-baloo)] text-sm font-semibold text-[var(--purple)]/50">
           Império Bem Kids
+        </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-[var(--ink)]/40">
+          {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj}
+          <br />
+          <Link href="/trocas" className="underline">trocas e devoluções</Link>
+          {" · "}
+          <Link href="/privacidade" className="underline">privacidade</Link>
         </p>
       </footer>
 

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
+import { EMPRESA } from "@/lib/empresa";
 
 export const metadata: Metadata = {
   title: "Sobre a loja",
@@ -128,6 +129,27 @@ export default function SobrePage() {
                 Chamar no WhatsApp 💬
               </a>
             </div>
+          </div>
+        </section>
+
+        {/* identificacao da loja: o Decreto 7.962/2013 pede em local de destaque */}
+        <section id="loja" className="mx-auto max-w-5xl scroll-mt-20 px-5 pb-4">
+          <div className="rounded-2xl border border-[var(--purple)]/10 bg-white/70 p-5 text-sm leading-relaxed text-[var(--ink)]/75">
+            <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
+              Dados da loja
+            </h2>
+            <p className="mt-1">
+              {EMPRESA.razaoSocial}, CNPJ {EMPRESA.cnpj}
+              <br />
+              {EMPRESA.endereco}, {EMPRESA.cidadeUf}, CEP {EMPRESA.cep}
+              <br />
+              {EMPRESA.email} · WhatsApp {EMPRESA.whatsapp}
+            </p>
+            <p className="mt-2 text-xs text-[var(--ink)]/55">
+              <Link href="/trocas" className="font-bold text-[var(--purple)] underline">Trocas e devoluções</Link>
+              {" · "}
+              <Link href="/privacidade" className="font-bold text-[var(--purple)] underline">Privacidade</Link>
+            </p>
           </div>
         </section>
       </main>
