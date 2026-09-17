@@ -15,6 +15,7 @@ export const EMPRESA = {
   email: "imperiobemkids@gmail.com",
   whatsapp: "+55 11 94795-6479",
   whatsappLink: "https://wa.me/5511947956479",
+  grupoAchadinhos: "https://chat.whatsapp.com/GKQ58djmnyGHG2HMrPUxYb",
   // data da ultima revisao das politicas (aparece no rodape de cada uma)
   politicasRevisadasEm: "2026-09-17",
 };

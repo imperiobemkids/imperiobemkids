@@ -8,6 +8,7 @@ import { LogoutButton } from "./LogoutButton";
 import {
   House,
   CalendarCheck,
+  Tag,
   Package,
   ShoppingBag,
   Factory,
@@ -33,7 +34,10 @@ export type ItemNav = { href: string; label: string; icone: Icon };
 export const GRUPOS: { nome: string; itens: ItemNav[] }[] = [
   {
     nome: "Operação",
-    itens: [{ href: "/admin/tarefas", label: "Tarefas", icone: CalendarCheck }],
+    itens: [
+      { href: "/admin/tarefas", label: "Tarefas", icone: CalendarCheck },
+      { href: "/admin/etiquetas", label: "Etiquetas", icone: Tag },
+    ],
   },
   {
     nome: "Suprimentos",
