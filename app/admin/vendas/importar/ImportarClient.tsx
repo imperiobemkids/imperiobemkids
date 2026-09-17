@@ -20,6 +20,7 @@ import {
   type ProdutoRef,
 } from "@/lib/importacao";
 import type { Canal } from "../../canais/CanaisClient";
+import { acharOuCriarCliente } from "@/lib/clientes";
 
 /*
   Importar pedidos da planilha do marketplace. Tres passos na mesma tela:
@@ -190,6 +191,7 @@ export function ImportarClient() {
           canal_id: canal.id,
           tipo: unidades > 1 ? "kit" : "avulso",
           cliente: p.comprador || null,
+          cliente_id: p.comprador ? await acharOuCriarCliente(p.comprador, canal.nome.toLowerCase()) : null,
           pedido_externo: p.pedido,
           status: p.status,
           rastreio: p.rastreio || null,

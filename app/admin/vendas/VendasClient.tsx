@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { X } from "@phosphor-icons/react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { STATUS, estornada, estornarVenda, situacaoDespacho, type StatusPedido } from "@/lib/pedidos";
 import { NovaVenda, type ProdutoVenda } from "./NovaVenda";
@@ -44,6 +46,7 @@ type VendaRow = {
   status: StatusPedido;
   pedido_externo: string | null;
   rastreio: string | null;
+  cliente_id: string | null;
   ibk_venda_itens: {
     qtd: number;
     preco_unit: number;
@@ -95,6 +98,8 @@ export function VendasClient() {
   const [caixaAberto, setCaixaAberto] = useState(false);
   const [detalhe, setDetalhe] = useState<VendaDetalhe | null>(null);
   const [filtro, setFiltro] = useState<"todos" | StatusPedido>("todos");
+  // ?cliente=<id> vem do card em /admin/clientes
+  const clienteFiltro = useSearchParams().get("cliente");
 
 
   const carregar = useCallback(async () => {
@@ -157,7 +162,8 @@ export function VendasClient() {
   const aguardando = vendas.filter((v) => v.status === "aguardando");
   const atrasadas = aguardando.filter((v) => situacaoDespacho(v.data, v.status)?.nivel === "atrasado");
   const contagem = (s: StatusPedido) => vendas.filter((v) => v.status === s).length;
-  const visiveis = filtro === "todos" ? vendas : vendas.filter((v) => v.status === filtro);
+  const doCliente = clienteFiltro ? vendas.filter((v) => v.cliente_id === clienteFiltro) : vendas;
+  const visiveis = filtro === "todos" ? doCliente : doCliente.filter((v) => v.status === filtro);
   const lucroAcum = vendas.reduce((s, v) => s + lucroVenda(v), 0);
   // investido = tudo que saiu em mercadoria, insumo e capex (nao fixar no codigo)
   const paybackPct = investido > 0 ? Math.min(100, Math.round((lucroAcum / investido) * 100)) : 0;
@@ -249,6 +255,12 @@ export function VendasClient() {
             </button>
           );
         })}
+        {clienteFiltro && (
+          <span className="flex items-center gap-1.5 rounded-full bg-[var(--purple)]/10 px-3 py-1 text-xs font-bold text-[var(--purple-dark)]">
+            só deste cliente ({doCliente.length})
+            <Link href="/admin/vendas" aria-label="tirar filtro" className="hover:text-red-500"><X size={12} weight="bold" /></Link>
+          </span>
+        )}
         {atrasadas.length > 0 && (
           <span className="ml-auto rounded-full bg-red-100 px-3 py-1 text-xs font-extrabold text-red-600">
             {atrasadas.length} {atrasadas.length === 1 ? "pedido atrasado" : "pedidos atrasados"}

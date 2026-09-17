@@ -14,6 +14,7 @@ import {
   Receipt,
   Calculator,
   Storefront,
+  UsersThree,
   Wallet,
   MagnifyingGlass,
   Globe,
@@ -46,6 +47,7 @@ export const GRUPOS: { nome: string; itens: ItemNav[] }[] = [
     nome: "Comercial",
     itens: [
       { href: "/admin/vendas", label: "Vendas", icone: Receipt },
+      { href: "/admin/clientes", label: "Clientes", icone: UsersThree },
       { href: "/admin/simulador", label: "Precificação", icone: Calculator },
       { href: "/admin/canais", label: "Canais", icone: Storefront },
     ],

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { saidaEstoque } from "@/lib/estoque";
 import type { Canal } from "../canais/CanaisClient";
 import { calcularTaxas, descreverFaixas } from "@/lib/canais";
+import { acharOuCriarCliente } from "@/lib/clientes";
 
 /*
   Registro de venda no formato de caixa: o produto entra como linha com preco
@@ -59,6 +60,10 @@ export function NovaVenda({
   const [data, setData] = useState(hoje);
   const [cliente, setCliente] = useState("");
   const [pedidoExterno, setPedidoExterno] = useState("");
+  const [clientes, setClientes] = useState<{ id: string; nome: string }[]>([]);
+  useEffect(() => {
+    supabase?.from("ibk_clientes").select("id, nome").order("nome").then(({ data }) => setClientes(data ?? []));
+  }, []);
   const [desconto, setDesconto] = useState("0");
   const [descontoPct, setDescontoPct] = useState("0");
   const [freteCobrado, setFreteCobrado] = useState("0"); // pago pelo cliente, entra na receita
@@ -179,6 +184,7 @@ export function NovaVenda({
         canal_id: canalId || null,
         tipo: linhas.length > 1 ? "kit" : "avulso",
         cliente: cliente.trim() || null,
+        cliente_id: await acharOuCriarCliente(cliente, canal && /fisica/i.test(canal.nome) ? "loja" : undefined),
         pedido_externo: pedidoExterno.trim() || null,
         // venda no balcao ja saiu entregue; o resto precisa ser enviado
         status: canal && /fisica/i.test(canal.nome) ? "entregue" : "aguardando",
@@ -255,7 +261,10 @@ export function NovaVenda({
           <input value={pedidoExterno} onChange={(e) => setPedidoExterno(e.target.value)} placeholder="da Shopee / TikTok" className={`${inp} w-40`} />
         </Campo>
         <Campo label="Cliente (opcional)">
-          <input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="nome" className={`${inp} w-40`} />
+          <input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="nome" list="clientes-lista" className={`${inp} w-40`} />
+          <datalist id="clientes-lista">
+            {clientes.map((c) => (<option key={c.id} value={c.nome} />))}
+          </datalist>
         </Campo>
       </div>
 
