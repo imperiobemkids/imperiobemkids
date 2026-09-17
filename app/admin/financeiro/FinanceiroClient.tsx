@@ -211,7 +211,7 @@ export function FinanceiroClient() {
 
       {/* contas a pagar */}
       {aPagar.length > 0 && (
-        <div className="mt-5 card border-[var(--sun)] p-4">
+        <div className="mt-5 card border-2 border-[var(--sun)] p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
               Contas a pagar

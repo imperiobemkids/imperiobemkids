@@ -190,7 +190,7 @@ export function PainelClient() {
           titulo={aReceber > 0 ? "A receber" : "Vendido no mês"}
           valor={brl(aReceber > 0 ? aReceber : vendidoMes)}
           sub={aReceber > 0 ? "repasse ainda não conciliado" : ads > 0 ? `ads: ${brl(ads)}${roas ? ` · ROAS ${roas.toFixed(1)}x` : ""}` : "sem gasto de ads"}
-          grafico={<Sparkline valores={serie14} />}
+          grafico={serie14.some((v) => v > 0) ? <Sparkline valores={serie14} /> : null}
         />
       </div>
 
@@ -258,7 +258,7 @@ export function PainelClient() {
 
       {/* alerta de estoque */}
       {baixos.length > 0 && (
-        <div className="mt-4 card border-[var(--sun)] p-4">
+        <div className="mt-4 card border-2 border-[var(--sun)] p-4">
           <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
             Estoque baixo ({baixos.length})
           </h2>

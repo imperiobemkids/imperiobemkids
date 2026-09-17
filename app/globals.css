@@ -75,7 +75,7 @@ table,
   Painel: grao de papel sobre a tela (tira a cara de vetor liso), luz ambiente
   atras do cabecalho nas cores da marca e uma unica linguagem de card.
 */
-.admin-shell { position: relative; isolation: isolate; }
+.admin-shell { position: relative; isolation: isolate; overflow-x: clip; }
 .admin-shell::after {
   content: "";
   position: fixed; inset: 0; z-index: 200; pointer-events: none;

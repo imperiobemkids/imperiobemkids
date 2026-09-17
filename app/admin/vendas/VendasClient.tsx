@@ -239,7 +239,7 @@ export function VendasClient() {
 
       {/* lista de vendas */}
       <div className="mt-5 overflow-x-auto card">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[560px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
               <th className="p-3">Data</th>
