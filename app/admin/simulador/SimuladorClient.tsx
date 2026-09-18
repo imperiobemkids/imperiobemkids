@@ -1,9 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Check } from "@phosphor-icons/react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import type { Canal } from "../canais/CanaisClient";
-import { taxaDoPreco } from "@/lib/canais";
+import { taxaDoPreco, programaPct } from "@/lib/canais";
+import { SetupCard } from "../SetupCard";
+import { btnPrimario } from "../ui";
+
+/*
+  Precificacao. Tres blocos:
+  1) simulador: custo, kit, preco e ads de um produto num canal escolhido. A
+     taxa vem do cadastro do canal (comissao ou faixa pelo preco, fixa por
+     item, programa), nao de um campo digitado: o que muda em Canais muda aqui.
+  2) tabela do estoque: preco sugerido de cada produto pela margem alvo no
+     canal escolhido, agrupado por produto (a variacao herda o custo), com o
+     botao que grava o preco no produto e nas variacoes.
+  3) comparativo: o mesmo produto em cada canal, para a mesma margem.
+*/
 
 type SKU = {
   id: string;
@@ -13,428 +27,396 @@ type SKU = {
   tamanho: string | null;
   custo_unit: number;
   qtd_atual: number;
+  preco_venda: number | null;
+  produto_pai_id: string | null;
+  tem_variacoes: boolean;
 };
 
-const rotuloSku = (s: SKU) => {
-  if (s.nome && s.nome.trim()) return s.nome.trim() + (s.tamanho ? ` · ${s.tamanho}` : "");
+const nome = (s: SKU) => {
+  if (s.nome && s.nome.trim()) return s.nome.trim();
   const linha = s.linha === "verao" ? "Verão" : s.linha === "inverno" ? "Inverno" : "";
-  return [linha, s.genero, s.tamanho].filter(Boolean).join(" · ") || "Produto";
+  return [linha, s.genero].filter(Boolean).join(" ") || "Produto";
 };
 
-const brl = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-    Number.isFinite(v) ? v : 0,
-  );
-const num = (s: string) => parseFloat(s.replace(",", ".")) || 0;
+const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
+const num = (s: string) => parseFloat(String(s).replace(/\./g, "").replace(",", ".")) || 0;
+const txt = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
+const pct = (v: number) => `${Math.round(v * 1000) / 10}%`;
+
+/* termina o preco em ,90, pratica de varejo */
+const termina90 = (v: number) => {
+  const base = Math.floor(v);
+  return (v <= base + 0.9 ? base : base + 1) + 0.9;
+};
+
+/*
+  preco a partir da margem: lucro = preco*(1-taxa) - custoFixo, margem = lucro/preco
+  logo preco = custoFixo / (1 - taxa - margem). A fixa por item entra no custo
+  (nao depende do preco); a comissao entra no divisor. Canal com faixa muda a
+  taxa conforme o preco, entao resolve em duas passadas.
+*/
+function precoPelaMargem(canal: Canal | undefined, custoBase: number, unidades: number, extras: number, margem: number, arredondar: boolean) {
+  const porItem = canal?.taxa_fixa_por_item ?? true;
+  const calc = (precoEstimado: number) => {
+    const t = taxaDoPreco(canal, precoEstimado);
+    const fixa = porItem ? t.fixo * unidades : t.fixo;
+    const custoFixo = custoBase + extras + fixa;
+    const divisor = 1 - t.pct - margem;
+    const bruto = divisor > 0 ? custoFixo / divisor : 0;
+    const preco = arredondar ? termina90(bruto) : Math.round(bruto * 100) / 100;
+    return { preco, t, fixa, custoFixo };
+  };
+  let r = calc(custoBase * 1.6);
+  r = calc(r.preco);
+  const lucro = r.preco * (1 - r.t.pct) - r.custoFixo;
+  return { preco: r.preco, lucro, margem: r.preco > 0 ? lucro / r.preco : 0, taxaPct: r.t.pct, fixa: r.fixa };
+}
 
 export function SimuladorClient() {
   const [skus, setSkus] = useState<SKU[]>([]);
   const [canais, setCanais] = useState<Canal[]>([]);
-  const [canalTabela, setCanalTabela] = useState<string>("");
+  const [canalId, setCanalId] = useState("");
+  const [salvos, setSalvos] = useState<Set<string>>(new Set());
+  const [erro, setErro] = useState("");
 
-  // entradas
+  // simulador
+  const [produtoId, setProdutoId] = useState("");
   const [custoConj, setCustoConj] = useState("14,90");
-  const [qtdKit, setQtdKit] = useState("2");
-  const [preco, setPreco] = useState("54,90");
-  const [taxa, setTaxa] = useState("20");
-  const [insumo, setInsumo] = useState("0,40");
+  const [qtdKit, setQtdKit] = useState("1");
+  const [preco, setPreco] = useState("49,90");
   const [frete, setFrete] = useState("0");
   const [cpa, setCpa] = useState("0");
   const [orcAds, setOrcAds] = useState("50");
 
-  // tabela de precos de todo o estoque
+  // tabela
   const [margemAlvo, setMargemAlvo] = useState("35");
   const [arredondar, setArredondar] = useState(true);
-  const [kitTabela, setKitTabela] = useState("2");
+
+  const carregar = async () => {
+    if (!supabase) return;
+    const [p, c] = await Promise.all([
+      supabase.from("ibk_produtos").select("id, nome, linha, genero, tamanho, custo_unit, qtd_atual, preco_venda, produto_pai_id, tem_variacoes").eq("ativo", true).order("nome"),
+      supabase.from("ibk_canais").select("*").eq("ativo", true).order("ordem"),
+    ]);
+    setSkus((p.data as SKU[]) ?? []);
+    const cs = (c.data as Canal[]) ?? [];
+    setCanais(cs);
+    setCanalId((atual) => atual || cs.find((x) => /shopee/i.test(x.nome))?.id || cs[0]?.id || "");
+  };
 
   useEffect(() => {
-    if (!supabaseConfigured || !supabase) return;
-    supabase
-      .from("ibk_produtos")
-      .select("*")
-      .eq("ativo", true)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setSkus((data as SKU[]) ?? []));
-    supabase
-      .from("ibk_canais")
-      .select("*")
-      .eq("ativo", true)
-      .order("ordem")
-      .then(({ data }) => {
-        const cs = (data as Canal[]) ?? [];
-        setCanais(cs);
-        if (cs.length) setCanalTabela((atual) => atual || cs[0].id);
-      });
+    if (supabaseConfigured) carregar();
   }, []);
 
-  // calculos
+  const canal = canais.find((c) => c.id === canalId);
+  const porItem = canal?.taxa_fixa_por_item ?? true;
+
+  // produtos da tabela: pai ou avulso; a variacao so herda
+  const produtos = useMemo(() => {
+    const filhosDe = (id: string) => skus.filter((s) => s.produto_pai_id === id);
+    return skus
+      .filter((s) => !s.produto_pai_id)
+      .map((s) => {
+        const filhos = filhosDe(s.id);
+        const custo = s.custo_unit || filhos[0]?.custo_unit || 0;
+        const estoque = filhos.length ? filhos.reduce((a, f) => a + f.qtd_atual, 0) : s.qtd_atual;
+        const precoAtual = s.preco_venda ?? filhos.find((f) => f.preco_venda)?.preco_venda ?? null;
+        return { s, filhos, custo, estoque, precoAtual };
+      });
+  }, [skus]);
+
+  if (!supabaseConfigured) return <SetupCard />;
+
+  // ---------- simulador ----------
   const custoConjN = num(custoConj);
   const qtd = Math.max(1, Math.round(num(qtdKit)));
   const precoN = num(preco);
-  const taxaN = num(taxa) / 100;
-  const insumoN = num(insumo);
   const freteN = num(frete);
   const cpaN = num(cpa);
   const orcN = num(orcAds);
+  const insumoN = canal?.insumo_custo ?? 0.4;
 
+  const t = taxaDoPreco(canal, precoN);
+  const fixaN = porItem ? t.fixo * qtd : t.fixo;
+  const comissaoN = precoN * t.pct;
   const custoProduto = custoConjN * qtd;
-  const custoPedido = custoProduto + insumoN + freteN;
-  const liquido = precoN * (1 - taxaN);
-  const lucroSemAds = liquido - custoPedido;
+  const custoPedido = custoProduto + insumoN + freteN + fixaN;
+  const liquido = precoN - comissaoN - fixaN;
+  const lucroSemAds = precoN - comissaoN - custoPedido;
   const lucroComAds = lucroSemAds - cpaN;
   const margem = precoN > 0 ? lucroComAds / precoN : 0;
-  const lucroPorConjunto = lucroComAds / qtd;
-  // quanto da pra pagar de anuncio por venda antes de zerar o lucro
   const maxCpa = lucroSemAds;
-  // vendas necessarias para pagar um orcamento de ads (com o lucro sem ads)
   const vendasBreakeven = lucroSemAds > 0 ? Math.ceil(orcN / lucroSemAds) : Infinity;
-
-  /*
-    Preco sugerido a partir da margem desejada:
-    lucro = preco*(1-taxa) - custo - ads  e  margem = lucro/preco
-    logo  preco = (custo + ads) / (1 - taxa - margem)
-    Arredondar termina o preco em ,90 (pratica de varejo).
-  */
-  const margemAlvoN = num(margemAlvo) / 100;
-  const kitN = Math.max(1, Math.round(num(kitTabela)));
-  const termina90 = (v: number) => {
-    const base = Math.floor(v);
-    return (v <= base + 0.9 ? base : base + 1) + 0.9;
-  };
-  /*
-    custoFixo = produto + embalagem + tarifa fixa do canal + ads
-    preco = custoFixo / (1 - comissao - margem)
-    A tarifa fixa entra no numerador porque nao depende do preco (Mercado Livre
-    cobra por pedido, Shopee nao). A comissao entra no divisor porque e percentual.
-  */
-  const precoPorMargem = (custoFixo: number, taxaPct: number, margem: number) => {
-    const divisor = 1 - taxaPct - margem;
-    if (divisor <= 0) return 0;
-    const bruto = custoFixo / divisor;
-    return arredondar ? termina90(bruto) : Math.round(bruto * 100) / 100;
-  };
-  const precoSugerido = (custoPosto: number) => precoPorMargem(custoPosto + cpaN, taxaN, margemAlvoN);
-
-  // canal escolhido para a tabela de estoque (cai no simulador se nao houver canal)
-  const canalSel = canais.find((c) => c.id === canalTabela);
-  const taxaTabela = canalSel ? canalSel.taxa_pct : taxaN;
-  const fixaTabela = canalSel ? canalSel.taxa_fixa : 0;
-  const insumoTabela = canalSel ? canalSel.insumo_custo : insumoN;
-
-  // comparativo: mesmo produto em todos os canais ativos
-  const custoBaseComparativo = custoConjN * qtd;
-  const comparativo = canais.map((c) => {
-    /*
-      Canal com faixa cobra diferente conforme o preco, e o preco depende da taxa.
-      Resolve em duas passadas: calcula com a faixa de um preco estimado e refaz
-      com a faixa do preco encontrado, o que ja estabiliza nos casos reais.
-    */
-    let t = taxaDoPreco(c, custoBaseComparativo + c.insumo_custo);
-    let preco = precoPorMargem(custoBaseComparativo + c.insumo_custo + t.fixo + cpaN + freteN, t.pct, margemAlvoN);
-    t = taxaDoPreco(c, preco);
-    const custoFixo = custoBaseComparativo + c.insumo_custo + t.fixo + cpaN + freteN;
-    preco = precoPorMargem(custoFixo, t.pct, margemAlvoN);
-    const lucro = preco * (1 - t.pct) - custoFixo;
-    return { canal: c, preco, lucro, margem: preco > 0 ? lucro / preco : 0, taxaPct: t.pct, taxaFixa: t.fixo };
-  });
-
-  const linhasTabela = skus.map((s) => {
-    const custoPostoAvulso = s.custo_unit + insumoTabela + fixaTabela;
-    const pAvulso = precoPorMargem(custoPostoAvulso + cpaN, taxaTabela, margemAlvoN);
-    const lucroAvulso = pAvulso * (1 - taxaTabela) - custoPostoAvulso - cpaN;
-
-    const custoPostoKit = s.custo_unit * kitN + insumoTabela + fixaTabela;
-    const pKit = precoPorMargem(custoPostoKit + cpaN, taxaTabela, margemAlvoN);
-    const lucroKit = pKit * (1 - taxaTabela) - custoPostoKit - cpaN;
-
-    return {
-      sku: s,
-      custoPostoAvulso,
-      pAvulso,
-      lucroAvulso,
-      margemAvulso: pAvulso > 0 ? lucroAvulso / pAvulso : 0,
-      pKit,
-      lucroKit,
-      potencial: lucroAvulso * s.qtd_atual,
-      receitaPotencial: pAvulso * s.qtd_atual,
-    };
-  });
-
-  const totalUnidades = skus.reduce((s, x) => s + x.qtd_atual, 0);
-  const totalCusto = skus.reduce((s, x) => s + x.qtd_atual * x.custo_unit, 0);
-  const totalReceita = linhasTabela.reduce((s, l) => s + l.receitaPotencial, 0);
-  const totalLucro = linhasTabela.reduce((s, l) => s + l.potencial, 0);
+  const extraPrograma = programaPct(canal);
 
   const escada = [-10, -5, 0, 5, 10].map((d) => {
     const p = precoN + d;
-    const lucro = p * (1 - taxaN) - custoPedido - cpaN;
+    const tt = taxaDoPreco(canal, p);
+    const fx = porItem ? tt.fixo * qtd : tt.fixo;
+    const lucro = p * (1 - tt.pct) - fx - custoProduto - insumoN - freteN - cpaN;
     return { p, lucro, margem: p > 0 ? lucro / p : 0 };
   });
 
-  const prefill = (id: string) => {
-    const s = skus.find((x) => x.id === id);
-    if (s) setCustoConj(String(s.custo_unit).replace(".", ","));
+  const puxar = (id: string) => {
+    setProdutoId(id);
+    const p = produtos.find((x) => x.s.id === id);
+    if (p) {
+      setCustoConj(txt(p.custo));
+      if (p.precoAtual) setPreco(txt(p.precoAtual));
+    }
   };
 
-  return (
-    <div>
-      <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold text-[var(--purple-dark)]">
-        Precificação
-      </h1>
-      <p className="text-sm text-[var(--ink)]/70">
-        Testa preço, kit, taxa e anúncios e vê o lucro na hora. Puxa o custo de um produto do estoque.
-      </p>
+  // ---------- tabela ----------
+  const margemN = num(margemAlvo) / 100;
+  const linhas = produtos.map((p) => {
+    const r = precoPelaMargem(canal, p.custo, 1, insumoN + cpaN, margemN, arredondar);
+    return { ...p, ...r, potencial: r.lucro * p.estoque, receita: r.preco * p.estoque };
+  });
+  const totalUnidades = linhas.reduce((s, l) => s + l.estoque, 0);
+  const totalCusto = linhas.reduce((s, l) => s + l.estoque * l.custo, 0);
+  const totalReceita = linhas.reduce((s, l) => s + l.receita, 0);
+  const totalLucro = linhas.reduce((s, l) => s + l.potencial, 0);
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
+  const gravarPreco = async (l: (typeof linhas)[number]) => {
+    if (!supabase) return;
+    setErro("");
+    const ids = [l.s.id, ...l.filhos.map((f) => f.id)];
+    const { error } = await supabase.from("ibk_produtos").update({ preco_venda: l.preco }).in("id", ids);
+    if (error) return setErro(error.message);
+    setSalvos((s) => new Set(s).add(l.s.id));
+    setSkus((arr) => arr.map((s) => (ids.includes(s.id) ? { ...s, preco_venda: l.preco } : s)));
+    setTimeout(() => setSalvos((s) => { const n = new Set(s); n.delete(l.s.id); return n; }), 2500);
+  };
+
+  // ---------- comparativo ----------
+  const comparativo = canais.map((c) => ({ canal: c, ...precoPelaMargem(c, custoConjN * qtd, qtd, c.insumo_custo + cpaN + freteN, margemN, arredondar) }));
+
+  return (
+    <div className="page-in">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold tracking-tight text-[var(--purple-dark)]">Precificação</h1>
+          <p className="text-sm text-[var(--ink)]/65">
+            A taxa vem do cadastro do canal (comissão, fixa por item, faixa, programa). O que mudar em Canais muda aqui.
+          </p>
+        </div>
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Canal</span>
+          <select value={canalId} onChange={(e) => setCanalId(e.target.value)} className={inp}>
+            {canais.map((c) => (<option key={c.id} value={c.id}>{c.nome}</option>))}
+          </select>
+        </label>
+      </div>
+
+      {erro && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {/* entradas */}
         <div className="card p-4">
-          {skus.length > 0 && (
-            <Campo label="Puxar custo de um SKU">
-              <select onChange={(e) => prefill(e.target.value)} className={inputCls} defaultValue="">
-                <option value="">escolher SKU...</option>
-                {skus.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {rotuloSku(s)} ({brl(s.custo_unit)})
-                  </option>
-                ))}
-              </select>
-            </Campo>
-          )}
+          <Campo label="Produto (puxa custo e preço atual)">
+            <select value={produtoId} onChange={(e) => puxar(e.target.value)} className={inp}>
+              <option value="">digitar à mão...</option>
+              {produtos.map((p) => (
+                <option key={p.s.id} value={p.s.id}>{nome(p.s)} ({brl(p.custo)}{p.filhos.length ? `, ${p.filhos.length} var.` : ""})</option>
+              ))}
+            </select>
+          </Campo>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Campo label="Custo por unidade"><input value={custoConj} onChange={(e) => setCustoConj(e.target.value)} inputMode="decimal" className={`${inp} num`} /></Campo>
+            <Campo label="Unidades no pedido"><input value={qtdKit} onChange={(e) => setQtdKit(e.target.value)} inputMode="numeric" className={`${inp} num`} /></Campo>
+            <Campo label="Preço de venda"><input value={preco} onChange={(e) => setPreco(e.target.value)} inputMode="decimal" className={`${inp} num text-lg font-extrabold text-[var(--purple-dark)]`} /></Campo>
+            <Campo label="Frete pago por você"><input value={frete} onChange={(e) => setFrete(e.target.value)} inputMode="decimal" className={`${inp} num`} /></Campo>
+            <Campo label="Ads por venda (CPA)"><input value={cpa} onChange={(e) => setCpa(e.target.value)} inputMode="decimal" className={`${inp} num`} /></Campo>
+            <Campo label="Orçamento de campanha"><input value={orcAds} onChange={(e) => setOrcAds(e.target.value)} inputMode="decimal" className={`${inp} num`} /></Campo>
+          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Campo label="Custo por conjunto">
-              <input value={custoConj} onChange={(e) => setCustoConj(e.target.value)} className={inputCls} />
-            </Campo>
-            <Campo label="Conjuntos no kit">
-              <input value={qtdKit} onChange={(e) => setQtdKit(e.target.value)} className={inputCls} />
-            </Campo>
-            <Campo label="Preço de venda">
-              <input value={preco} onChange={(e) => setPreco(e.target.value)} className={inputCls} />
-            </Campo>
-            <Campo label="Taxa Shopee %">
-              <input value={taxa} onChange={(e) => setTaxa(e.target.value)} className={inputCls} />
-            </Campo>
-            <Campo label="Insumo / pedido">
-              <input value={insumo} onChange={(e) => setInsumo(e.target.value)} className={inputCls} />
-            </Campo>
-            <Campo label="Frete pago por você">
-              <input value={frete} onChange={(e) => setFrete(e.target.value)} className={inputCls} />
-            </Campo>
-            <Campo label="Ads por venda (CPA)">
-              <input value={cpa} onChange={(e) => setCpa(e.target.value)} className={inputCls} />
-            </Campo>
-            <Campo label="Orçamento de campanha">
-              <input value={orcAds} onChange={(e) => setOrcAds(e.target.value)} className={inputCls} />
-            </Campo>
+          {/* o que o canal cobra neste preco */}
+          <div className="mt-4 rounded-xl bg-[var(--cream)] p-3 text-xs text-[var(--ink)]/75">
+            <div className="mb-1 text-[10px] font-bold uppercase text-[var(--ink)]/45">{canal?.nome ?? "canal"} cobra neste preço</div>
+            <div className="num flex flex-wrap gap-x-4 gap-y-1">
+              <span>comissão <b>{pct(t.pct - extraPrograma)}</b> = {brl(precoN * (t.pct - extraPrograma))}</span>
+              {extraPrograma > 0 && <span>{canal?.programa_nome} <b>+{pct(extraPrograma)}</b> = {brl(precoN * extraPrograma)}</span>}
+              {t.fixo > 0 && <span>fixa <b>{brl(t.fixo)}</b> {porItem ? `× ${qtd} item` : "por pedido"} = {brl(fixaN)}</span>}
+              <span>embalagem <b>{brl(insumoN)}</b></span>
+            </div>
           </div>
         </div>
 
         {/* resultados */}
         <div className="grid grid-cols-2 gap-3 self-start">
-          <Res titulo="Custo do pedido" valor={brl(custoPedido)} />
-          <Res titulo="Líquido após taxa" valor={brl(liquido)} />
+          <Res titulo="Custo do pedido" valor={brl(custoPedido)} sub="produto + embalagem + frete + fixa" />
+          <Res titulo="Líquido após taxas" valor={brl(liquido)} sub="o que a plataforma repassa" />
           <Res titulo="Lucro por venda" valor={brl(lucroComAds)} destaque={lucroComAds >= 0} big />
-          <Res titulo="Margem" valor={`${Math.round(margem * 100)}%`} destaque={margem >= 0} big />
-          <Res titulo="Lucro por conjunto" valor={brl(lucroPorConjunto)} destaque={lucroPorConjunto >= 0} />
-          <Res titulo="Máx. ads por venda" valor={brl(maxCpa)} destaque={maxCpa >= 0} />
+          <Res titulo="Margem" valor={pct(margem)} destaque={margem >= 0} big />
+          <Res titulo="Lucro por unidade" valor={brl(lucroComAds / qtd)} destaque={lucroComAds >= 0} />
+          <Res titulo="Máx. ads por venda" valor={brl(maxCpa)} destaque={maxCpa >= 0} sub="antes de zerar o lucro" />
           <div className="col-span-2 rounded-2xl bg-[var(--purple)]/8 p-4">
             <div className="text-xs font-bold uppercase text-[var(--ink)]/50">Break-even da campanha</div>
             <div className="mt-1 text-sm text-[var(--ink)]/80">
-              Com {brl(orcN)} de anúncio e {brl(lucroSemAds)} de lucro por venda (sem ads), você precisa de{" "}
-              <strong className="text-[var(--purple-dark)]">
-                {vendasBreakeven === Infinity ? "∞ (lucro não paga)" : `${vendasBreakeven} vendas`}
-              </strong>{" "}
+              Com {brl(orcN)} de anúncio e {brl(lucroSemAds)} de lucro por venda (sem ads), precisa de{" "}
+              <strong className="num text-[var(--purple-dark)]">{vendasBreakeven === Infinity ? "∞ (lucro não paga)" : `${vendasBreakeven} vendas`}</strong>{" "}
               só pra empatar o anúncio.
             </div>
           </div>
         </div>
       </div>
 
-      {/* escada de precos */}
-      <div className="mt-5 overflow-x-auto card">
+      {/* escada */}
+      <div className="card mt-5 overflow-x-auto">
         <table className="w-full min-w-[420px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
-              <th className="p-3">Preço</th>
-              <th className="p-3">Lucro/venda</th>
-              <th className="p-3">Margem</th>
+              <th className="p-3">Preço</th><th className="p-3 text-right">Lucro/venda</th><th className="p-3 text-right">Margem</th>
             </tr>
           </thead>
           <tbody className="cascata">
             {escada.map((e, i) => (
-              <tr key={i} className={`border-b border-[var(--purple)]/6 last:border-0 ${e.p === precoN ? "bg-[var(--purple)]/5" : ""}`}>
-                <td className="p-3 font-semibold">{brl(e.p)}{e.p === precoN ? " (atual)" : ""}</td>
-                <td className={`p-3 font-bold ${e.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(e.lucro)}</td>
-                <td className="p-3">{Math.round(e.margem * 100)}%</td>
+              <tr key={i} className={`border-b border-[var(--purple)]/6 last:border-0 ${i === 2 ? "bg-[var(--purple)]/6 font-bold" : ""}`}>
+                <td className="num p-3">{brl(e.p)}{i === 2 && <span className="ml-1 text-[11px] font-normal text-[var(--ink)]/45">(atual)</span>}</td>
+                <td className={`num p-3 text-right ${e.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(e.lucro)}</td>
+                <td className="num p-3 text-right">{pct(e.margem)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* ── Tabela de precos de todo o estoque ── */}
-      <div className="mt-8 border-t border-[var(--purple)]/15 pt-6">
+      {/* tabela do estoque */}
+      <div className="mt-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
-              Tabela de preços do estoque
-            </h2>
-            <p className="text-sm text-[var(--ink)]/70">
-              Preço sugerido de cada produto para a margem desejada
-              {canalSel
-                ? `, no canal ${canalSel.nome} (${Math.round(canalSel.taxa_pct * 1000) / 10}%${canalSel.taxa_fixa ? ` + ${brl(canalSel.taxa_fixa)} fixo` : ""})`
-                : `, usando a taxa de ${Math.round(taxaN * 100)}%`}
-              {cpaN > 0 && ` e ads de ${brl(cpaN)}`}.
+            <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">Tabela de preços do estoque</h2>
+            <p className="text-sm text-[var(--ink)]/65">
+              Preço por unidade de cada produto pra fechar a margem alvo no canal <b>{canal?.nome ?? ""}</b>. &quot;Usar&quot; grava no produto e nas variações; é o preço que o caixa puxa.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
-            {canais.length > 0 && (
-              <Campo label="Canal">
-                <select value={canalTabela} onChange={(e) => setCanalTabela(e.target.value)} className={`${inputCls} w-40`}>
-                  {canais.map((c) => (<option key={c.id} value={c.id}>{c.nome}</option>))}
-                </select>
-              </Campo>
-            )}
-            <Campo label="Margem alvo %">
-              <input value={margemAlvo} onChange={(e) => setMargemAlvo(e.target.value)} className={`${inputCls} w-20`} />
-            </Campo>
-            <Campo label="Kit de">
-              <input value={kitTabela} onChange={(e) => setKitTabela(e.target.value)} className={`${inputCls} w-16`} />
-            </Campo>
-            <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--ink)]/70">
-              <input type="checkbox" checked={arredondar} onChange={(e) => setArredondar(e.target.checked)} className="h-4 w-4 accent-[var(--purple)]" />
-              terminar em ,90
+            <Campo label="Margem alvo %"><input value={margemAlvo} onChange={(e) => setMargemAlvo(e.target.value)} inputMode="decimal" className={`${inp} num w-20`} /></Campo>
+            <label className="flex items-center gap-1.5 pb-2 text-xs font-semibold">
+              <input type="checkbox" checked={arredondar} onChange={(e) => setArredondar(e.target.checked)} className="accent-[var(--purple)]" /> terminar em ,90
             </label>
           </div>
         </div>
 
-        <div className="mt-3 overflow-x-auto card">
-          <table className="w-full min-w-[860px] text-left text-sm">
+        <div className="card mt-3 overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
                 <th className="p-3">Produto</th>
-                <th className="p-3">Estoque</th>
-                <th className="p-3">Custo un.</th>
-                <th className="p-3">Custo posto</th>
-                <th className="p-3">Preço avulso</th>
-                <th className="p-3">Lucro/un</th>
-                <th className="p-3">Margem</th>
-                <th className="p-3">Kit {kitN}un</th>
-                <th className="p-3">Lucro kit</th>
-                <th className="p-3">Lucro potencial</th>
+                <th className="p-3 text-right">Estoque</th>
+                <th className="p-3 text-right">Custo</th>
+                <th className="p-3 text-right">Taxa</th>
+                <th className="p-3 text-right">Preço hoje</th>
+                <th className="p-3 text-right">Sugerido</th>
+                <th className="p-3 text-right">Lucro/un</th>
+                <th className="p-3 text-right">Lucro potencial</th>
+                <th className="p-3" />
               </tr>
             </thead>
             <tbody className="cascata">
-              {linhasTabela.length === 0 && (
-                <tr><td colSpan={10} className="p-6 text-center text-[var(--ink)]/50">nenhum produto no estoque.</td></tr>
-              )}
-              {linhasTabela.map((l) => (
-                <tr key={l.sku.id} className="border-b border-[var(--purple)]/6 last:border-0">
-                  <td className="p-3 font-semibold text-[var(--ink)]">{rotuloSku(l.sku)}</td>
-                  <td className="p-3">{l.sku.qtd_atual}</td>
-                  <td className="p-3">{brl(l.sku.custo_unit)}</td>
-                  <td className="p-3">{brl(l.custoPostoAvulso)}</td>
-                  <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(l.pAvulso)}</td>
-                  <td className={`p-3 font-bold ${l.lucroAvulso >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucroAvulso)}</td>
-                  <td className="p-3">{Math.round(l.margemAvulso * 100)}%</td>
-                  <td className="p-3 font-semibold">{brl(l.pKit)}</td>
-                  <td className={`p-3 ${l.lucroKit >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucroKit)}</td>
-                  <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(l.potencial)}</td>
-                </tr>
-              ))}
-            </tbody>
-            {linhasTabela.length > 0 && (
-              <tfoot>
-                <tr className="border-t-2 border-[var(--purple)]/15 bg-[var(--purple)]/5 font-bold">
+              {linhas.map((l) => {
+                const igual = l.precoAtual != null && Math.abs(l.precoAtual - l.preco) < 0.005;
+                return (
+                  <tr key={l.s.id} className="border-b border-[var(--purple)]/6 last:border-0">
+                    <td className="p-3">
+                      <div className="font-semibold">{nome(l.s)}</div>
+                      {l.filhos.length > 0 && <div className="text-[11px] text-[var(--ink)]/45">{l.filhos.length} variações, mesmo custo</div>}
+                    </td>
+                    <td className="num p-3 text-right">{l.estoque}</td>
+                    <td className="num p-3 text-right">{brl(l.custo)}</td>
+                    <td className="num p-3 text-right text-[var(--ink)]/60">{pct(l.taxaPct)}{l.fixa > 0 ? ` + ${brl(l.fixa)}` : ""}</td>
+                    <td className="num p-3 text-right text-[var(--ink)]/70">{l.precoAtual != null ? brl(l.precoAtual) : <span className="text-[var(--ink)]/30">-</span>}</td>
+                    <td className="num p-3 text-right font-extrabold text-[var(--purple-dark)]">{brl(l.preco)}</td>
+                    <td className={`num p-3 text-right font-bold ${l.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucro)} <span className="text-[11px] font-normal text-[var(--ink)]/45">{pct(l.margem)}</span></td>
+                    <td className="num p-3 text-right text-emerald-600">{brl(l.potencial)}</td>
+                    <td className="p-2 text-right">
+                      {salvos.has(l.s.id) ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600"><Check size={14} weight="bold" /> salvo</span>
+                      ) : igual ? (
+                        <span className="text-[11px] text-[var(--ink)]/35">já é</span>
+                      ) : (
+                        <button onClick={() => gravarPreco(l)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">usar</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {linhas.length > 0 && (
+                <tr className="bg-[var(--purple)]/4 font-bold">
                   <td className="p-3">Total</td>
-                  <td className="p-3">{totalUnidades}</td>
-                  <td className="p-3" colSpan={2}>{brl(totalCusto)} em custo</td>
-                  <td className="p-3 text-[var(--purple-dark)]" colSpan={4}>{brl(totalReceita)} de receita se vender tudo</td>
-                  <td className="p-3"></td>
-                  <td className="p-3 text-emerald-600">{brl(totalLucro)}</td>
+                  <td className="num p-3 text-right">{totalUnidades}</td>
+                  <td className="num p-3 text-right">{brl(totalCusto)}</td>
+                  <td className="p-3" />
+                  <td className="p-3" />
+                  <td className="num p-3 text-right text-[var(--purple-dark)]">{brl(totalReceita)}</td>
+                  <td className="p-3" />
+                  <td className="num p-3 text-right text-emerald-600">{brl(totalLucro)}</td>
+                  <td className="p-3" />
                 </tr>
-              </tfoot>
-            )}
+              )}
+            </tbody>
           </table>
         </div>
-
         <p className="mt-2 text-xs text-[var(--ink)]/50">
-          Preço sugerido = (custo posto + ads) ÷ (1 − taxa − margem alvo). O kit usa {kitN} unidades do mesmo produto,
-          com o insumo contado uma vez só por pedido.
+          preço = (custo + embalagem + fixa + ads) ÷ (1 − comissão − margem). Em canal por faixa, a comissão é a da faixa do preço encontrado. Kit: use o simulador com as unidades do kit.
         </p>
       </div>
 
-      {/* ── Mesmo produto, todos os canais ── */}
-      {comparativo.length > 0 && (
-        <div className="mt-8 border-t border-[var(--purple)]/15 pt-6">
-          <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
-            O mesmo produto em cada canal
-          </h2>
-          <p className="text-sm text-[var(--ink)]/70">
-            Usa o custo do simulador ({brl(custoConjN)} × {qtd}) e a margem alvo de {margemAlvo}%.
-            Mostra quanto cobrar em cada lugar para ganhar a mesma coisa.
-          </p>
-
-          <div className="mt-3 overflow-x-auto card">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
-                  <th className="p-3">Canal</th>
-                  <th className="p-3">Comissão</th>
-                  <th className="p-3">Tarifa fixa</th>
-                  <th className="p-3">Preço para a margem alvo</th>
-                  <th className="p-3">Lucro</th>
-                  <th className="p-3">Margem</th>
+      {/* comparativo */}
+      <div className="mt-8">
+        <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">O mesmo produto em cada canal</h2>
+        <p className="text-sm text-[var(--ink)]/65">
+          Custo do simulador ({brl(custoConjN)} × {qtd}) e margem alvo de {margemAlvo}%. Quanto cobrar em cada lugar pra ganhar a mesma coisa.
+        </p>
+        <div className="card mt-3 overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+                <th className="p-3">Canal</th><th className="p-3 text-right">Comissão</th><th className="p-3 text-right">Fixa</th><th className="p-3 text-right">Preço pra margem alvo</th><th className="p-3 text-right">Lucro</th><th className="p-3 text-right">Margem</th>
+              </tr>
+            </thead>
+            <tbody className="cascata">
+              {comparativo.map((r) => (
+                <tr key={r.canal.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${r.canal.id === canalId ? "bg-[var(--purple)]/6" : ""}`}>
+                  <td className="p-3 font-semibold">
+                    {r.canal.nome}
+                    {r.canal.programa_ativo && r.canal.programa_pct > 0 && <span className="ml-1 text-[10px] text-[var(--ink)]/45">+ {r.canal.programa_nome}</span>}
+                  </td>
+                  <td className="num p-3 text-right">{pct(r.taxaPct)}</td>
+                  <td className="num p-3 text-right">{r.fixa > 0 ? brl(r.fixa) : "-"}</td>
+                  <td className="num p-3 text-right font-extrabold text-[var(--purple-dark)]">{brl(r.preco)}</td>
+                  <td className={`num p-3 text-right font-bold ${r.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(r.lucro)}</td>
+                  <td className="num p-3 text-right">{pct(r.margem)}</td>
                 </tr>
-              </thead>
-              <tbody className="cascata">
-                {comparativo.map((l) => (
-                  <tr key={l.canal.id} className="border-b border-[var(--purple)]/6 last:border-0">
-                    <td className="p-3 font-semibold text-[var(--ink)]">{l.canal.nome}</td>
-                    <td className="p-3">{Math.round(l.taxaPct * 1000) / 10}%</td>
-                    <td className="p-3">{l.taxaFixa ? brl(l.taxaFixa) : "-"}</td>
-                    <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(l.preco)}</td>
-                    <td className={`p-3 font-bold ${l.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucro)}</td>
-                    <td className="p-3">{Math.round(l.margem * 100)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <p className="mt-2 text-xs text-[var(--ink)]/50">
-            Onde a comissão é menor (WhatsApp no Pix, loja física) dá para vender mais barato ganhando o mesmo,
-            ou manter o preço e ficar com a margem inteira. Ajuste as taxas reais em Canais.
-          </p>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+        <p className="mt-2 text-xs text-[var(--ink)]/50">
+          Onde a comissão é menor (WhatsApp, loja física) dá pra vender mais barato ganhando o mesmo, ou manter o preço e ficar com a margem inteira.
+        </p>
+      </div>
     </div>
   );
 }
 
-const inputCls =
-  "w-full rounded-lg border border-[var(--purple)]/20 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-[var(--purple)]";
+const inp = "rounded-lg border border-[var(--purple)]/20 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-[var(--purple)]";
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="mb-3 flex flex-col gap-1">
+    <label className="flex flex-col gap-1">
       <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
       {children}
     </label>
   );
 }
 
-function Res({ titulo, valor, destaque, big }: { titulo: string; valor: string; destaque?: boolean; big?: boolean }) {
+function Res({ titulo, valor, sub, destaque, big }: { titulo: string; valor: string; sub?: string; destaque?: boolean; big?: boolean }) {
   return (
     <div className="card p-4">
       <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
-      <div
-        className={`mt-1 font-[family-name:var(--font-baloo)] font-extrabold ${big ? "text-2xl" : "text-lg"} ${
-          destaque === false ? "text-red-500" : "text-[var(--purple-dark)]"
-        }`}
-      >
-        {valor}
-      </div>
+      <div className={`num mt-1 font-[family-name:var(--font-baloo)] font-extrabold ${big ? "text-2xl" : "text-lg"} ${destaque === false ? "text-red-500" : "text-[var(--purple-dark)]"}`}>{valor}</div>
+      {sub && <div className="text-[10px] text-[var(--ink)]/45">{sub}</div>}
     </div>
   );
 }
