@@ -6,6 +6,7 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows, btnPrimario, btnSecundario } from "../ui";
 import type { Faixa } from "@/lib/canais";
+import { hojeIso, num, brl } from "@/lib/formato";
 
 /*
   Canais de venda e o que cada um cobra. Tudo editavel aqui, porque as
@@ -33,11 +34,8 @@ export type Canal = {
   obs: string | null;
 };
 
-const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-const num = (s: string) => parseFloat(String(s).replace(",", ".")) || 0;
 const pctTxt = (v: number) => String(Math.round(v * 1000) / 10).replace(".", ",");
 const valTxt = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
-const hojeIso = () => new Date().toISOString().slice(0, 10);
 const diasDesde = (iso: string) => Math.round((Date.now() - new Date(iso + "T12:00:00").getTime()) / 86400000);
 
 type FaixaForm = { ate: string; pct: string; fixo: string };

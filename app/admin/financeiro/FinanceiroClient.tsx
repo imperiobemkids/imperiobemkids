@@ -6,6 +6,7 @@ import { PencilSimple, Trash, Check, X, Repeat, Plus } from "@phosphor-icons/rea
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows, btnPrimario, btnSecundario } from "../ui";
+import { num, txt, brl, dataBr, hojeIso } from "@/lib/formato";
 
 /*
   Caixa: entradas e saidas, contas a pagar por vencimento e o que se repete
@@ -63,14 +64,6 @@ const ROTULO: Record<string, string> = {
 const catLabel = (c: string) => ROTULO[c] ?? c;
 const FORMAS = ["pix", "cartao", "boleto", "dinheiro", "transferencia", "debito_automatico"];
 
-const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-const num = (s: string) => parseFloat(String(s).replace(/\./g, "").replace(",", ".")) || 0;
-const txt = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
-const dataBr = (iso: string) => new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString("pt-BR");
-const hojeIso = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 const diasAte = (iso: string) => Math.round((new Date(iso + "T12:00:00").getTime() - new Date(hojeIso() + "T12:00:00").getTime()) / 86400000);
 const noMes = (iso: string) => iso.slice(0, 7) === hojeIso().slice(0, 7);
 const somaMes = (d: string, meses: number) => {

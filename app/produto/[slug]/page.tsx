@@ -7,7 +7,7 @@ import { SiteFooter } from "../../SiteFooter";
 import { Saida } from "../../Saida";
 import { jsonLdScript, migalhas, SITE } from "@/lib/seo";
 import { EMPRESA } from "@/lib/empresa";
-import { listarProdutosPublicos, produtoPublicoPorSlug, brl, fotoDe, nomeCurto } from "@/lib/produtosPublicos";
+import { listarProdutosPublicos, produtoPublicoPorSlug, brl, fotoDe, fotoOtimizavel, nomeCurto } from "@/lib/produtosPublicos";
 import { CardProduto } from "../CardProduto";
 
 /*
@@ -96,7 +96,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
 
         <article className="mt-5 grid gap-8 md:grid-cols-2">
           <div className="relative aspect-[3/4] overflow-hidden rounded-3xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.12)]">
-            <Image src={fotoDe(p)} alt={p.titulo} fill priority className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
+            <Image src={fotoDe(p)} alt={p.titulo} fill priority unoptimized={!fotoOtimizavel(fotoDe(p))} className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
             {!p.em_estoque && (
               <span className="absolute left-3 top-3 rounded-full bg-[var(--ink)] px-3 py-1 text-xs font-extrabold uppercase text-white">esgotado</span>
             )}

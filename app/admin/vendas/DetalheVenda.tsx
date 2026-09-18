@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { calcularTaxas } from "@/lib/canais";
-import { STATUS, estornarVenda, hojeIso, type StatusPedido } from "@/lib/pedidos";
+import { STATUS, estornarVenda, hojeIso, estornada, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
 import type { Canal } from "../canais/CanaisClient";
 
 /*
@@ -137,9 +137,8 @@ export function DetalheVenda({
     0,
   );
   const comissao = venda.preco_venda * venda.taxa_pct;
-  const lucro = venda.devolvida
-    ? -(venda.custo_devolucao ?? 0)
-    : venda.preco_venda - comissao - (venda.taxa_fixa ?? 0) - venda.insumo_custo - venda.frete - custoProdutos;
+  const lucro = lucroDaVenda(venda);
+  const foraDoCiclo = estornada(venda.status ?? (venda.devolvida ? "devolvido" : "entregue"));
 
   const salvar = async () => {
     if (!supabase) return;
@@ -255,7 +254,7 @@ export function DetalheVenda({
           {venda.frete > 0 && <Linha rotulo="Frete pago pela loja" valor={`− ${brl(venda.frete)}`} sutil />}
           <div className="my-2 border-t border-[var(--purple)]/15" />
           <Linha rotulo="Lucro" valor={brl(lucro)} forte positivo={lucro >= 0} />
-          {venda.preco_venda > 0 && !venda.devolvida && (
+          {venda.preco_venda > 0 && !foraDoCiclo && (
             <p className="mt-1 text-right text-[11px] text-[var(--ink)]/50">
               margem de {Math.round((lucro / venda.preco_venda) * 100)}%
             </p>
@@ -367,7 +366,7 @@ export function DetalheVenda({
             </div>
           </div>
         ) : (
-          !venda.devolvida && (
+          !foraDoCiclo && (
             <button onClick={() => setEditando(true)} className="mt-4 rounded-xl bg-[var(--purple)]/8 px-4 py-2.5 text-sm font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
               editar venda
             </button>

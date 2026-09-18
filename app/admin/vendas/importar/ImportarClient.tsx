@@ -6,8 +6,7 @@ import { ArrowLeft, UploadSimple, Check, Warning, X } from "@phosphor-icons/reac
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../../SetupCard";
 import { calcularTaxas } from "@/lib/canais";
-import { saidaEstoque } from "@/lib/estoque";
-import { STATUS } from "@/lib/pedidos";
+import { STATUS, registrarVenda, hojeIso } from "@/lib/pedidos";
 import {
   CAMPOS,
   agruparPedidos,
@@ -31,7 +30,7 @@ import { acharOuCriarCliente } from "@/lib/clientes";
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-type Existente = { id: string; status: string; rastreio: string | null; nf_numero: string | null };
+type Existente = { id: string; status: string; rastreio: string | null; nf_numero: string | null; pedido_externo: string | null; data: string; preco_venda: number };
 
 export function ImportarClient() {
   const [canais, setCanais] = useState<Canal[]>([]);
@@ -39,6 +38,7 @@ export function ImportarClient() {
   const [produtos, setProdutos] = useState<ProdutoRef[]>([]);
   const [codigos, setCodigos] = useState<CodigoCanal[]>([]);
   const [existentes, setExistentes] = useState<Map<string, Existente>>(new Map());
+  const [manuais, setManuais] = useState<Existente[]>([]); // registradas a mao, sem numero de pedido
 
   const [arquivo, setArquivo] = useState<string>("");
   const [cabecalhos, setCabecalhos] = useState<string[]>([]);
@@ -61,8 +61,9 @@ export function ImportarClient() {
     const lista = (c.data as Canal[]) ?? [];
     setCanais(lista);
     setProdutos((p.data as ProdutoRef[]) ?? []);
-    if (!canalId) setCanalId(lista.find((x) => /shopee/i.test(x.nome))?.id ?? lista[0]?.id ?? "");
-  }, [canalId]);
+    // canal padrao so na primeira carga; a lista nao depende do canal
+    setCanalId((atual) => atual || lista.find((x) => /shopee/i.test(x.nome))?.id || lista[0]?.id || "");
+  }, []);
 
   useEffect(() => {
     if (supabaseConfigured) carregarBase();
@@ -74,10 +75,12 @@ export function ImportarClient() {
     (async () => {
       const [cod, ex] = await Promise.all([
         supabase!.from("ibk_produto_canais").select("produto_id, id_anuncio, id_variacao, sku_canal").eq("canal_id", canalId),
-        supabase!.from("ibk_vendas").select("id, pedido_externo, status, rastreio, nf_numero").eq("canal_id", canalId).not("pedido_externo", "is", null),
+        supabase!.from("ibk_vendas").select("id, pedido_externo, status, rastreio, nf_numero, data, preco_venda").eq("canal_id", canalId),
       ]);
       setCodigos((cod.data as CodigoCanal[]) ?? []);
-      setExistentes(new Map((ex.data ?? []).map((v) => [String(v.pedido_externo), v as Existente])));
+      const todas = (ex.data as Existente[]) ?? [];
+      setExistentes(new Map(todas.filter((v) => v.pedido_externo).map((v) => [String(v.pedido_externo), v])));
+      setManuais(todas.filter((v) => !v.pedido_externo));
     })();
   }, [canalId]);
 
@@ -127,10 +130,18 @@ export function ImportarClient() {
     return [p.nome, p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ");
   };
 
+  const totalDe = (p: PedidoImportado) => p.itens.reduce((s, it) => s + it.preco * it.qtd, 0);
+
   const classificar = (p: PedidoImportado) => {
     if (p.status === "ignorar") return { tipo: "pular" as const, motivo: "não pago" };
     const ex = existentes.get(p.pedido);
-    if (ex) return { tipo: "atualizar" as const, motivo: `já existe (${STATUS[ex.status as keyof typeof STATUS]?.rotulo ?? ex.status})`, ex };
+    if (ex) {
+      if (ex.status === "cancelado" || ex.status === "devolvido") return { tipo: "pular" as const, motivo: `já ${ex.status} aqui, não mexe` };
+      return { tipo: "atualizar" as const, motivo: `já existe (${STATUS[ex.status as keyof typeof STATUS]?.rotulo ?? ex.status})`, ex };
+    }
+    // venda registrada a mao no caixa, sem numero: mesmo dia e mesmo valor = e ela
+    const manual = manuais.find((m) => m.data === p.data && Math.abs(m.preco_venda - totalDe(p)) < 0.01);
+    if (manual) return { tipo: "vincular" as const, motivo: "venda manual do mesmo dia e valor: só grava o nº do pedido", ex: manual };
     if (p.status === "cancelado" || p.status === "devolvido") return { tipo: "pular" as const, motivo: `${p.status} na origem, nunca entrou aqui` };
     if (p.itens.some((it) => !it.produtoId)) return { tipo: "pular" as const, motivo: "produto não encontrado" };
     if (!p.data) return { tipo: "pular" as const, motivo: "sem data" };
@@ -138,11 +149,11 @@ export function ImportarClient() {
   };
 
   const resumo = useMemo(() => {
-    const r = { novo: 0, atualizar: 0, pular: 0 };
+    const r = { novo: 0, atualizar: 0, vincular: 0, pular: 0 };
     for (const p of pedidos) r[classificar(p).tipo]++;
     return r;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pedidos, existentes]);
+  }, [pedidos, existentes, manuais]);
 
   const importar = async () => {
     if (!supabase || !canal) return;
@@ -154,14 +165,21 @@ export function ImportarClient() {
       const c = classificar(p);
       if (c.tipo === "pular") { pulados++; continue; }
 
+      if (c.tipo === "vincular") {
+        const { error } = await supabase.from("ibk_vendas").update({ pedido_externo: p.pedido, rastreio: p.rastreio || null, nf_numero: p.nf || null }).eq("id", c.ex.id);
+        if (error) { setErro(`pedido ${p.pedido}: ${error.message}`); break; }
+        atualizados++;
+        continue;
+      }
+
       if (c.tipo === "atualizar") {
         // so anda pra frente no ciclo; cancelamento e devolucao ficam manuais
         const ordem = ["aguardando", "enviado", "entregue"];
         const patch: Record<string, unknown> = {};
-        if (ordem.includes(p.status) && ordem.indexOf(p.status) > ordem.indexOf(c.ex.status)) {
+        if (ordem.includes(p.status) && ordem.includes(c.ex.status) && ordem.indexOf(p.status) > ordem.indexOf(c.ex.status)) {
           patch.status = p.status;
           if (p.status !== "aguardando") patch.enviado_em = p.data;
-          if (p.status === "entregue") patch.entregue_em = new Date().toISOString().slice(0, 10);
+          if (p.status === "entregue") patch.entregue_em = hojeIso();
         }
         if (p.rastreio && p.rastreio !== c.ex.rastreio) patch.rastreio = p.rastreio;
         if (p.nf && p.nf !== c.ex.nf_numero) patch.nf_numero = p.nf;
@@ -173,69 +191,46 @@ export function ImportarClient() {
         continue;
       }
 
-      // novo: mesma sequencia do caixa (venda, itens, estoque, caixa)
+      // novo: a mesma sequencia do caixa, em lib/pedidos
       const itens = p.itens.map((it) => ({ precoUnit: it.preco, qtd: it.qtd }));
       const total = itens.reduce((s, i) => s + i.precoUnit * i.qtd, 0);
       const desconto = p.itens.reduce((s, it) => s + Math.max(0, it.precoOriginal - it.preco) * it.qtd, 0);
-      const unidades = itens.reduce((s, i) => s + i.qtd, 0);
       // taxa real da planilha quando existe; senao a tabela do canal
       const calc = calcularTaxas(canal, itens, 0);
-      const comissao = p.temTaxas ? p.taxas : calc.comissao;
-      const taxaFixa = p.temTaxas ? 0 : calc.fixa;
-
-      const { data: venda, error: e1 } = await supabase
-        .from("ibk_vendas")
-        .insert({
-          data: p.data,
-          canal: canal.nome.toLowerCase().slice(0, 20),
-          canal_id: canal.id,
-          tipo: unidades > 1 ? "kit" : "avulso",
-          cliente: p.comprador || null,
-          cliente_id: p.comprador ? await acharOuCriarCliente(p.comprador, canal.nome.toLowerCase()) : null,
-          pedido_externo: p.pedido,
-          status: p.status,
-          rastreio: p.rastreio || null,
-          enviado_em: p.status === "enviado" || p.status === "entregue" ? p.data : null,
-          entregue_em: p.status === "entregue" ? p.data : null,
-          nf_numero: p.nf || null,
-          forma_pagamento: "marketplace",
-          preco_venda: Math.round(total * 100) / 100,
-          desconto: Math.round(desconto * 100) / 100,
-          taxa_pct: total > 0 ? comissao / total : 0,
-          taxa_fixa: taxaFixa,
-          insumo_custo: canal.insumo_custo ?? 0,
-          frete_cobrado: p.freteComprador,
-          frete: 0,
-          qtd_itens: unidades,
-          obs: `importado de ${arquivo}`,
-        })
-        .select("id")
-        .single();
-      if (e1 || !venda) { setErro(`pedido ${p.pedido}: ${e1?.message ?? "erro"}`); break; }
-
-      const { error: e2 } = await supabase.from("ibk_venda_itens").insert(
-        p.itens.map((it) => ({ venda_id: venda.id, produto_id: it.produtoId, qtd: it.qtd, preco_unit: it.preco })),
-      );
-      if (e2) { setErro(`pedido ${p.pedido}: ${e2.message}`); break; }
-
-      for (const it of p.itens) {
-        await saidaEstoque(it.produtoId!, it.qtd, "venda", { vendaId: venda.id, data: p.data });
-      }
-
-      const movs: Record<string, unknown>[] = [
-        { data: p.data, tipo: "entrada", categoria: "venda", valor: total, descricao: `Venda ${canal.nome} #${p.pedido}`, ref_venda_id: venda.id },
-      ];
-      if (comissao > 0) movs.push({ data: p.data, tipo: "saida", categoria: "taxa_shopee", valor: comissao, descricao: `Taxas ${canal.nome} #${p.pedido}`, ref_venda_id: venda.id });
-      if (taxaFixa > 0) movs.push({ data: p.data, tipo: "saida", categoria: "taxa_shopee", valor: taxaFixa, descricao: `Tarifa fixa ${canal.nome} #${p.pedido}`, ref_venda_id: venda.id });
-      await supabase.from("ibk_movimentos").insert(movs);
+      const r = await registrarVenda({
+        data: p.data,
+        canalNome: canal.nome,
+        canalId: canal.id,
+        itens: p.itens.map((it) => ({ produtoId: it.produtoId!, qtd: it.qtd, precoUnit: it.preco })),
+        total,
+        desconto,
+        comissao: p.temTaxas ? p.taxas : calc.comissao,
+        taxaFixa: p.temTaxas ? 0 : calc.fixa,
+        insumo: canal.insumo_custo ?? 0,
+        freteCobrado: p.freteComprador,
+        cliente: p.comprador || null,
+        clienteId: p.comprador ? await acharOuCriarCliente(p.comprador, canal.nome.toLowerCase()) : null,
+        pedidoExterno: p.pedido,
+        status: p.status as "aguardando" | "enviado" | "entregue",
+        formaPagamento: "marketplace",
+        rastreio: p.rastreio || null,
+        enviadoEm: p.status === "enviado" || p.status === "entregue" ? p.data : null,
+        entregueEm: p.status === "entregue" ? p.data : null,
+        nfNumero: p.nf || null,
+        obs: `importado de ${arquivo}`,
+        descricaoCaixa: `Venda ${canal.nome} #${p.pedido}`,
+      });
+      if ("erro" in r) { setErro(`pedido ${p.pedido}: ${r.erro}`); break; }
       novos++;
     }
 
     setImportando(false);
     setResultado({ novos, atualizados, pulados });
     // recarrega os existentes pra nao importar duas vezes se clicar de novo
-    const { data } = await supabase.from("ibk_vendas").select("id, pedido_externo, status, rastreio, nf_numero").eq("canal_id", canal.id).not("pedido_externo", "is", null);
-    setExistentes(new Map((data ?? []).map((v) => [String(v.pedido_externo), v as Existente])));
+    const { data } = await supabase.from("ibk_vendas").select("id, pedido_externo, status, rastreio, nf_numero, data, preco_venda").eq("canal_id", canal.id);
+    const todas = (data as Existente[]) ?? [];
+    setExistentes(new Map(todas.filter((v) => v.pedido_externo).map((v) => [String(v.pedido_externo), v])));
+    setManuais(todas.filter((v) => !v.pedido_externo));
   };
 
   if (!supabaseConfigured) return <SetupCard />;
@@ -320,10 +315,11 @@ export function ImportarClient() {
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-700">{resumo.novo} novos</span>
             <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-extrabold text-sky-800">{resumo.atualizar} já existem</span>
+            {resumo.vincular > 0 && <span className="rounded-full bg-[var(--purple)]/10 px-3 py-1 text-xs font-extrabold text-[var(--purple-dark)]">{resumo.vincular} manuais a vincular</span>}
             <span className="rounded-full bg-[var(--ink)]/8 px-3 py-1 text-xs font-extrabold text-[var(--ink)]/60">{resumo.pular} pulados</span>
             <button
               onClick={importar}
-              disabled={importando || (resumo.novo === 0 && resumo.atualizar === 0)}
+              disabled={importando || (resumo.novo === 0 && resumo.atualizar === 0 && resumo.vincular === 0)}
               className="ml-auto rounded-xl bg-[var(--purple)] px-4 py-2 text-sm font-extrabold text-white hover:bg-[var(--purple-dark)] disabled:opacity-50"
             >
               {importando ? "importando..." : `importar ${resumo.novo} ${resumo.novo === 1 ? "pedido" : "pedidos"}`}
@@ -401,6 +397,7 @@ export function ImportarClient() {
                       <td className="p-3 text-xs">
                         {c.tipo === "novo" && <span className="font-bold text-emerald-700">criar venda</span>}
                         {c.tipo === "atualizar" && <span className="font-bold text-sky-800">atualizar · {c.motivo}</span>}
+                        {c.tipo === "vincular" && <span className="font-bold text-[var(--purple-dark)]">vincular · {c.motivo}</span>}
                         {c.tipo === "pular" && (
                           <span className="flex items-center gap-1 font-bold text-[var(--ink)]/50">
                             <X size={12} weight="bold" /> {c.motivo}

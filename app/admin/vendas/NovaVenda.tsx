@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { saidaEstoque } from "@/lib/estoque";
 import type { Canal } from "../canais/CanaisClient";
 import { calcularTaxas, descreverFaixas } from "@/lib/canais";
 import { acharOuCriarCliente } from "@/lib/clientes";
+import { registrarVenda } from "@/lib/pedidos";
+import { num, txt, brl } from "@/lib/formato";
 
 /*
   Registro de venda no formato de caixa: o produto entra como linha com preco
@@ -33,11 +34,7 @@ export type ProdutoVenda = {
 */
 type Linha = { id: string; produto: ProdutoVenda; qtd: number; precoTexto: string };
 
-const brl = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-const num = (s: string) => parseFloat(String(s).replace(",", ".")) || 0;
 // numero para texto com virgula, usado so quando o sistema preenche o campo
-const txt = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
 
 export const rotulo = (p: ProdutoVenda) => {
   if (p.nome && p.nome.trim()) return p.nome.trim() + (p.tamanho ? ` · ${p.tamanho}` : "");
@@ -176,61 +173,31 @@ export function NovaVenda({
     setErro("");
     setSalvando(true);
 
-    const { data: venda, error: e1 } = await supabase
-      .from("ibk_vendas")
-      .insert({
-        data,
-        canal: canal ? canal.nome.toLowerCase().slice(0, 20) : "outro",
-        canal_id: canalId || null,
-        tipo: linhas.length > 1 ? "kit" : "avulso",
-        cliente: cliente.trim() || null,
-        cliente_id: await acharOuCriarCliente(cliente, canal && /fisica/i.test(canal.nome) ? "loja" : undefined),
-        pedido_externo: pedidoExterno.trim() || null,
-        // venda no balcao ja saiu entregue; o resto precisa ser enviado
-        status: canal && /fisica/i.test(canal.nome) ? "entregue" : "aguardando",
-        forma_pagamento: formaPagamento || null,
-        preco_venda: total,
-        desconto: descontoN,
-        taxa_pct: taxaPct,
-        taxa_fixa: taxaFixa,
-        insumo_custo: insumo,
-        frete_cobrado: freteCobradoN,
-        frete: freteLojaN,
-        qtd_itens: taxas.unidades,
-      })
-      .select("id")
-      .single();
-    if (e1 || !venda) {
-      setErro(e1?.message ?? "erro ao criar a venda");
+    const balcao = !!canal && /fisica/i.test(canal.nome);
+    const r = await registrarVenda({
+      data,
+      canalNome: canal?.nome ?? "outro",
+      canalId: canalId || null,
+      itens: linhas.map((l) => ({ produtoId: l.produto.id, qtd: l.qtd, precoUnit: num(l.precoTexto) })),
+      total,
+      desconto: descontoN,
+      comissao,
+      taxaFixa,
+      insumo,
+      freteCobrado: freteCobradoN,
+      frete: freteLojaN,
+      cliente: cliente.trim() || null,
+      clienteId: await acharOuCriarCliente(cliente, balcao ? "loja" : undefined),
+      pedidoExterno: pedidoExterno.trim() || null,
+      // venda no balcao ja saiu entregue; o resto precisa ser enviado
+      status: balcao ? "entregue" : "aguardando",
+      formaPagamento: formaPagamento || null,
+    });
+    if ("erro" in r) {
+      setErro(r.erro);
       setSalvando(false);
       return;
     }
-
-    const { error: e2 } = await supabase.from("ibk_venda_itens").insert(
-      linhas.map((l) => ({
-        venda_id: venda.id,
-        produto_id: l.produto.id,
-        qtd: l.qtd,
-        preco_unit: num(l.precoTexto),
-      })),
-    );
-    if (e2) {
-      setErro(e2.message);
-      setSalvando(false);
-      return;
-    }
-
-    for (const l of linhas) {
-      await saidaEstoque(l.produto.id, l.qtd, "venda", { vendaId: venda.id, data });
-    }
-
-    const nomeCanal = canal?.nome ?? "canal";
-    const movs: Record<string, unknown>[] = [
-      { data, tipo: "entrada", categoria: "venda", valor: total, descricao: `Venda ${nomeCanal}${cliente ? ` para ${cliente}` : ""}`, ref_venda_id: venda.id },
-    ];
-    if (comissao > 0) movs.push({ data, tipo: "saida", categoria: "taxa_shopee", valor: comissao, descricao: `Comissão ${nomeCanal}`, ref_venda_id: venda.id });
-    if (taxaFixa > 0) movs.push({ data, tipo: "saida", categoria: "taxa_shopee", valor: taxaFixa, descricao: `Tarifa fixa ${nomeCanal}`, ref_venda_id: venda.id });
-    await supabase.from("ibk_movimentos").insert(movs);
 
     setSalvando(false);
     setLinhas([]);

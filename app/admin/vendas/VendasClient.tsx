@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { X } from "@phosphor-icons/react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
-import { STATUS, estornada, estornarVenda, situacaoDespacho, type StatusPedido } from "@/lib/pedidos";
+import { STATUS, estornada, estornarVenda, situacaoDespacho, hojeIso, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
 import { NovaVenda, type ProdutoVenda } from "./NovaVenda";
 import { DetalheVenda, type VendaDetalhe } from "./DetalheVenda";
 import type { Canal } from "../canais/CanaisClient";
@@ -72,21 +72,7 @@ const brl = (v: number) =>
   Venda devolvida nao gera lucro: o produto volta ao estoque e sobra o
   prejuizo da devolucao (frete reverso + parte da comissao que nao volta).
 */
-const lucroVenda = (v: VendaRow) => {
-  if (v.status === "cancelado") return 0;
-  if (v.devolvida || v.status === "devolvido") return -(v.custo_devolucao ?? 0);
-  const custoItens = v.ibk_venda_itens.reduce(
-    (s, it) => s + (it.produto?.custo_unit ?? 0) * it.qtd,
-    0,
-  );
-  return (
-    v.preco_venda * (1 - v.taxa_pct) -
-    custoItens -
-    v.insumo_custo -
-    (v.taxa_fixa ?? 0) -
-    v.frete
-  );
-};
+const lucroVenda = (v: VendaRow) => lucroDaVenda(v);
 
 export function VendasClient() {
   const [produtos, setProdutos] = useState<Produto[]>([]);

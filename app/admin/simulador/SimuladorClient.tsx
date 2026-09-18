@@ -7,6 +7,7 @@ import type { Canal } from "../canais/CanaisClient";
 import { taxaDoPreco, programaPct } from "@/lib/canais";
 import { SetupCard } from "../SetupCard";
 import { btnPrimario } from "../ui";
+import { num, txt, brl, pct } from "@/lib/formato";
 
 /*
   Precificacao. Tres blocos:
@@ -38,10 +39,6 @@ const nome = (s: SKU) => {
   return [linha, s.genero].filter(Boolean).join(" ") || "Produto";
 };
 
-const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
-const num = (s: string) => parseFloat(String(s).replace(/\./g, "").replace(",", ".")) || 0;
-const txt = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
-const pct = (v: number) => `${Math.round(v * 1000) / 10}%`;
 
 /* termina o preco em ,90, pratica de varejo */
 const termina90 = (v: number) => {
@@ -62,14 +59,16 @@ function precoPelaMargem(canal: Canal | undefined, custoBase: number, unidades: 
     const fixa = porItem ? t.fixo * unidades : t.fixo;
     const custoFixo = custoBase + extras + fixa;
     const divisor = 1 - t.pct - margem;
-    const bruto = divisor > 0 ? custoFixo / divisor : 0;
+    // taxa + margem passam de 100%: nao existe preco que feche; devolve 0 e a tela avisa
+    if (divisor <= 0) return { preco: 0, t, fixa, custoFixo, impossivel: true };
+    const bruto = custoFixo / divisor;
     const preco = arredondar ? termina90(bruto) : Math.round(bruto * 100) / 100;
-    return { preco, t, fixa, custoFixo };
+    return { preco, t, fixa, custoFixo, impossivel: false };
   };
   let r = calc(custoBase * 1.6);
-  r = calc(r.preco);
-  const lucro = r.preco * (1 - r.t.pct) - r.custoFixo;
-  return { preco: r.preco, lucro, margem: r.preco > 0 ? lucro / r.preco : 0, taxaPct: r.t.pct, fixa: r.fixa };
+  if (!r.impossivel) r = calc(r.preco);
+  const lucro = r.impossivel ? 0 : r.preco * (1 - r.t.pct) - r.custoFixo;
+  return { preco: r.preco, lucro, margem: r.preco > 0 ? lucro / r.preco : 0, taxaPct: r.t.pct, fixa: r.fixa, impossivel: r.impossivel };
 }
 
 export function SimuladorClient() {
@@ -326,11 +325,11 @@ export function SimuladorClient() {
                     <td className="num p-3 text-right">{brl(l.custo)}</td>
                     <td className="num p-3 text-right text-[var(--ink)]/60">{pct(l.taxaPct)}{l.fixa > 0 ? ` + ${brl(l.fixa)}` : ""}</td>
                     <td className="num p-3 text-right text-[var(--ink)]/70">{l.precoAtual != null ? brl(l.precoAtual) : <span className="text-[var(--ink)]/30">-</span>}</td>
-                    <td className="num p-3 text-right font-extrabold text-[var(--purple-dark)]">{brl(l.preco)}</td>
+                    <td className="num p-3 text-right font-extrabold text-[var(--purple-dark)]">{l.impossivel ? <span className="text-xs font-bold text-red-500">margem impossível</span> : brl(l.preco)}</td>
                     <td className={`num p-3 text-right font-bold ${l.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucro)} <span className="text-[11px] font-normal text-[var(--ink)]/45">{pct(l.margem)}</span></td>
                     <td className="num p-3 text-right text-emerald-600">{brl(l.potencial)}</td>
                     <td className="p-2 text-right">
-                      {salvos.has(l.s.id) ? (
+                      {l.impossivel ? null : salvos.has(l.s.id) ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600"><Check size={14} weight="bold" /> salvo</span>
                       ) : igual ? (
                         <span className="text-[11px] text-[var(--ink)]/35">já é</span>
@@ -384,7 +383,7 @@ export function SimuladorClient() {
                   </td>
                   <td className="num p-3 text-right">{pct(r.taxaPct)}</td>
                   <td className="num p-3 text-right">{r.fixa > 0 ? brl(r.fixa) : "-"}</td>
-                  <td className="num p-3 text-right font-extrabold text-[var(--purple-dark)]">{brl(r.preco)}</td>
+                  <td className="num p-3 text-right font-extrabold text-[var(--purple-dark)]">{r.impossivel ? <span className="text-xs font-bold text-red-500">impossível</span> : brl(r.preco)}</td>
                   <td className={`num p-3 text-right font-bold ${r.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(r.lucro)}</td>
                   <td className="num p-3 text-right">{pct(r.margem)}</td>
                 </tr>

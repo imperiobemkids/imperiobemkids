@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import { cache } from "react";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /*
   Leitura publica dos produtos para o site (view ibk_produtos_publicos,
@@ -28,26 +29,32 @@ export type ProdutoPublico = {
   created_at: string;
 };
 
+// um cliente por processo; e o metadata e a pagina pedem o mesmo produto, entao React.cache
+let sb: SupabaseClient | null | undefined;
 function cliente() {
+  if (sb !== undefined) return sb;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  sb = url && key ? createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
+  return sb;
 }
 
-export async function listarProdutosPublicos(): Promise<ProdutoPublico[]> {
-  const sb = cliente();
-  if (!sb) return [];
-  const { data } = await sb.from("ibk_produtos_publicos").select("*").order("created_at", { ascending: false });
+export const listarProdutosPublicos = cache(async (): Promise<ProdutoPublico[]> => {
+  const c = cliente();
+  if (!c) return [];
+  const { data } = await c.from("ibk_produtos_publicos").select("*").order("created_at", { ascending: false });
   return (data as ProdutoPublico[]) ?? [];
-}
+});
 
-export async function produtoPublicoPorSlug(slug: string): Promise<ProdutoPublico | null> {
-  const sb = cliente();
-  if (!sb) return null;
-  const { data } = await sb.from("ibk_produtos_publicos").select("*").eq("slug", slug).maybeSingle();
+export const produtoPublicoPorSlug = cache(async (slug: string): Promise<ProdutoPublico | null> => {
+  const c = cliente();
+  if (!c) return null;
+  const { data } = await c.from("ibk_produtos_publicos").select("*").eq("slug", slug).maybeSingle();
   return (data as ProdutoPublico) ?? null;
-}
+});
+
+/* next/image so otimiza /public e *.supabase.co; qualquer outra origem passa sem otimizar */
+export const fotoOtimizavel = (url: string) => url.startsWith("/") || /^https:\/\/[^/]+\.supabase\.co\//.test(url);
 
 export const brl = (v: number | null | undefined) =>
   v == null ? "" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, X } from "@phosphor-icons/react";
 import { supabase } from "@/lib/supabase";
 import { btnPrimario, btnSecundario } from "../ui";
+import { hojeIso } from "@/lib/formato";
 
 /*
   Conferencia do lote no recebimento. Quem revende roupa infantil responde
@@ -45,7 +46,7 @@ export function ConferirLote({
     setErro("");
     const { error } = await supabase
       .from("ibk_lotes")
-      .update({ conferido_em: new Date().toISOString().slice(0, 10), conferencia: f })
+      .update({ conferido_em: hojeIso(), conferencia: f })
       .eq("id", loteId);
     setSalvando(false);
     if (error) return setErro(error.message);

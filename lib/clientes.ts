@@ -78,7 +78,9 @@ export async function acharOuCriarCliente(nome: string, origem?: string): Promis
   if (!supabase) return null;
   const limpo = nome.trim();
   if (!limpo) return null;
-  const { data } = await supabase.from("ibk_clientes").select("id").ilike("nome", limpo).limit(1);
+  // "_" e "%" sao curinga no ilike: "ana_silva" casaria com "ana.silva"
+  const escapado = limpo.replace(/[\%_]/g, (c) => "\\" + c);
+  const { data } = await supabase.from("ibk_clientes").select("id").ilike("nome", escapado).limit(1);
   if (data && data[0]) return data[0].id;
   const { data: novo } = await supabase
     .from("ibk_clientes")

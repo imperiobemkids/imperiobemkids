@@ -7,7 +7,7 @@ import { SetupCard } from "./SetupCard";
 import { GRUPOS } from "./AdminNav";
 import { SkeletonCards, Sparkline } from "./ui";
 import { Check, Truck } from "@phosphor-icons/react";
-import { situacaoDespacho, estornada, type StatusPedido } from "@/lib/pedidos";
+import { situacaoDespacho, estornada, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
 
 type Produto = {
   id: string;
@@ -140,12 +140,7 @@ export function PainelClient() {
   const ads = movs.filter((m) => m.tipo === "saida" && m.categoria === "ads").reduce((s, m) => s + m.valor, 0);
 
   // lucro das vendas
-  const lucroVenda = (v: Venda) => {
-    if (v.status === "cancelado") return 0;
-    if (v.devolvida || v.status === "devolvido") return -(v.custo_devolucao ?? 0);
-    const custo = v.ibk_venda_itens.reduce((s, it) => s + (it.produto?.custo_unit ?? 0) * it.qtd, 0);
-    return v.preco_venda * (1 - v.taxa_pct) - custo - v.insumo_custo - (v.taxa_fixa ?? 0) - v.frete;
-  };
+  const lucroVenda = (v: Venda) => lucroDaVenda(v);
   const lucroBruto = vendas.reduce((s, v) => s + lucroVenda(v), 0);
   // dinheiro ja vendido que a plataforma ainda nao repassou
   const aReceber = vendas
