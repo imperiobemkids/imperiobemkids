@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
 import { KardexModal } from "./KardexModal";
 import { SkeletonRows } from "../ui";
+import { CaretRight } from "@phosphor-icons/react";
 
 type Produto = {
   id: string;
@@ -134,6 +135,15 @@ export function EstoqueClient() {
     carregar();
   };
 
+  const [abertos, setAbertos] = useState<Set<string>>(new Set());
+  const alternarGrade = (id: string) =>
+    setAbertos((a) => {
+      const n = new Set(a);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
   const ajustar = async (p: Produto, delta: number) => {
     if (!supabase) return;
     const novo = Math.max(0, p.qtd_atual + delta);
@@ -147,18 +157,25 @@ export function EstoqueClient() {
   };
 
   /*
-    Ordena para a grade aparecer junta: o pai e, logo abaixo, os tamanhos dele.
-    Produtos sem grade seguem soltos na lista.
+    A lista mostra so o produto pai (ou avulso). Quem tem variacoes soma as
+    quantidades das filhas na propria linha e abre uma grade tamanho x tipo
+    embaixo, fechada por padrao: 18 linhas de variacao viravam parede.
   */
-  const filhosDe = (id: string) => rows.filter((r) => r.produto_pai_id === id);
-  const listaOrdenada: { p: Produto; filho: boolean }[] = [];
-  for (const r of rows) {
-    if (r.produto_pai_id) continue; // entra junto do pai
-    listaOrdenada.push({ p: r, filho: false });
-    for (const f of filhosDe(r.id).sort((a, b) => (a.tamanho ?? "").localeCompare(b.tamanho ?? "", "pt-BR", { numeric: true }))) {
-      listaOrdenada.push({ p: f, filho: true });
-    }
-  }
+  const ordenaTam = (a: string | null, b: string | null) => (a ?? "").localeCompare(b ?? "", "pt-BR", { numeric: true });
+  const filhosDe = (id: string) => rows.filter((r) => r.produto_pai_id === id).sort((a, b) => ordenaTam(a.tamanho, b.tamanho) || ordenaTam(a.cor, b.cor));
+  const listaOrdenada = rows
+    .filter((r) => !r.produto_pai_id)
+    .map((r) => {
+      const filhos = filhosDe(r.id);
+      if (filhos.length === 0) return { p: r, filhos, agregado: r };
+      const agregado: Produto = {
+        ...r,
+        qtd_atual: filhos.reduce((s, f) => s + f.qtd_atual, 0),
+        qtd_inicial: filhos.reduce((s, f) => s + f.qtd_inicial, 0),
+        custo_unit: r.custo_unit || filhos[0].custo_unit,
+      };
+      return { p: r, filhos, agregado };
+    });
 
   const unidades = rows.reduce((s, p) => s + p.qtd_atual, 0);
   const valorEstoque = rows.reduce((s, p) => s + p.qtd_atual * p.custo_unit, 0);
@@ -209,46 +226,74 @@ export function EstoqueClient() {
             {!loading && rows.length === 0 && (
               <tr><td colSpan={9} className="p-6 text-center text-[var(--ink)]/50">nenhum produto. clique em "+ Novo produto".</td></tr>
             )}
-            {listaOrdenada.map(({ p, filho }) => {
-              const giro = p.qtd_inicial > 0 ? Math.round(((p.qtd_inicial - p.qtd_atual) / p.qtd_inicial) * 100) : 0;
+            {listaOrdenada.map(({ p, filhos, agregado }) => {
+              const a = agregado;
+              const temGrade = filhos.length > 0;
+              const aberta = abertos.has(p.id);
+              const giro = a.qtd_inicial > 0 ? Math.round(((a.qtd_inicial - a.qtd_atual) / a.qtd_inicial) * 100) : 0;
+              const zeradas = filhos.filter((f) => f.qtd_atual === 0).length;
               return (
-                <tr key={p.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${filho ? "bg-[var(--purple)]/[0.03]" : ""}`}>
-                  <td className={`p-3 ${filho ? "pl-8" : ""}`}>
-                    <Link href={`/admin/estoque/${p.id}`} className="font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
-                      {filho ? ([p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ") || "variação") : nomeExibido(p)}
-                    </Link>
-                    {p.tem_variacoes && (
-                      <span className="ml-2 rounded-full bg-[var(--purple)]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--purple)]">
-                        variações
-                      </span>
-                    )}
-                    <div className="text-xs text-[var(--ink)]/45">
-                      {[p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "", p.genero, p.tamanho && `tam ${p.tamanho}`].filter(Boolean).join(" · ")}
-                    </div>
-                  </td>
-                  <td className="hidden p-3 text-[var(--ink)]/70 lg:table-cell">{p.categoria || "-"}</td>
-                  <td className="hidden p-3 text-[var(--ink)]/70 xl:table-cell">{p.fornecedor_id ? fornMap.get(p.fornecedor_id) ?? "-" : "-"}</td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => ajustar(p, -1)} className={stepCls}>−</button>
-                      <span className="min-w-[2.6rem] text-center font-bold">{p.qtd_atual}<span className="text-[var(--ink)]/40">/{p.qtd_inicial}</span></span>
-                      <button onClick={() => ajustar(p, 1)} className={stepCls}>+</button>
-                    </div>
-                  </td>
-                  <td className="hidden p-3 sm:table-cell">{brl(p.custo_unit)}</td>
-                  <td className="hidden p-3 xl:table-cell">{brl(p.custo_unit + INSUMO)}</td>
-                  <td className="hidden p-3 md:table-cell">{brl(p.qtd_atual * p.custo_unit)}</td>
-                  <td className="hidden p-3 lg:table-cell">{giro}%</td>
-                  <td className="p-3">
-                    <div className="flex gap-1.5">
-                      <Link href={`/admin/estoque/${p.id}`} className="whitespace-nowrap rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
-                        <span className="sm:hidden">ficha</span>
-                        <span className="hidden sm:inline">abrir ficha</span>
-                      </Link>
-                      <button onClick={() => setKardex(p)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] sm:block" title="extrato de movimentações">extrato</button>
-                    </div>
-                  </td>
-                </tr>
+                <Fragment key={p.id}>
+                  <tr className="border-b border-[var(--purple)]/6 last:border-0">
+                    <td className="p-3">
+                      <div className="flex items-center gap-1.5">
+                        {temGrade && (
+                          <button onClick={() => alternarGrade(p.id)} aria-label={aberta ? "fechar grade" : "abrir grade"} className="rounded-md p-0.5 text-[var(--purple)] hover:bg-[var(--purple)]/10">
+                            <CaretRight size={14} weight="bold" className={`transition-transform duration-200 ${aberta ? "rotate-90" : ""}`} />
+                          </button>
+                        )}
+                        <Link href={`/admin/estoque/${p.id}`} className="font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
+                          {nomeExibido(p)}
+                        </Link>
+                        {temGrade && (
+                          <button onClick={() => alternarGrade(p.id)} className="num rounded-full bg-[var(--purple)]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--purple)] hover:bg-[var(--purple)]/20">
+                            {filhos.length} var.{zeradas > 0 && <span className="ml-1 text-red-500">{zeradas} zeradas</span>}
+                          </button>
+                        )}
+                      </div>
+                      <div className={`text-xs text-[var(--ink)]/45 ${temGrade ? "pl-5" : ""}`}>
+                        {[p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "", p.genero, !temGrade && p.tamanho && `tam ${p.tamanho}`].filter(Boolean).join(" · ")}
+                      </div>
+                    </td>
+                    <td className="hidden p-3 text-[var(--ink)]/70 lg:table-cell">{p.categoria || "-"}</td>
+                    <td className="hidden p-3 text-[var(--ink)]/70 xl:table-cell">{p.fornecedor_id ? fornMap.get(p.fornecedor_id) ?? "-" : "-"}</td>
+                    <td className="p-3">
+                      {temGrade ? (
+                        <button onClick={() => alternarGrade(p.id)} className="num min-w-[2.6rem] text-left font-bold hover:text-[var(--purple)]">
+                          {a.qtd_atual}<span className="text-[var(--ink)]/40">/{a.qtd_inicial}</span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={() => ajustar(p, -1)} className={stepCls}>−</button>
+                          <span className="num min-w-[2.6rem] text-center font-bold">{p.qtd_atual}<span className="text-[var(--ink)]/40">/{p.qtd_inicial}</span></span>
+                          <button onClick={() => ajustar(p, 1)} className={stepCls}>+</button>
+                        </div>
+                      )}
+                    </td>
+                    <td className="num hidden p-3 sm:table-cell">{brl(a.custo_unit)}</td>
+                    <td className="num hidden p-3 xl:table-cell">{brl(a.custo_unit + INSUMO)}</td>
+                    <td className="num hidden p-3 md:table-cell">{brl(temGrade ? filhos.reduce((s, f) => s + f.qtd_atual * f.custo_unit, 0) : a.qtd_atual * a.custo_unit)}</td>
+                    <td className="num hidden p-3 lg:table-cell">{giro}%</td>
+                    <td className="p-3">
+                      <div className="flex gap-1.5">
+                        <Link href={`/admin/estoque/${p.id}`} className="whitespace-nowrap rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
+                          <span className="sm:hidden">ficha</span>
+                          <span className="hidden sm:inline">abrir ficha</span>
+                        </Link>
+                        {!temGrade && (
+                          <button onClick={() => setKardex(p)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] sm:block" title="extrato de movimentações">extrato</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                  {temGrade && aberta && (
+                    <tr className="border-b border-[var(--purple)]/6 bg-[var(--purple)]/[0.03]">
+                      <td colSpan={9} className="px-3 pb-3 pt-1">
+                        <Grade filhos={filhos} minimo={p.estoque_minimo ?? 0} onAjustar={ajustar} onExtrato={setKardex} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
@@ -331,6 +376,77 @@ export function EstoqueClient() {
 
 const inputCls =
   "w-full rounded-lg border border-[var(--purple)]/20 bg-white px-2.5 py-2 text-sm outline-none focus:border-[var(--purple)]";
+/*
+  Grade tamanho x tipo (a coluna "cor" guarda o tipo do kit: 2, 4, 6 pecas).
+  Cada celula e a variacao: quantidade com mais e menos, vermelho zerada,
+  amarelo no minimo. Um so tipo vira uma linha de tamanhos; um so tamanho,
+  uma linha de tipos.
+*/
+function Grade({
+  filhos,
+  minimo,
+  onAjustar,
+  onExtrato,
+}: {
+  filhos: Produto[];
+  minimo: number;
+  onAjustar: (p: Produto, delta: number) => void;
+  onExtrato: (p: Produto) => void;
+}) {
+  const ordena = (a: string, b: string) => a.localeCompare(b, "pt-BR", { numeric: true });
+  const tamanhos = [...new Set(filhos.map((f) => f.tamanho ?? ""))].sort(ordena);
+  const tipos = [...new Set(filhos.map((f) => f.cor ?? ""))].sort(ordena);
+  const celula = (t: string, c: string) => filhos.find((f) => (f.tamanho ?? "") === t && (f.cor ?? "") === c);
+  const umTipo = tipos.length === 1;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="text-sm">
+        <thead>
+          <tr className="text-[10px] font-bold uppercase text-[var(--ink)]/45">
+            <th className="px-2 py-1 text-left">{umTipo ? "" : "tam \\ tipo"}</th>
+            {(umTipo ? tamanhos : tipos).map((h) => (
+              <th key={h} className="px-2 py-1 text-center">{h || "-"}</th>
+            ))}
+            <th className="px-2 py-1 text-right text-[var(--ink)]/35">total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(umTipo ? [tipos[0]] : tamanhos).map((linha) => {
+            const colunas = umTipo ? tamanhos : tipos;
+            const itens = colunas.map((col) => (umTipo ? celula(col, linha) : celula(linha, col)));
+            const total = itens.reduce((s, f) => s + (f?.qtd_atual ?? 0), 0);
+            return (
+              <tr key={linha} className="border-t border-[var(--purple)]/8">
+                <td className="whitespace-nowrap px-2 py-1 font-bold text-[var(--purple-dark)]">{umTipo ? (linha || "tamanhos") : `tam ${linha || "-"}`}</td>
+                {itens.map((f, i) => (
+                  <td key={i} className="px-1 py-1 text-center">
+                    {f ? (
+                      <div
+                        className={`inline-flex items-center gap-0.5 rounded-lg px-1 py-0.5 ${
+                          f.qtd_atual === 0 ? "bg-red-100 text-red-700" : f.qtd_atual <= minimo ? "bg-[var(--sun)]/50 text-[var(--ink)]" : "bg-white text-[var(--ink)]"
+                        }`}
+                      >
+                        <button onClick={() => onAjustar(f, -1)} aria-label="menos um" className="h-6 w-6 rounded-md text-[var(--purple)] hover:bg-[var(--purple)]/10">−</button>
+                        <button onClick={() => onExtrato(f)} title="extrato desta variação" className="num min-w-[1.6rem] text-center text-sm font-extrabold hover:underline">{f.qtd_atual}</button>
+                        <button onClick={() => onAjustar(f, 1)} aria-label="mais um" className="h-6 w-6 rounded-md text-[var(--purple)] hover:bg-[var(--purple)]/10">+</button>
+                      </div>
+                    ) : (
+                      <span className="text-[var(--ink)]/20">·</span>
+                    )}
+                  </td>
+                ))}
+                <td className="num px-2 py-1 text-right font-bold text-[var(--ink)]/60">{total}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="mt-1 text-[11px] text-[var(--ink)]/45">clique no número pra ver o extrato da variação; a ficha de cada uma abre pela ficha do produto.</div>
+    </div>
+  );
+}
+
 const stepCls =
   "flex h-7 w-7 items-center justify-center rounded-md bg-[var(--purple)]/8 font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16";
 
