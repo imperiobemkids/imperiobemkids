@@ -18,6 +18,7 @@ import {
   UsersThree,
   Wallet,
   MagnifyingGlass,
+  ChartBar,
   Globe,
   List,
   CaretDown,
@@ -61,6 +62,7 @@ export const GRUPOS: { nome: string; itens: ItemNav[] }[] = [
     itens: [
       { href: "/admin/financeiro", label: "Caixa", icone: Wallet },
       { href: "/admin/conciliacao", label: "Conciliação", icone: MagnifyingGlass },
+      { href: "/admin/dre", label: "Resultado (DRE)", icone: ChartBar },
     ],
   },
 ];
