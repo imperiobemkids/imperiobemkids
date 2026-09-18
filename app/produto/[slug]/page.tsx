@@ -88,7 +88,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
     <>
       <SiteHeader />
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
-        <nav className="text-xs text-[var(--ink)]/55" aria-label="migalhas">
+        <nav className="text-xs text-[var(--ink)]/75" aria-label="migalhas">
           <Link href="/" className="hover:underline">Home</Link> ·{" "}
           <Link href="/produtos" className="hover:underline">Produtos</Link> ·{" "}
           <span className="text-[var(--ink)]/80">{nomeCurto(p)}</span>
@@ -109,13 +109,13 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
             {p.preco_venda != null && (
               <p className="num mt-3 font-[family-name:var(--font-baloo)] text-3xl font-extrabold text-[var(--purple)]">
                 {brl(p.preco_venda)}
-                {p.pecas_por_kit ? <span className="ml-2 text-base font-bold text-[var(--ink)]/55">o kit com {p.pecas_por_kit} peças</span> : null}
+                {p.pecas_por_kit ? <span className="ml-2 text-base font-bold text-[var(--ink)]/75">o kit com {p.pecas_por_kit} peças</span> : null}
               </p>
             )}
 
             {p.tamanhos.length > 0 && (
               <div className="mt-4">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/45">Tamanhos com pronta entrega</div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/70">Tamanhos com pronta entrega</div>
                 <ul className="mt-1.5 flex flex-wrap gap-1.5">
                   {p.tamanhos.map((t) => (
                     <li key={t} className="rounded-full border-2 border-[var(--purple)]/25 bg-white px-3 py-1 text-sm font-bold text-[var(--purple-dark)]">{t}</li>
@@ -148,7 +148,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
                 Pedir pelo WhatsApp 💬
               </Saida>
             </div>
-            <p className="mt-2 text-xs text-[var(--ink)]/55">
+            <p className="mt-2 text-xs text-[var(--ink)]/75">
               Pela Shopee você tem a garantia da plataforma. Pelo WhatsApp a gente tira dúvida de tamanho antes de fechar.{" "}
               <Link href="/trocas" className="underline">Trocas e devoluções</Link>.
             </p>
@@ -157,7 +157,7 @@ export default async function ProdutoPage({ params }: { params: Promise<{ slug: 
               <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-2 rounded-2xl bg-white/70 p-4 text-sm">
                 {specs.map((s) => (
                   <div key={s.rotulo}>
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/45">{s.rotulo}</dt>
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/70">{s.rotulo}</dt>
                     <dd className="font-semibold text-[var(--ink)]">{s.valor}</dd>
                   </div>
                 ))}

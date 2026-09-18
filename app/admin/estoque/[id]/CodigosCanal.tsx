@@ -113,7 +113,7 @@ export function CodigosCanal({ linhas, canais }: { linhas: Linha[]; canais: Cana
           <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
             Códigos no canal
           </h2>
-          <p className="text-xs text-[var(--ink)]/55">
+          <p className="text-xs text-[var(--ink)]/75">
             O id do anúncio e o id de cada variação na plataforma. É o que liga um pedido importado ao produto certo.
           </p>
         </div>
@@ -135,7 +135,7 @@ export function CodigosCanal({ linhas, canais }: { linhas: Linha[]; canais: Cana
       <div className="mt-3 overflow-x-auto rounded-2xl border border-[var(--purple)]/10 bg-[var(--cream)]/60">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
-            <tr className="text-[10px] font-bold uppercase text-[var(--ink)]/45">
+            <tr className="text-[10px] font-bold uppercase text-[var(--ink)]/70">
               <th className="px-3 py-2 text-left">Produto</th>
               <th className="px-3 py-2 text-left">{ehShopee ? "ID do anúncio (item_id)" : ehTikTok ? "ID do produto" : "ID do anúncio"}</th>
               <th className="px-3 py-2 text-left">{ehShopee ? "ID da variação (model_id)" : ehTikTok ? "SKU ID" : "ID da variação"}</th>
@@ -161,7 +161,7 @@ export function CodigosCanal({ linhas, canais }: { linhas: Linha[]; canais: Cana
                   </td>
                   <td className="px-3 py-1.5">
                     {l.principal && linhas.length > 1 ? (
-                      <span className="text-xs text-[var(--ink)]/35">nas variações</span>
+                      <span className="text-xs text-[var(--ink)]/60">nas variações</span>
                     ) : (
                       <input value={c.id_variacao} onChange={(e) => set(l.id, { id_variacao: e.target.value })} className={`${inp} num w-36`} />
                     )}
@@ -198,7 +198,7 @@ export function CodigosCanal({ linhas, canais }: { linhas: Linha[]; canais: Cana
         </button>
         {msg && <span className={`text-xs font-semibold ${msg.includes("salvos") ? "text-emerald-600" : "text-red-500"}`}>{msg}</span>}
         {ehShopee && (
-          <span className="text-[11px] text-[var(--ink)]/45">
+          <span className="text-[11px] text-[var(--ink)]/70">
             no link do anúncio, o número depois da loja é o item_id; o model_id aparece na planilha de pedidos
           </span>
         )}

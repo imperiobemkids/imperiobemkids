@@ -51,6 +51,17 @@ body {
   Detalhes que o usuario nao percebe um a um, mas sente no conjunto:
   botao afunda ao pressionar, foco por teclado e visivel, numero nao danca.
 */
+/* Tailwind 4 tirou o cursor de mao dos botoes; aqui ele volta */
+button:not(:disabled),
+[role="button"],
+label:has(> input[type="file"]),
+summary {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
 button,
 [role="button"],
 a.press {

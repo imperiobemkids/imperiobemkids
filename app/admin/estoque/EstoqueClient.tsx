@@ -209,7 +209,7 @@ export function EstoqueClient() {
       <div className="mt-5 overflow-x-auto card">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
               <th className="p-3">Produto</th>
               <th className="hidden p-3 lg:table-cell">Categoria</th>
               <th className="hidden p-3 xl:table-cell">Fornecedor</th>
@@ -224,7 +224,7 @@ export function EstoqueClient() {
           <tbody className="cascata">
             {loading && <SkeletonRows cols={9} />}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={9} className="p-6 text-center text-[var(--ink)]/50">nenhum produto. clique em "+ Novo produto".</td></tr>
+              <tr><td colSpan={9} className="p-6 text-center text-[var(--ink)]/70">nenhum produto. clique em "+ Novo produto".</td></tr>
             )}
             {listaOrdenada.map(({ p, filhos, agregado }) => {
               const a = agregado;
@@ -251,7 +251,7 @@ export function EstoqueClient() {
                           </button>
                         )}
                       </div>
-                      <div className={`text-xs text-[var(--ink)]/45 ${temGrade ? "pl-5" : ""}`}>
+                      <div className={`text-xs text-[var(--ink)]/70 ${temGrade ? "pl-5" : ""}`}>
                         {[p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "", p.genero, !temGrade && p.tamanho && `tam ${p.tamanho}`].filter(Boolean).join(" · ")}
                       </div>
                     </td>
@@ -260,12 +260,12 @@ export function EstoqueClient() {
                     <td className="p-3">
                       {temGrade ? (
                         <button onClick={() => alternarGrade(p.id)} className="num min-w-[2.6rem] text-left font-bold hover:text-[var(--purple)]">
-                          {a.qtd_atual}<span className="text-[var(--ink)]/40">/{a.qtd_inicial}</span>
+                          {a.qtd_atual}<span className="text-[var(--ink)]/65">/{a.qtd_inicial}</span>
                         </button>
                       ) : (
                         <div className="flex items-center gap-1.5">
                           <button onClick={() => ajustar(p, -1)} className={stepCls}>−</button>
-                          <span className="num min-w-[2.6rem] text-center font-bold">{p.qtd_atual}<span className="text-[var(--ink)]/40">/{p.qtd_inicial}</span></span>
+                          <span className="num min-w-[2.6rem] text-center font-bold">{p.qtd_atual}<span className="text-[var(--ink)]/65">/{p.qtd_inicial}</span></span>
                           <button onClick={() => ajustar(p, 1)} className={stepCls}>+</button>
                         </div>
                       )}
@@ -281,7 +281,7 @@ export function EstoqueClient() {
                           <span className="hidden sm:inline">abrir ficha</span>
                         </Link>
                         {!temGrade && (
-                          <button onClick={() => setKardex(p)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-[var(--purple)] sm:block" title="extrato de movimentações">extrato</button>
+                          <button onClick={() => setKardex(p)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/70 hover:text-[var(--purple)] sm:block" title="extrato de movimentações">extrato</button>
                         )}
                       </div>
                     </td>
@@ -403,12 +403,12 @@ function Grade({
     <div className="overflow-x-auto">
       <table className="text-sm">
         <thead>
-          <tr className="text-[10px] font-bold uppercase text-[var(--ink)]/45">
+          <tr className="text-[10px] font-bold uppercase text-[var(--ink)]/70">
             <th className="px-2 py-1 text-left">{umTipo ? "" : "tam \\ tipo"}</th>
             {(umTipo ? tamanhos : tipos).map((h) => (
               <th key={h} className="px-2 py-1 text-center">{h || "-"}</th>
             ))}
-            <th className="px-2 py-1 text-right text-[var(--ink)]/35">total</th>
+            <th className="px-2 py-1 text-right text-[var(--ink)]/60">total</th>
           </tr>
         </thead>
         <tbody>
@@ -427,9 +427,9 @@ function Grade({
                           f.qtd_atual === 0 ? "bg-red-100 text-red-700" : f.qtd_atual <= minimo ? "bg-[var(--sun)]/50 text-[var(--ink)]" : "bg-white text-[var(--ink)]"
                         }`}
                       >
-                        <button onClick={() => onAjustar(f, -1)} aria-label="menos um" className="h-6 w-6 rounded-md text-[var(--purple)] hover:bg-[var(--purple)]/10">−</button>
+                        <button onClick={() => onAjustar(f, -1)} aria-label="menos um" className="h-8 w-8 rounded-md text-base text-[var(--purple)] hover:bg-[var(--purple)]/10">−</button>
                         <button onClick={() => onExtrato(f)} title="extrato desta variação" className="num min-w-[1.6rem] text-center text-sm font-extrabold hover:underline">{f.qtd_atual}</button>
-                        <button onClick={() => onAjustar(f, 1)} aria-label="mais um" className="h-6 w-6 rounded-md text-[var(--purple)] hover:bg-[var(--purple)]/10">+</button>
+                        <button onClick={() => onAjustar(f, 1)} aria-label="mais um" className="h-8 w-8 rounded-md text-base text-[var(--purple)] hover:bg-[var(--purple)]/10">+</button>
                       </div>
                     ) : (
                       <span className="text-[var(--ink)]/20">·</span>
@@ -442,7 +442,7 @@ function Grade({
           })}
         </tbody>
       </table>
-      <div className="mt-1 text-[11px] text-[var(--ink)]/45">clique no número pra ver o extrato da variação; a ficha de cada uma abre pela ficha do produto.</div>
+      <div className="mt-1 text-[11px] text-[var(--ink)]/70">clique no número pra ver o extrato da variação; a ficha de cada uma abre pela ficha do produto.</div>
     </div>
   );
 }
@@ -453,7 +453,7 @@ const stepCls =
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );
@@ -461,7 +461,7 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 function Kpi({ titulo, valor }: { titulo: string; valor: string }) {
   return (
     <div className="rounded-xl bg-white px-4 py-2 shadow-[0_3px_0_rgba(109,40,184,0.1)]">
-      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
+      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{titulo}</div>
       <div className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">{valor}</div>
     </div>
   );

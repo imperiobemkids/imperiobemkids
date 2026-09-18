@@ -179,7 +179,7 @@ export function EtiquetasClient() {
                 {f === "todas" ? "todas" : STATUS[f].rotulo}
               </button>
             ))}
-            <span className="text-xs text-[var(--ink)]/50">
+            <span className="text-xs text-[var(--ink)]/70">
               <button onClick={() => setSelV(new Set(vendasVisiveis.map((v) => v.id)))} className="font-bold text-[var(--purple)] underline">
                 marcar todas
               </button>{" "}
@@ -196,7 +196,7 @@ export function EtiquetasClient() {
           <div className="card mt-3 overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+                <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                   <th className="w-10 p-3" />
                   <th className="p-3 text-left">Pedido</th>
                   <th className="p-3 text-left">Cliente</th>
@@ -207,7 +207,7 @@ export function EtiquetasClient() {
                 {loading && <SkeletonRows cols={4} />}
                 {!loading && vendasVisiveis.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-6 text-center text-[var(--ink)]/50">nenhum pedido nesse filtro.</td>
+                    <td colSpan={4} className="p-6 text-center text-[var(--ink)]/70">nenhum pedido nesse filtro.</td>
                   </tr>
                 )}
                 {vendasVisiveis.map((v) => {
@@ -230,9 +230,9 @@ export function EtiquetasClient() {
                       </td>
                       <td className="whitespace-nowrap p-3">
                         <div className="num font-semibold">{v.pedido_externo ? `#${v.pedido_externo}` : dataBr(v.data)}</div>
-                        <div className="text-[11px] capitalize text-[var(--ink)]/50">{v.canal} · {dataBr(v.data)}</div>
+                        <div className="text-[11px] capitalize text-[var(--ink)]/70">{v.canal} · {dataBr(v.data)}</div>
                       </td>
-                      <td className="p-3">{v.cliente ?? <span className="text-[var(--ink)]/35">sem nome</span>}</td>
+                      <td className="p-3">{v.cliente ?? <span className="text-[var(--ink)]/60">sem nome</span>}</td>
                       <td className="p-3 text-[var(--ink)]/80">
                         {v.ibk_venda_itens.map((i, idx) => (
                           <div key={idx}><span className="num font-bold">{i.qtd}x</span> {nomeItem(i.produto)}</div>
@@ -251,10 +251,10 @@ export function EtiquetasClient() {
         <>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 rounded-xl border border-[var(--purple)]/20 bg-white px-3 py-2">
-              <MagnifyingGlass size={16} className="text-[var(--ink)]/40" />
+              <MagnifyingGlass size={16} className="text-[var(--ink)]/65" />
               <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="nome, tamanho, SKU" className="w-48 bg-transparent text-sm outline-none" />
             </label>
-            <span className="text-xs text-[var(--ink)]/50">
+            <span className="text-xs text-[var(--ink)]/70">
               <button
                 onClick={() => setQtdP(Object.fromEntries(produtosVisiveis.map((p) => [p.id, Math.max(0, p.qtd_atual)])))}
                 className="font-bold text-[var(--purple)] underline"
@@ -280,7 +280,7 @@ export function EtiquetasClient() {
           <div className="card mt-3 overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+                <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                   <th className="p-3 text-left">Produto</th>
                   <th className="p-3 text-left">SKU</th>
                   <th className="p-3 text-right">Estoque</th>
@@ -301,10 +301,10 @@ export function EtiquetasClient() {
                     <td className="p-3">
                       <span className="font-semibold">{p.nomeCompleto}</span>
                       {(p.tamanho || p.cor) && (
-                        <span className="text-[var(--ink)]/55"> · {[p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ")}</span>
+                        <span className="text-[var(--ink)]/75"> · {[p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ")}</span>
                       )}
                     </td>
-                    <td className="num p-3 font-mono text-xs">{p.sku ?? <span className="text-[var(--ink)]/35">sem SKU</span>}</td>
+                    <td className="num p-3 font-mono text-xs">{p.sku ?? <span className="text-[var(--ink)]/60">sem SKU</span>}</td>
                     <td className="num p-3 text-right">{p.qtd_atual}</td>
                     <td className="p-3 text-right">
                       <input

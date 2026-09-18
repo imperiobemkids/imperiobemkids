@@ -250,7 +250,7 @@ export function ImportarClient() {
       {/* passo 1: canal e arquivo */}
       <div className="card mt-5 flex flex-wrap items-end gap-3 p-4">
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Canal</span>
+          <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Canal</span>
           <select value={canalId} onChange={(e) => setCanalId(e.target.value)} className={inp}>
             {canais.map((c) => (
               <option key={c.id} value={c.id}>{c.nome}</option>
@@ -263,7 +263,7 @@ export function ImportarClient() {
           <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => aoEscolherArquivo(e.target.files?.[0])} />
         </label>
         {linhas.length > 0 && (
-          <span className="text-xs text-[var(--ink)]/55">
+          <span className="text-xs text-[var(--ink)]/75">
             {linhas.length} linhas · {pedidos.length} pedidos ·{" "}
             <button onClick={() => setMostrarMapa((v) => !v)} className="font-bold text-[var(--purple)] underline">
               {mostrarMapa ? "esconder colunas" : "conferir colunas"}
@@ -290,7 +290,7 @@ export function ImportarClient() {
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {CAMPOS.map((c) => (
               <label key={c.campo} className="flex flex-col gap-1">
-                <span className={`text-[10px] font-bold uppercase ${c.obrigatorio && !mapa[c.campo] ? "text-red-500" : "text-[var(--ink)]/45"}`}>
+                <span className={`text-[10px] font-bold uppercase ${c.obrigatorio && !mapa[c.campo] ? "text-red-500" : "text-[var(--ink)]/70"}`}>
                   {c.rotulo}{c.obrigatorio && " *"}
                 </span>
                 <select
@@ -336,7 +336,7 @@ export function ImportarClient() {
           <div className="card mt-3 overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
-                <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+                <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                   <th className="p-3 text-left">Pedido</th>
                   <th className="p-3 text-left">Itens</th>
                   <th className="p-3 text-right">Total</th>
@@ -352,11 +352,11 @@ export function ImportarClient() {
                     <tr key={p.pedido} className={`border-b border-[var(--purple)]/6 align-top last:border-0 ${c.tipo === "pular" ? "opacity-60" : ""}`}>
                       <td className="whitespace-nowrap p-3">
                         <div className="num font-semibold">#{p.pedido}</div>
-                        <div className="text-[11px] text-[var(--ink)]/50">
+                        <div className="text-[11px] text-[var(--ink)]/70">
                           {p.data ? new Date(p.data + "T12:00:00").toLocaleDateString("pt-BR") : "sem data"}
                           {p.comprador && ` · ${p.comprador}`}
                         </div>
-                        <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${p.status === "ignorar" ? "bg-[var(--ink)]/8 text-[var(--ink)]/50" : STATUS[p.status].cor}`}>
+                        <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${p.status === "ignorar" ? "bg-[var(--ink)]/8 text-[var(--ink)]/70" : STATUS[p.status].cor}`}>
                           {p.status === "ignorar" ? "não pago" : STATUS[p.status].rotulo}
                         </span>
                       </td>
@@ -365,12 +365,12 @@ export function ImportarClient() {
                           <div key={i} className="mb-1.5 last:mb-0">
                             <div className="text-[var(--ink)]">
                               <span className="num font-semibold">{it.qtd}x</span> {it.produtoNome}
-                              {it.variacaoNome && <span className="text-[var(--ink)]/55"> · {it.variacaoNome}</span>}
+                              {it.variacaoNome && <span className="text-[var(--ink)]/75"> · {it.variacaoNome}</span>}
                             </div>
                             {it.produtoId ? (
                               <div className="flex items-center gap-1 text-[11px] text-emerald-700">
                                 <Check size={12} weight="bold" /> {nomeProduto(it.produtoId)}
-                                <span className="text-[var(--ink)]/40">(por {it.como})</span>
+                                <span className="text-[var(--ink)]/65">(por {it.como})</span>
                               </div>
                             ) : (
                               <div className="flex flex-wrap items-center gap-1 text-[11px] text-red-600">
@@ -399,7 +399,7 @@ export function ImportarClient() {
                         {c.tipo === "atualizar" && <span className="font-bold text-sky-800">atualizar · {c.motivo}</span>}
                         {c.tipo === "vincular" && <span className="font-bold text-[var(--purple-dark)]">vincular · {c.motivo}</span>}
                         {c.tipo === "pular" && (
-                          <span className="flex items-center gap-1 font-bold text-[var(--ink)]/50">
+                          <span className="flex items-center gap-1 font-bold text-[var(--ink)]/70">
                             <X size={12} weight="bold" /> {c.motivo}
                           </span>
                         )}

@@ -200,7 +200,7 @@ export function ComprasClient() {
       <div className="mt-5 overflow-x-auto card">
         <table className="w-full min-w-[520px] text-left text-sm">
           <thead>
-            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
               <th className="p-3">Data</th>
               <th className="p-3">Fornecedor</th>
               <th className="p-3">Descrição</th>
@@ -212,7 +212,7 @@ export function ComprasClient() {
           <tbody className="cascata">
             {loading && <SkeletonRows cols={6} />}
             {!loading && lotes.length === 0 && (
-              <tr><td colSpan={6} className="p-6 text-center text-[var(--ink)]/50">nenhuma compra registrada. clique em "+ Nova compra".</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-[var(--ink)]/70">nenhuma compra registrada. clique em "+ Nova compra".</td></tr>
             )}
             {lotes.map((l) => {
               const c = l.conferencia;
@@ -362,7 +362,7 @@ const inputCls =
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );

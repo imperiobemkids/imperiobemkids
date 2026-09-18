@@ -42,7 +42,7 @@ export default function BlogPage() {
                   {p.titulo}
                 </h2>
                 <p className="mt-1 text-sm leading-relaxed text-[var(--ink)]/70">{p.resumo}</p>
-                <div className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--ink)]/40">
+                <div className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--ink)]/65">
                   {formatarData(p.data)} · {p.leitura} de leitura
                 </div>
               </div>

@@ -141,7 +141,7 @@ export function FornecedoresClient() {
                     {f.link}
                   </a>
                 )}
-                {f.obs && <p className="mt-1 text-xs text-[var(--ink)]/55">{f.obs}</p>}
+                {f.obs && <p className="mt-1 text-xs text-[var(--ink)]/75">{f.obs}</p>}
               </div>
               <span className="shrink-0 rounded-full bg-[var(--purple)]/8 px-2 py-1 text-xs font-bold text-[var(--purple)]">
                 {f.ibk_produtos?.[0]?.count ?? 0} SKUs
@@ -163,7 +163,7 @@ const inputCls =
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );

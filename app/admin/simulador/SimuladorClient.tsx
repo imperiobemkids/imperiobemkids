@@ -200,7 +200,7 @@ export function SimuladorClient() {
           </p>
         </div>
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Canal</span>
+          <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Canal</span>
           <select value={canalId} onChange={(e) => setCanalId(e.target.value)} className={inp}>
             {canais.map((c) => (<option key={c.id} value={c.id}>{c.nome}</option>))}
           </select>
@@ -231,7 +231,7 @@ export function SimuladorClient() {
 
           {/* o que o canal cobra neste preco */}
           <div className="mt-4 rounded-xl bg-[var(--cream)] p-3 text-xs text-[var(--ink)]/75">
-            <div className="mb-1 text-[10px] font-bold uppercase text-[var(--ink)]/45">{canal?.nome ?? "canal"} cobra neste preço</div>
+            <div className="mb-1 text-[10px] font-bold uppercase text-[var(--ink)]/70">{canal?.nome ?? "canal"} cobra neste preço</div>
             <div className="num flex flex-wrap gap-x-4 gap-y-1">
               <span>comissão <b>{pct(t.pct - extraPrograma)}</b> = {brl(precoN * (t.pct - extraPrograma))}</span>
               {extraPrograma > 0 && <span>{canal?.programa_nome} <b>+{pct(extraPrograma)}</b> = {brl(precoN * extraPrograma)}</span>}
@@ -250,7 +250,7 @@ export function SimuladorClient() {
           <Res titulo="Lucro por unidade" valor={brl(lucroComAds / qtd)} destaque={lucroComAds >= 0} />
           <Res titulo="Máx. ads por venda" valor={brl(maxCpa)} destaque={maxCpa >= 0} sub="antes de zerar o lucro" />
           <div className="col-span-2 rounded-2xl bg-[var(--purple)]/8 p-4">
-            <div className="text-xs font-bold uppercase text-[var(--ink)]/50">Break-even da campanha</div>
+            <div className="text-xs font-bold uppercase text-[var(--ink)]/70">Break-even da campanha</div>
             <div className="mt-1 text-sm text-[var(--ink)]/80">
               Com {brl(orcN)} de anúncio e {brl(lucroSemAds)} de lucro por venda (sem ads), precisa de{" "}
               <strong className="num text-[var(--purple-dark)]">{vendasBreakeven === Infinity ? "∞ (lucro não paga)" : `${vendasBreakeven} vendas`}</strong>{" "}
@@ -264,14 +264,14 @@ export function SimuladorClient() {
       <div className="card mt-5 overflow-x-auto">
         <table className="w-full min-w-[420px] text-left text-sm">
           <thead>
-            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
               <th className="p-3">Preço</th><th className="p-3 text-right">Lucro/venda</th><th className="p-3 text-right">Margem</th>
             </tr>
           </thead>
           <tbody className="cascata">
             {escada.map((e, i) => (
               <tr key={i} className={`border-b border-[var(--purple)]/6 last:border-0 ${i === 2 ? "bg-[var(--purple)]/6 font-bold" : ""}`}>
-                <td className="num p-3">{brl(e.p)}{i === 2 && <span className="ml-1 text-[11px] font-normal text-[var(--ink)]/45">(atual)</span>}</td>
+                <td className="num p-3">{brl(e.p)}{i === 2 && <span className="ml-1 text-[11px] font-normal text-[var(--ink)]/70">(atual)</span>}</td>
                 <td className={`num p-3 text-right ${e.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(e.lucro)}</td>
                 <td className="num p-3 text-right">{pct(e.margem)}</td>
               </tr>
@@ -300,7 +300,7 @@ export function SimuladorClient() {
         <div className="card mt-3 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                 <th className="p-3">Produto</th>
                 <th className="p-3 text-right">Estoque</th>
                 <th className="p-3 text-right">Custo</th>
@@ -319,20 +319,20 @@ export function SimuladorClient() {
                   <tr key={l.s.id} className="border-b border-[var(--purple)]/6 last:border-0">
                     <td className="p-3">
                       <div className="font-semibold">{nome(l.s)}</div>
-                      {l.filhos.length > 0 && <div className="text-[11px] text-[var(--ink)]/45">{l.filhos.length} variações, mesmo custo</div>}
+                      {l.filhos.length > 0 && <div className="text-[11px] text-[var(--ink)]/70">{l.filhos.length} variações, mesmo custo</div>}
                     </td>
                     <td className="num p-3 text-right">{l.estoque}</td>
                     <td className="num p-3 text-right">{brl(l.custo)}</td>
                     <td className="num p-3 text-right text-[var(--ink)]/60">{pct(l.taxaPct)}{l.fixa > 0 ? ` + ${brl(l.fixa)}` : ""}</td>
-                    <td className="num p-3 text-right text-[var(--ink)]/70">{l.precoAtual != null ? brl(l.precoAtual) : <span className="text-[var(--ink)]/30">-</span>}</td>
+                    <td className="num p-3 text-right text-[var(--ink)]/70">{l.precoAtual != null ? brl(l.precoAtual) : <span className="text-[var(--ink)]/55">-</span>}</td>
                     <td className="num p-3 text-right font-extrabold text-[var(--purple-dark)]">{l.impossivel ? <span className="text-xs font-bold text-red-500">margem impossível</span> : brl(l.preco)}</td>
-                    <td className={`num p-3 text-right font-bold ${l.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucro)} <span className="text-[11px] font-normal text-[var(--ink)]/45">{pct(l.margem)}</span></td>
+                    <td className={`num p-3 text-right font-bold ${l.lucro >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l.lucro)} <span className="text-[11px] font-normal text-[var(--ink)]/70">{pct(l.margem)}</span></td>
                     <td className="num p-3 text-right text-emerald-600">{brl(l.potencial)}</td>
                     <td className="p-2 text-right">
                       {l.impossivel ? null : salvos.has(l.s.id) ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600"><Check size={14} weight="bold" /> salvo</span>
                       ) : igual ? (
-                        <span className="text-[11px] text-[var(--ink)]/35">já é</span>
+                        <span className="text-[11px] text-[var(--ink)]/60">já é</span>
                       ) : (
                         <button onClick={() => gravarPreco(l)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">usar</button>
                       )}
@@ -356,7 +356,7 @@ export function SimuladorClient() {
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-xs text-[var(--ink)]/50">
+        <p className="mt-2 text-xs text-[var(--ink)]/70">
           preço = (custo + embalagem + fixa + ads) ÷ (1 − comissão − margem). Em canal por faixa, a comissão é a da faixa do preço encontrado. Kit: use o simulador com as unidades do kit.
         </p>
       </div>
@@ -370,7 +370,7 @@ export function SimuladorClient() {
         <div className="card mt-3 overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                 <th className="p-3">Canal</th><th className="p-3 text-right">Comissão</th><th className="p-3 text-right">Fixa</th><th className="p-3 text-right">Preço pra margem alvo</th><th className="p-3 text-right">Lucro</th><th className="p-3 text-right">Margem</th>
               </tr>
             </thead>
@@ -379,7 +379,7 @@ export function SimuladorClient() {
                 <tr key={r.canal.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${r.canal.id === canalId ? "bg-[var(--purple)]/6" : ""}`}>
                   <td className="p-3 font-semibold">
                     {r.canal.nome}
-                    {r.canal.programa_ativo && r.canal.programa_pct > 0 && <span className="ml-1 text-[10px] text-[var(--ink)]/45">+ {r.canal.programa_nome}</span>}
+                    {r.canal.programa_ativo && r.canal.programa_pct > 0 && <span className="ml-1 text-[10px] text-[var(--ink)]/70">+ {r.canal.programa_nome}</span>}
                   </td>
                   <td className="num p-3 text-right">{pct(r.taxaPct)}</td>
                   <td className="num p-3 text-right">{r.fixa > 0 ? brl(r.fixa) : "-"}</td>
@@ -391,7 +391,7 @@ export function SimuladorClient() {
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-xs text-[var(--ink)]/50">
+        <p className="mt-2 text-xs text-[var(--ink)]/70">
           Onde a comissão é menor (WhatsApp, loja física) dá pra vender mais barato ganhando o mesmo, ou manter o preço e ficar com a margem inteira.
         </p>
       </div>
@@ -404,7 +404,7 @@ const inp = "rounded-lg border border-[var(--purple)]/20 bg-white px-2.5 py-1.5 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );
@@ -413,9 +413,9 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 function Res({ titulo, valor, sub, destaque, big }: { titulo: string; valor: string; sub?: string; destaque?: boolean; big?: boolean }) {
   return (
     <div className="card p-4">
-      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
+      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{titulo}</div>
       <div className={`num mt-1 font-[family-name:var(--font-baloo)] font-extrabold ${big ? "text-2xl" : "text-lg"} ${destaque === false ? "text-red-500" : "text-[var(--purple-dark)]"}`}>{valor}</div>
-      {sub && <div className="text-[10px] text-[var(--ink)]/45">{sub}</div>}
+      {sub && <div className="text-[10px] text-[var(--ink)]/70">{sub}</div>}
     </div>
   );
 }

@@ -266,7 +266,7 @@ function ProdutoCard({ produto, prioridade }: { produto: Produto; prioridade?: b
         </p>
         <div className="mt-auto flex items-baseline gap-1.5">
           {produto.precoDe && (
-            <span className="text-xs text-[var(--ink)]/40 line-through">
+            <span className="text-xs text-[var(--ink)]/65 line-through">
               {produto.precoDe}
             </span>
           )}
@@ -449,7 +449,7 @@ export default function Home() {
         <p className="font-[family-name:var(--font-baloo)] text-sm font-semibold text-[var(--purple)]/50">
           Império Bem Kids
         </p>
-        <p className="mt-1 text-[11px] leading-relaxed text-[var(--ink)]/40">
+        <p className="mt-1 text-[11px] leading-relaxed text-[var(--ink)]/65">
           {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj}
           <br />
           <Link href="/trocas" className="underline">trocas e devoluções</Link>

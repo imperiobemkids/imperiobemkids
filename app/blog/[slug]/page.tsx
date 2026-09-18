@@ -78,7 +78,7 @@ function RenderBloco({ bloco }: { bloco: Bloco }) {
         <div className="mt-4 overflow-x-auto rounded-2xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]">
           <table className="w-full min-w-[380px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                 {bloco.cabecalho.map((c) => (
                   <th key={c} className="p-3">{c}</th>
                 ))}
@@ -126,7 +126,7 @@ export default async function PostPage({
           <h1 className="mt-2 font-[family-name:var(--font-baloo)] text-3xl font-extrabold leading-tight text-[var(--purple-dark)]">
             {post.titulo}
           </h1>
-          <div className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--ink)]/40">
+          <div className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--ink)]/65">
             {formatarData(post.data)} · {post.leitura} de leitura
           </div>
 

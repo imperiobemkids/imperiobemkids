@@ -29,7 +29,7 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/45">
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/70">
               Navegar
             </div>
             <ul className="space-y-1.5">
@@ -44,7 +44,7 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/45">
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/70">
               Ajuda
             </div>
             <ul className="space-y-1.5">
@@ -67,7 +67,7 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/45">
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/70">
               Fale com a gente
             </div>
             <ul className="space-y-1.5">
@@ -91,11 +91,11 @@ export function SiteFooter() {
         </div>
 
         {/* identificacao exigida do comercio eletronico (Decreto 7.962/2013) */}
-        <p className="text-xs leading-relaxed text-[var(--ink)]/50">
+        <p className="text-xs leading-relaxed text-[var(--ink)]/70">
           {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj} · {enderecoLinha()} · {EMPRESA.email}
         </p>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--purple)]/10 pt-5 text-xs text-[var(--ink)]/45">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--purple)]/10 pt-5 text-xs text-[var(--ink)]/70">
           <span>© {new Date().getFullYear()} Império Bem Kids</span>
           <span>
             Produzido por{" "}

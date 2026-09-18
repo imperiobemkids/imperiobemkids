@@ -262,14 +262,14 @@ export function NovaVenda({
 
       {/* itens da venda */}
       {linhas.length === 0 ? (
-        <p className="mt-4 rounded-xl border-2 border-dashed border-[var(--purple)]/20 p-5 text-center text-sm text-[var(--ink)]/50">
+        <p className="mt-4 rounded-xl border-2 border-dashed border-[var(--purple)]/20 p-5 text-center text-sm text-[var(--ink)]/70">
           nenhum produto na venda ainda
         </p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--purple)]/10 text-[10px] uppercase text-[var(--ink)]/45">
+              <tr className="border-b border-[var(--purple)]/10 text-[10px] uppercase text-[var(--ink)]/70">
                 <th className="py-2">Produto</th>
                 <th className="py-2">Qtd</th>
                 <th className="py-2">Preço un.</th>
@@ -348,7 +348,7 @@ export function NovaVenda({
                 placeholder="0,00"
                 className="w-full rounded-lg border-2 border-[var(--purple)]/30 bg-white px-3 py-2 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)] outline-none focus:border-[var(--purple)]"
               />
-              <span className="text-[11px] text-[var(--ink)]/50">
+              <span className="text-[11px] text-[var(--ink)]/70">
                 digite o valor sobre o qual a plataforma cobra a taxa. Em marketplace é o
                 subtotal dos produtos, mesmo que o comprador tenha pago menos com moedas ou
                 cupom da plataforma, porque esse desconto não sai do seu bolso
@@ -379,7 +379,7 @@ export function NovaVenda({
             <div className="my-2 border-t border-[var(--purple)]/15" />
             <Linha2 rotulo={`Comissão ${canal?.nome ?? ""} (${Math.round(taxaPct * 1000) / 10}%)`} valor={`− ${brl(comissao)}`} sutil />
             {regraFaixas && (
-              <p className="py-0.5 text-[11px] leading-snug text-[var(--ink)]/45">
+              <p className="py-0.5 text-[11px] leading-snug text-[var(--ink)]/70">
                 faixa aplicada pelo total: {regraFaixas}
               </p>
             )}
@@ -396,7 +396,7 @@ export function NovaVenda({
             <div className="my-2 border-t border-[var(--purple)]/15" />
             <Linha2 rotulo="Lucro da venda" valor={brl(lucro)} forte positivo={lucro >= 0} />
             {total > 0 && (
-              <p className="mt-1 text-right text-[11px] text-[var(--ink)]/50">
+              <p className="mt-1 text-right text-[11px] text-[var(--ink)]/70">
                 margem de {Math.round((lucro / total) * 100)}%
               </p>
             )}
@@ -425,7 +425,7 @@ const inp =
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );
@@ -436,7 +436,7 @@ function Linha2({
 }: { rotulo: string; valor: string; forte?: boolean; sutil?: boolean; positivo?: boolean }) {
   return (
     <div className="flex items-center justify-between py-0.5">
-      <span className={sutil ? "text-[var(--ink)]/55" : "text-[var(--ink)]/75"}>{rotulo}</span>
+      <span className={sutil ? "text-[var(--ink)]/75" : "text-[var(--ink)]/75"}>{rotulo}</span>
       <span
         className={`${forte ? "font-[family-name:var(--font-baloo)] text-base font-extrabold" : "font-semibold"} ${
           positivo === false ? "text-red-500" : forte ? "text-[var(--purple-dark)]" : "text-[var(--ink)]/70"

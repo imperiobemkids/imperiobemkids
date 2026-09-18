@@ -185,7 +185,7 @@ export function GerarVariacoes({
         {/* atributos */}
         <div className="mt-4 flex flex-col gap-3">
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Tamanhos (separados por vírgula)</span>
+            <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Tamanhos (separados por vírgula)</span>
             <input value={tamanhos} onChange={(e) => setTamanhos(e.target.value)} placeholder="1, 2, 4, 6" className={inp} />
             <span className="flex flex-wrap gap-1.5 pt-1">
               {Object.entries(GRADES).map(([nome, lista]) => (
@@ -197,7 +197,7 @@ export function GerarVariacoes({
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Cores ou estampas (opcional)</span>
+            <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Cores ou estampas (opcional)</span>
             <input value={cores} onChange={(e) => setCores(e.target.value)} placeholder="Azul, Rosa, Sortido" className={inp} />
           </label>
 
@@ -263,7 +263,7 @@ export function GerarVariacoes({
           </button>
         </div>
 
-        <p className="mt-3 text-[11px] leading-relaxed text-[var(--ink)]/50">
+        <p className="mt-3 text-[11px] leading-relaxed text-[var(--ink)]/70">
           Peso e dimensões começam iguais aos do produto e podem ser ajustados na ficha de
           cada variação. Vale fazer: tamanho maior pesa mais e isso muda o frete.
         </p>

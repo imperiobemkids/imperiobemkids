@@ -216,7 +216,7 @@ export function CanaisClient() {
           {/* comissao e fixa */}
           <div className="mt-4 border-t border-[var(--purple)]/10 pt-3">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Comissão e taxa fixa</span>
+              <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Comissão e taxa fixa</span>
               <label className="flex items-center gap-1.5 text-xs font-semibold">
                 <input type="radio" checked={!form.usaFaixas} onChange={() => setForm({ ...form, usaFaixas: false })} className="accent-[var(--purple)]" /> única
               </label>
@@ -239,7 +239,7 @@ export function CanaisClient() {
               </div>
             ) : (
               <div className="mt-2">
-                <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 text-[10px] font-bold uppercase text-[var(--ink)]/45">
+                <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 text-[10px] font-bold uppercase text-[var(--ink)]/70">
                   <span>Preço até R$</span><span>Comissão %</span><span>Fixa R$</span><span />
                 </div>
                 {form.faixas.map((f, i) => (
@@ -247,7 +247,7 @@ export function CanaisClient() {
                     <input value={f.ate} onChange={(e) => setFaixa(i, { ate: e.target.value })} placeholder="vazio = acima" className={`${inp} num`} />
                     <input value={f.pct} onChange={(e) => setFaixa(i, { pct: e.target.value })} placeholder="10" className={`${inp} num`} />
                     <input value={f.fixo} onChange={(e) => setFaixa(i, { fixo: e.target.value })} placeholder="4,00" className={`${inp} num`} />
-                    <button onClick={() => setForm((x) => ({ ...x, faixas: x.faixas.filter((_, idx) => idx !== i) }))} aria-label="tirar faixa" className="p-1 text-[var(--ink)]/30 hover:text-red-500">
+                    <button onClick={() => setForm((x) => ({ ...x, faixas: x.faixas.filter((_, idx) => idx !== i) }))} aria-label="tirar faixa" className="p-1 text-[var(--ink)]/55 hover:text-red-500">
                       <X size={14} weight="bold" />
                     </button>
                   </div>
@@ -255,7 +255,7 @@ export function CanaisClient() {
                 <button onClick={() => setForm((x) => ({ ...x, faixas: [...x.faixas, { ate: "", pct: "", fixo: "" }] }))} className="mt-2 text-xs font-bold text-[var(--purple)] hover:underline">
                   + faixa
                 </button>
-                <p className="mt-1 text-[11px] text-[var(--ink)]/50">
+                <p className="mt-1 text-[11px] text-[var(--ink)]/70">
                   a faixa vale pelo preço de cada item. Deixe o &quot;até&quot; vazio na última. Quando a fixa é um percentual (ML: 50% do valor até R$ 12,49), some na comissão dessa faixa.
                 </p>
               </div>
@@ -264,7 +264,7 @@ export function CanaisClient() {
 
           {/* programa opcional */}
           <div className="mt-4 border-t border-[var(--purple)]/10 pt-3">
-            <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Programa opcional (em cima da comissão)</span>
+            <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Programa opcional (em cima da comissão)</span>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <Campo label="Nome"><input value={form.programaNome} onChange={(e) => setForm({ ...form, programaNome: e.target.value })} placeholder="Programa Frete Grátis" className={`${inp} w-48`} /></Campo>
               <Campo label="+ %"><input value={form.programaPct} onChange={(e) => setForm({ ...form, programaPct: e.target.value })} placeholder="6" className={`${inp} num w-16`} /></Campo>
@@ -294,7 +294,7 @@ export function CanaisClient() {
       <div className="card mt-5 overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
-            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
               <th className="p-3">Canal</th>
               <th className="p-3">Comissão + fixa</th>
               <th className="p-3">Programa</th>
@@ -307,7 +307,7 @@ export function CanaisClient() {
           <tbody className="cascata">
             {loading && <SkeletonRows cols={7} />}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">nenhum canal. rode a migration 0009 ou cadastre um.</td></tr>
+              <tr><td colSpan={7} className="p-6 text-center text-[var(--ink)]/70">nenhum canal. rode a migration 0009 ou cadastre um.</td></tr>
             )}
             {rows.map((c) => {
               const faixas = Array.isArray(c.faixas) && c.faixas.length > 0 ? [...c.faixas].sort((a, b) => (a.ate === null ? 1 : b.ate === null ? -1 : a.ate - b.ate)) : null;
@@ -317,14 +317,14 @@ export function CanaisClient() {
                 <tr key={c.id} className={`border-b border-[var(--purple)]/6 align-top last:border-0 ${c.ativo ? "" : "opacity-50"}`}>
                   <td className="p-3">
                     <div className="font-semibold text-[var(--ink)]">{c.nome}</div>
-                    {c.obs && <div className="max-w-[220px] text-[11px] leading-snug text-[var(--ink)]/45">{c.obs}</div>}
+                    {c.obs && <div className="max-w-[220px] text-[11px] leading-snug text-[var(--ink)]/70">{c.obs}</div>}
                   </td>
                   <td className="num p-3 text-[var(--ink)]/80">
                     {faixas ? (
                       <div className="text-[12px] leading-snug">
                         {faixas.map((f, i) => (
                           <div key={i}>
-                            <span className="text-[var(--ink)]/50">{f.ate === null ? "acima" : `até ${brl(f.ate)}`}:</span> {pctTxt(f.pct)}%{f.fixo > 0 ? ` + ${brl(f.fixo)}` : ""}
+                            <span className="text-[var(--ink)]/70">{f.ate === null ? "acima" : `até ${brl(f.ate)}`}:</span> {pctTxt(f.pct)}%{f.fixo > 0 ? ` + ${brl(f.fixo)}` : ""}
                           </div>
                         ))}
                       </div>
@@ -332,7 +332,7 @@ export function CanaisClient() {
                       <span>{pctTxt(c.taxa_pct)}%{c.taxa_fixa > 0 ? ` + ${brl(c.taxa_fixa)}` : ""}</span>
                     )}
                     {(c.taxa_fixa > 0 || faixas?.some((f) => f.fixo > 0)) && (
-                      <div className="text-[10px] text-[var(--ink)]/45">fixa por {c.taxa_fixa_por_item === false ? "pedido" : "item"}</div>
+                      <div className="text-[10px] text-[var(--ink)]/70">fixa por {c.taxa_fixa_por_item === false ? "pedido" : "item"}</div>
                     )}
                   </td>
                   <td className="p-3">
@@ -340,12 +340,12 @@ export function CanaisClient() {
                       <button
                         onClick={() => alternarPrograma(c)}
                         title={c.programa_ativo ? "clique pra desligar" : "clique pra ligar"}
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${c.programa_ativo ? "bg-[var(--purple)] text-white" : "bg-[var(--ink)]/8 text-[var(--ink)]/55"}`}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${c.programa_ativo ? "bg-[var(--purple)] text-white" : "bg-[var(--ink)]/8 text-[var(--ink)]/75"}`}
                       >
                         {c.programa_nome} +{pctTxt(c.programa_pct)}% · {c.programa_ativo ? "ligado" : "desligado"}
                       </button>
                     ) : (
-                      <span className="text-[var(--ink)]/30">-</span>
+                      <span className="text-[var(--ink)]/55">-</span>
                     )}
                   </td>
                   <td className="num p-3">{brl(c.insumo_custo)}</td>
@@ -360,7 +360,7 @@ export function CanaisClient() {
                     )}
                   </td>
                   <td className="p-3">
-                    <button onClick={() => alternarAtivo(c)} className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${c.ativo ? "bg-emerald-100 text-emerald-700" : "bg-[var(--ink)]/10 text-[var(--ink)]/50"}`}>
+                    <button onClick={() => alternarAtivo(c)} className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${c.ativo ? "bg-emerald-100 text-emerald-700" : "bg-[var(--ink)]/10 text-[var(--ink)]/70"}`}>
                       {c.ativo ? "ativo" : "inativo"}
                     </button>
                   </td>
@@ -374,7 +374,7 @@ export function CanaisClient() {
         </table>
       </div>
 
-      <p className="mt-3 text-xs text-[var(--ink)]/50">
+      <p className="mt-3 text-xs text-[var(--ink)]/70">
         Canal inativo não aparece no caixa nem na precificação, mas a venda antiga guarda a taxa que valia no dia.
       </p>
     </div>
@@ -386,7 +386,7 @@ const inp = "rounded-lg border border-[var(--purple)]/20 bg-white px-2.5 py-1.5 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );

@@ -125,7 +125,7 @@ export function FichaClient({ id }: { id: string }) {
         </div>
       </div>
     );
-  if (!produto) return <p className="p-8 text-center text-[var(--ink)]/50">produto não encontrado.</p>;
+  if (!produto) return <p className="p-8 text-center text-[var(--ink)]/70">produto não encontrado.</p>;
 
   const set = (campo: string, valor: string) => {
     setForm((f) => ({ ...f, [campo]: valor }));
@@ -285,7 +285,7 @@ export function FichaClient({ id }: { id: string }) {
                         className="rounded-full bg-[var(--purple)]/8 px-3 py-1.5 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16"
                       >
                         {[v.tamanho && `tam ${v.tamanho}`, v.cor as string].filter(Boolean).join(" · ") || "variação"}
-                        <span className="ml-1.5 text-[var(--ink)]/45">{String(v.qtd_atual)} un</span>
+                        <span className="ml-1.5 text-[var(--ink)]/70">{String(v.qtd_atual)} un</span>
                       </Link>
                     ))}
                   </div>
@@ -359,7 +359,7 @@ export function FichaClient({ id }: { id: string }) {
                     abrir página
                   </a>
                 )}
-                <p className="w-full text-[11px] text-[var(--ink)]/50">
+                <p className="w-full text-[11px] text-[var(--ink)]/70">
                   a página usa o texto do canal &quot;Site proprio&quot; (ou o primeiro que existir), o preço de venda, as especificações e os tamanhos com estoque. Regera em até 1 hora.
                 </p>
               </div>
@@ -376,7 +376,7 @@ export function FichaClient({ id }: { id: string }) {
                 <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
                   Textos por canal
                 </h2>
-                <p className="text-xs text-[var(--ink)]/55">
+                <p className="text-xs text-[var(--ink)]/75">
                   Cada canal tem um limite de título. Escreva uma versão para cada lugar onde você anuncia.
                 </p>
               </div>
@@ -394,7 +394,7 @@ export function FichaClient({ id }: { id: string }) {
             </div>
 
             {anuncios.length === 0 && (
-              <p className="mt-4 rounded-2xl border-2 border-dashed border-[var(--purple)]/20 p-5 text-center text-sm text-[var(--ink)]/50">
+              <p className="mt-4 rounded-2xl border-2 border-dashed border-[var(--purple)]/20 p-5 text-center text-sm text-[var(--ink)]/70">
                 nenhum texto ainda. clique em &quot;+ adicionar texto&quot; para criar o primeiro.
               </p>
             )}
@@ -424,9 +424,9 @@ export function FichaClient({ id }: { id: string }) {
                     </div>
 
                     <label className="flex flex-col gap-1">
-                      <span className="flex items-center justify-between text-[10px] font-bold uppercase text-[var(--ink)]/45">
+                      <span className="flex items-center justify-between text-[10px] font-bold uppercase text-[var(--ink)]/70">
                         <span>Título</span>
-                        <span className={excedeu ? "text-red-500" : "text-[var(--ink)]/40"}>
+                        <span className={excedeu ? "text-red-500" : "text-[var(--ink)]/65"}>
                           {a.titulo.length}{limite > 0 ? ` / ${limite}` : ""}
                         </span>
                       </span>
@@ -444,9 +444,9 @@ export function FichaClient({ id }: { id: string }) {
                     </label>
 
                     <label className="mt-3 flex flex-col gap-1">
-                      <span className="flex items-center justify-between text-[10px] font-bold uppercase text-[var(--ink)]/45">
+                      <span className="flex items-center justify-between text-[10px] font-bold uppercase text-[var(--ink)]/70">
                         <span>Descrição</span>
-                        <span className="text-[var(--ink)]/40">{a.descricao.length}</span>
+                        <span className="text-[var(--ink)]/65">{a.descricao.length}</span>
                       </span>
                       <textarea
                         value={a.descricao}
@@ -554,9 +554,9 @@ function Campo({
 }: { label: string; children: React.ReactNode; larga?: boolean; dica?: string }) {
   return (
     <label className={`flex flex-col gap-1 ${larga ? "sm:col-span-2" : ""}`}>
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
-      {dica && <span className="text-[11px] leading-snug text-[var(--ink)]/40">{dica}</span>}
+      {dica && <span className="text-[11px] leading-snug text-[var(--ink)]/65">{dica}</span>}
     </label>
   );
 }

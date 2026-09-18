@@ -180,7 +180,7 @@ export function PainelClient() {
 
   return (
     <div className="page-in">
-      <p className="text-xs font-bold uppercase tracking-wide text-[var(--ink)]/45">{dataLonga}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-[var(--ink)]/70">{dataLonga}</p>
       <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold tracking-tight text-[var(--purple-dark)]">
         {saudacao()}, Império 🧸
       </h1>
@@ -209,7 +209,7 @@ export function PainelClient() {
             <div className="font-[family-name:var(--font-baloo)] text-lg font-extrabold leading-tight text-[var(--purple-dark)]">
               <span className="num">{aguardando.length}</span> {aguardando.length === 1 ? "pedido pra postar" : "pedidos pra postar"}
             </div>
-            <div className="text-xs text-[var(--ink)]/55">
+            <div className="text-xs text-[var(--ink)]/75">
               {atrasados.length > 0
                 ? `${atrasados.length} fora do prazo de 2 dias úteis`
                 : vencendo.length > 0
@@ -255,7 +255,7 @@ export function PainelClient() {
                       {feito && <Check size={10} weight="bold" />}
                     </span>
                     <span className={`flex-1 ${feito ? "line-through opacity-70" : ""}`}>{r.titulo}</span>
-                    <span className="text-[10px] font-bold uppercase text-[var(--ink)]/35">{r.area}</span>
+                    <span className="text-[10px] font-bold uppercase text-[var(--ink)]/60">{r.area}</span>
                   </button>
                 </li>
               );
@@ -277,7 +277,7 @@ export function PainelClient() {
           <div className="h-full rounded-full bg-[var(--purple)] transition-[transform,border-color,box-shadow,background-color]" style={{ width: `${paybackPct}%` }} />
         </div>
         {investido > 0 && lucroBruto < investido && (
-          <p className="mt-2 text-xs text-[var(--ink)]/55">
+          <p className="mt-2 text-xs text-[var(--ink)]/75">
             Faltam {brl(investido - lucroBruto)} de lucro para pagar tudo que foi investido.
           </p>
         )}
@@ -306,7 +306,7 @@ export function PainelClient() {
       <div className="mt-6 flex flex-col gap-5 lg:hidden">
         {GRUPOS.map((g) => (
           <div key={g.nome}>
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/40">
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[var(--ink)]/65">
               {g.nome}
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -343,11 +343,11 @@ function Kpi({
 }) {
   return (
     <div className="card p-4">
-      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
+      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{titulo}</div>
       <div className={`num mt-1 font-[family-name:var(--font-baloo)] text-xl font-extrabold ${negativo ? "text-red-500" : "text-[var(--purple-dark)]"}`}>
         {valor}
       </div>
-      {sub && <div className="mt-0.5 text-[11px] text-[var(--ink)]/50">{sub}</div>}
+      {sub && <div className="mt-0.5 text-[11px] text-[var(--ink)]/70">{sub}</div>}
       {grafico}
     </div>
   );

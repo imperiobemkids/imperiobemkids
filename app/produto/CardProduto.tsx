@@ -15,7 +15,7 @@ export function CardProduto({ p }: { p: ProdutoPublico }) {
       <div className="p-3">
         <div className="line-clamp-2 text-sm font-bold leading-snug text-[var(--purple-dark)]">{nomeCurto(p)}</div>
         {p.preco_venda != null && <div className="num mt-1 font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple)]">{brl(p.preco_venda)}</div>}
-        {p.tamanhos.length > 0 && <div className="mt-0.5 text-[11px] text-[var(--ink)]/50">tam {p.tamanhos.join(" · ")}</div>}
+        {p.tamanhos.length > 0 && <div className="mt-0.5 text-[11px] text-[var(--ink)]/70">tam {p.tamanhos.join(" · ")}</div>}
       </div>
     </Link>
   );

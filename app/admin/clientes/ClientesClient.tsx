@@ -94,7 +94,7 @@ export function ClientesClient() {
         </div>
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-2 rounded-xl border border-[var(--purple)]/20 bg-white px-3 py-2">
-            <MagnifyingGlass size={16} className="text-[var(--ink)]/40" />
+            <MagnifyingGlass size={16} className="text-[var(--ink)]/65" />
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -161,7 +161,7 @@ export function ClientesClient() {
                   <button onClick={() => setAberto(c.id)} className="text-left font-[family-name:var(--font-baloo)] text-lg font-bold text-[var(--purple-dark)] hover:underline">
                     {c.nome}
                   </button>
-                  <div className="text-xs text-[var(--ink)]/55">
+                  <div className="text-xs text-[var(--ink)]/75">
                     {[c.cidade, c.origem].filter(Boolean).join(" · ")}
                   </div>
                 </div>
@@ -187,7 +187,7 @@ export function ClientesClient() {
                       <li key={k.id} className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${cresceu ? "bg-[var(--sun)]/40 text-[var(--ink)]" : "bg-[var(--purple)]/6 text-[var(--ink)]/80"}`}>
                         <Baby size={14} weight="duotone" className="text-[var(--purple)]" />
                         {k.nome || (k.genero === "menina" ? "menina" : k.genero === "menino" ? "menino" : "criança")}
-                        {k.nascimento && <span className="text-[var(--ink)]/50">{idadeTexto(k.nascimento)}</span>}
+                        {k.nascimento && <span className="text-[var(--ink)]/70">{idadeTexto(k.nascimento)}</span>}
                         {k.tamanho_atual && <span>tam {k.tamanho_atual}</span>}
                         {cresceu && <span className="font-extrabold">→ {sug}?</span>}
                       </li>
@@ -196,7 +196,7 @@ export function ClientesClient() {
                 </ul>
               )}
 
-              <div className="mt-3 flex items-center justify-between border-t border-[var(--purple)]/8 pt-2 text-xs text-[var(--ink)]/55">
+              <div className="mt-3 flex items-center justify-between border-t border-[var(--purple)]/8 pt-2 text-xs text-[var(--ink)]/75">
                 {r ? (
                   <span>
                     <span className="num font-bold text-[var(--purple-dark)]">{r.compras}</span> {r.compras === 1 ? "compra" : "compras"} ·{" "}
@@ -310,13 +310,13 @@ function FormCliente({ cliente, onCancelar, onSalvo }: { cliente?: Cliente; onCa
       {/* filhos */}
       <div className="mt-4 border-t border-[var(--purple)]/10 pt-3">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Filhos</span>
+          <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Filhos</span>
           <button onClick={() => setCriancas((a) => [...a, {}])} className="text-xs font-bold text-[var(--purple)] hover:underline">
             + criança
           </button>
         </div>
         {criancas.length === 0 && (
-          <p className="mt-1 text-xs text-[var(--ink)]/45">cadastre a idade e o tamanho: é o que avisa quando a criança cresceu.</p>
+          <p className="mt-1 text-xs text-[var(--ink)]/70">cadastre a idade e o tamanho: é o que avisa quando a criança cresceu.</p>
         )}
         <div className="mt-2 flex flex-col gap-2">
           {criancas.map((k, i) => {
@@ -340,11 +340,11 @@ function FormCliente({ cliente, onCancelar, onSalvo }: { cliente?: Cliente; onCa
                   <input value={k.tamanho_atual ?? ""} onChange={(e) => setK(i, { tamanho_atual: e.target.value })} placeholder={sug || "4"} className={`${inp} w-20`} />
                 </Campo>
                 {sug && (
-                  <span className="pb-2 text-xs text-[var(--ink)]/55">
+                  <span className="pb-2 text-xs text-[var(--ink)]/75">
                     {idadeTexto(k.nascimento ?? null)} · sugerido <strong>{sug}</strong>
                   </span>
                 )}
-                <button onClick={() => setCriancas((a) => a.filter((_, idx) => idx !== i))} aria-label="tirar criança" className="mb-2 ml-auto text-[var(--ink)]/30 hover:text-red-500">
+                <button onClick={() => setCriancas((a) => a.filter((_, idx) => idx !== i))} aria-label="tirar criança" className="mb-2 ml-auto text-[var(--ink)]/55 hover:text-red-500">
                   <X size={14} weight="bold" />
                 </button>
               </div>
@@ -369,7 +369,7 @@ function FormCliente({ cliente, onCancelar, onSalvo }: { cliente?: Cliente; onCa
                 <button onClick={() => setConfirmando(false)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 font-bold text-[var(--purple)]">não</button>
               </>
             ) : (
-              <button onClick={() => setConfirmando(true)} className="font-bold text-[var(--ink)]/35 hover:text-red-500">remover cliente</button>
+              <button onClick={() => setConfirmando(true)} className="font-bold text-[var(--ink)]/60 hover:text-red-500">remover cliente</button>
             )}
           </span>
         )}
@@ -383,7 +383,7 @@ const inp = "rounded-lg border border-[var(--purple)]/20 bg-white px-2.5 py-1.5 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );

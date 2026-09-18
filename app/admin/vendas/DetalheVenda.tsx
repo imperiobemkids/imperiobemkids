@@ -218,7 +218,7 @@ export function DetalheVenda({
         <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--purple)]/15">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--purple)]/10 text-[10px] uppercase text-[var(--ink)]/45">
+              <tr className="border-b border-[var(--purple)]/10 text-[10px] uppercase text-[var(--ink)]/70">
                 <th className="p-2.5">Produto</th>
                 <th className="p-2.5">Qtd</th>
                 <th className="p-2.5">Preço un.</th>
@@ -233,7 +233,7 @@ export function DetalheVenda({
                   <td className="p-2.5">{i.qtd}</td>
                   <td className="p-2.5">{brl(i.preco_unit)}</td>
                   <td className="p-2.5 font-bold text-[var(--purple-dark)]">{brl(i.preco_unit * i.qtd)}</td>
-                  <td className="hidden p-2.5 text-[var(--ink)]/55 sm:table-cell">{brl((i.produto?.custo_unit ?? 0) * i.qtd)}</td>
+                  <td className="hidden p-2.5 text-[var(--ink)]/75 sm:table-cell">{brl((i.produto?.custo_unit ?? 0) * i.qtd)}</td>
                 </tr>
               ))}
             </tbody>
@@ -255,7 +255,7 @@ export function DetalheVenda({
           <div className="my-2 border-t border-[var(--purple)]/15" />
           <Linha rotulo="Lucro" valor={brl(lucro)} forte positivo={lucro >= 0} />
           {venda.preco_venda > 0 && !foraDoCiclo && (
-            <p className="mt-1 text-right text-[11px] text-[var(--ink)]/50">
+            <p className="mt-1 text-right text-[11px] text-[var(--ink)]/70">
               margem de {Math.round((lucro / venda.preco_venda) * 100)}%
             </p>
           )}
@@ -265,7 +265,7 @@ export function DetalheVenda({
         <div className="mt-4 rounded-2xl border border-[var(--purple)]/10 bg-[var(--cream)] p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">Pedido</span>
+              <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Pedido</span>
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${STATUS[status].cor}`}>
                 {STATUS[status].rotulo}
               </span>
@@ -315,7 +315,7 @@ export function DetalheVenda({
               <input value={nfChave} onChange={(e) => setNfChave(e.target.value)} placeholder="opcional" className={`${inp} num`} />
             </Campo>
           </div>
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--ink)]/50">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--ink)]/70">
             <span>
               {venda.enviado_em && `enviado em ${new Date(venda.enviado_em + "T12:00:00").toLocaleDateString("pt-BR")}`}
               {venda.entregue_em && ` · entregue em ${new Date(venda.entregue_em + "T12:00:00").toLocaleDateString("pt-BR")}`}
@@ -351,7 +351,7 @@ export function DetalheVenda({
                 <input inputMode="decimal" value={totalTexto} onChange={(e) => setTotalTexto(e.target.value)} className={`${inp} w-28`} />
               </Campo>
             </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-[var(--ink)]/50">
+            <p className="mt-2 text-[11px] leading-relaxed text-[var(--ink)]/70">
               Mudar o total refaz a comissão e os lançamentos de caixa desta venda. Para trocar
               os produtos, devolva a venda e registre de novo, senão o estoque fica errado.
             </p>
@@ -386,7 +386,7 @@ const btnS = "rounded-lg bg-[var(--purple)]/8 px-3 py-1.5 text-xs font-bold text
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );
@@ -395,7 +395,7 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 function Linha({ rotulo, valor, forte, sutil, positivo }: { rotulo: string; valor: string; forte?: boolean; sutil?: boolean; positivo?: boolean }) {
   return (
     <div className="flex items-center justify-between py-0.5">
-      <span className={sutil ? "text-[var(--ink)]/55" : "text-[var(--ink)]/75"}>{rotulo}</span>
+      <span className={sutil ? "text-[var(--ink)]/75" : "text-[var(--ink)]/75"}>{rotulo}</span>
       <span className={`${forte ? "font-[family-name:var(--font-baloo)] text-base font-extrabold" : "font-semibold"} ${positivo === false ? "text-red-500" : forte ? "text-[var(--purple-dark)]" : "text-[var(--ink)]/70"}`}>
         {valor}
       </span>

@@ -145,7 +145,7 @@ export default function SobrePage() {
               <br />
               {EMPRESA.email} · WhatsApp {EMPRESA.whatsapp}
             </p>
-            <p className="mt-2 text-xs text-[var(--ink)]/55">
+            <p className="mt-2 text-xs text-[var(--ink)]/75">
               <Link href="/trocas" className="font-bold text-[var(--purple)] underline">Trocas e devoluções</Link>
               {" · "}
               <Link href="/privacidade" className="font-bold text-[var(--purple)] underline">Privacidade</Link>

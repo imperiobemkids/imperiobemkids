@@ -265,11 +265,11 @@ export function VendasClient() {
         <div className="card mt-5 overflow-x-auto">
           <div className="flex items-center justify-between px-4 pt-3">
             <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">Ads por produto</h2>
-            <span className="text-[11px] text-[var(--ink)]/50">últimos 30 dias · gasto lançado no caixa com o produto</span>
+            <span className="text-[11px] text-[var(--ink)]/70">últimos 30 dias · gasto lançado no caixa com o produto</span>
           </div>
           <table className="mt-2 w-full min-w-[520px] text-sm">
             <thead>
-              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                 <th className="p-3 text-left">Produto</th>
                 <th className="p-3 text-right">Gasto</th>
                 <th className="p-3 text-right">Vendido</th>
@@ -334,7 +334,7 @@ export function VendasClient() {
       <div className="mt-3 overflow-x-auto card">
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead>
-            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
               <th className="p-3">Pedido</th>
               <th className="p-3">Produtos</th>
               <th className="hidden p-3 sm:table-cell">Canal</th>
@@ -348,7 +348,7 @@ export function VendasClient() {
             {loading && <SkeletonRows cols={7} />}
             {!loading && visiveis.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">
+                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/70">
                   {vendas.length === 0 ? "nenhuma venda registrada ainda." : "nada nesse status."}
                 </td>
               </tr>
@@ -362,7 +362,7 @@ export function VendasClient() {
                 <tr key={v.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${estornada(v.status) ? "bg-red-50/40" : ""}`}>
                   <td className="whitespace-nowrap p-3">
                     <div>{new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}</div>
-                    {v.pedido_externo && <div className="num text-[11px] text-[var(--ink)]/45">#{v.pedido_externo}</div>}
+                    {v.pedido_externo && <div className="num text-[11px] text-[var(--ink)]/70">#{v.pedido_externo}</div>}
                     <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${desp?.nivel === "atrasado" ? "bg-red-100 text-red-600" : st.cor}`}>
                       {desp?.nivel === "atrasado" ? `atrasado ${desp.dias}d` : st.rotulo}
                     </span>
@@ -371,7 +371,7 @@ export function VendasClient() {
                     <button onClick={() => setDetalhe(v as unknown as VendaDetalhe)} className="text-left font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
                       {resumoProdutos(v)}
                     </button>
-                    <div className="text-[11px] text-[var(--ink)]/45">
+                    <div className="text-[11px] text-[var(--ink)]/70">
                       {qtdItens} {qtdItens === 1 ? "item" : "itens"}
                       {v.cliente ? ` · ${v.cliente}` : ""}
                       {v.forma_pagamento ? ` · ${v.forma_pagamento}` : ""}
@@ -381,7 +381,7 @@ export function VendasClient() {
                   <td className="hidden p-3 text-[var(--ink)]/60 lg:table-cell">
                     {brl(v.preco_venda * v.taxa_pct + (v.taxa_fixa ?? 0))}
                   </td>
-                  <td className={`whitespace-nowrap p-3 font-semibold ${estornada(v.status) ? "text-[var(--ink)]/40 line-through" : ""}`}>{brl(v.preco_venda)}</td>
+                  <td className={`whitespace-nowrap p-3 font-semibold ${estornada(v.status) ? "text-[var(--ink)]/65 line-through" : ""}`}>{brl(v.preco_venda)}</td>
                   <td className={`whitespace-nowrap p-3 font-bold ${l >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l)}</td>
                   <td className="p-3">
                     <div className="flex gap-1">
@@ -389,7 +389,7 @@ export function VendasClient() {
                         detalhes
                       </button>
                       {v.status === "entregue" && (
-                        <button onClick={() => devolver(v)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/50 hover:text-red-600 lg:block" title="registrar devolução">
+                        <button onClick={() => devolver(v)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/70 hover:text-red-600 lg:block" title="registrar devolução">
                           devolver
                         </button>
                       )}
@@ -411,7 +411,7 @@ const inputCls =
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );
@@ -420,7 +420,7 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 function Kpi({ titulo, valor }: { titulo: string; valor: string }) {
   return (
     <div className="rounded-xl bg-white px-4 py-2 shadow-[0_3px_0_rgba(109,40,184,0.1)]">
-      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
+      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{titulo}</div>
       <div className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">{valor}</div>
     </div>
   );

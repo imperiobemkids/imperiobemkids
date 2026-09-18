@@ -114,7 +114,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
                   className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-extrabold uppercase tracking-wide transition-colors ${
                     temAtivo
                       ? "bg-[var(--purple)]/8 text-[var(--purple)]"
-                      : "text-[var(--ink)]/55 hover:bg-[var(--purple)]/6 hover:text-[var(--purple)]"
+                      : "text-[var(--ink)]/75 hover:bg-[var(--purple)]/6 hover:text-[var(--purple)]"
                   }`}
                 >
                   <span>{g.nome}</span>

@@ -171,7 +171,7 @@ export function ConciliacaoClient() {
       <div className="mt-3 overflow-x-auto card">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
-            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
               <th className="p-3">Data</th>
               <th className="p-3">Canal</th>
               <th className="p-3">Preço</th>
@@ -184,7 +184,7 @@ export function ConciliacaoClient() {
             {loading && <SkeletonRows cols={7} />}
             {!loading && lista.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/50">
+                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/70">
                   {aba === "pendentes" ? "nenhuma venda esperando repasse." : "nenhuma venda conciliada ainda."}
                 </td>
               </tr>
@@ -201,9 +201,9 @@ export function ConciliacaoClient() {
                   {aba === "conciliadas" && (
                     <>
                       <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(v.recebido ?? 0)}</td>
-                      <td className={`p-3 font-bold ${Math.abs(dif) < 0.01 ? "text-[var(--ink)]/40" : dif > 0 ? "text-emerald-600" : "text-red-500"}`}>
+                      <td className={`p-3 font-bold ${Math.abs(dif) < 0.01 ? "text-[var(--ink)]/65" : dif > 0 ? "text-emerald-600" : "text-red-500"}`}>
                         {Math.abs(dif) < 0.01 ? "bateu" : brl(dif)}
-                        {v.obs_conciliacao && <div className="text-[11px] font-normal text-[var(--ink)]/50">{v.obs_conciliacao}</div>}
+                        {v.obs_conciliacao && <div className="text-[11px] font-normal text-[var(--ink)]/70">{v.obs_conciliacao}</div>}
                       </td>
                     </>
                   )}
@@ -213,7 +213,7 @@ export function ConciliacaoClient() {
                         conciliar
                       </button>
                     ) : (
-                      <button onClick={() => desfazer(v)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/40 hover:text-red-500">
+                      <button onClick={() => desfazer(v)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/65 hover:text-red-500">
                         desfazer
                       </button>
                     )}
@@ -225,7 +225,7 @@ export function ConciliacaoClient() {
         </table>
       </div>
 
-      <p className="mt-3 text-xs text-[var(--ink)]/50">
+      <p className="mt-3 text-xs text-[var(--ink)]/70">
         Esperado = preço − comissão − tarifa fixa − frete pago pela loja. Quando o valor recebido difere,
         o sistema lança a diferença no caixa para o saldo refletir o dinheiro real.
       </p>
@@ -236,11 +236,11 @@ export function ConciliacaoClient() {
 function Kpi({ titulo, valor, sub, negativo }: { titulo: string; valor: string; sub?: string; negativo?: boolean }) {
   return (
     <div className="rounded-xl bg-white px-4 py-2 shadow-[0_3px_0_rgba(109,40,184,0.1)]">
-      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
+      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{titulo}</div>
       <div className={`font-[family-name:var(--font-baloo)] text-lg font-extrabold ${negativo ? "text-red-500" : "text-[var(--purple-dark)]"}`}>
         {valor}
       </div>
-      {sub && <div className="text-[10px] text-[var(--ink)]/50">{sub}</div>}
+      {sub && <div className="text-[10px] text-[var(--ink)]/70">{sub}</div>}
     </div>
   );
 }

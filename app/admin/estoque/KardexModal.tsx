@@ -61,7 +61,7 @@ export function KardexModal({ produtoId, titulo, onClose }: { produtoId: string;
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[520px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                 <th className="p-2">Data</th>
                 <th className="p-2">Origem</th>
                 <th className="p-2">Qtd</th>
@@ -73,14 +73,14 @@ export function KardexModal({ produtoId, titulo, onClose }: { produtoId: string;
             <tbody className="cascata">
               {loading && <SkeletonRows cols={6} />}
               {!loading && movs.length === 0 && (
-                <tr><td colSpan={6} className="p-5 text-center text-[var(--ink)]/50">sem movimentações registradas.</td></tr>
+                <tr><td colSpan={6} className="p-5 text-center text-[var(--ink)]/70">sem movimentações registradas.</td></tr>
               )}
               {movs.map((m) => (
                 <tr key={m.id} className="border-b border-[var(--purple)]/6 last:border-0">
                   <td className="p-2">{new Date(m.data).toLocaleDateString("pt-BR")}</td>
                   <td className="p-2">
                     {rotuloOrigem[m.origem] ?? m.origem}
-                    {m.obs && <div className="text-[11px] text-[var(--ink)]/45">{m.obs}</div>}
+                    {m.obs && <div className="text-[11px] text-[var(--ink)]/70">{m.obs}</div>}
                   </td>
                   <td className={`p-2 font-bold ${m.qtd >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                     {m.qtd > 0 ? `+${m.qtd}` : m.qtd}

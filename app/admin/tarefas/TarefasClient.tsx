@@ -280,7 +280,7 @@ export function TarefasClient() {
                   ? "bg-[var(--purple)] text-white"
                   : eHoje
                     ? "bg-[var(--purple)]/10 text-[var(--purple)]"
-                    : "bg-white text-[var(--ink)]/50"
+                    : "bg-white text-[var(--ink)]/70"
               }`}
             >
               <span>{d.curto}</span>
@@ -309,7 +309,7 @@ export function TarefasClient() {
             >
               <header className="flex items-center justify-between border-b border-[var(--purple)]/10 px-3 py-2.5">
                 <div>
-                  <div className={`text-[11px] font-bold uppercase ${eHoje ? "text-[var(--purple)]" : "text-[var(--ink)]/45"}`}>
+                  <div className={`text-[11px] font-bold uppercase ${eHoje ? "text-[var(--purple)]" : "text-[var(--ink)]/70"}`}>
                     {d.curto} {eHoje && "· hoje"}
                   </div>
                   <div className="font-[family-name:var(--font-baloo)] text-lg font-extrabold leading-tight text-[var(--purple-dark)]">
@@ -330,10 +330,10 @@ export function TarefasClient() {
               </header>
 
               <div className="flex flex-col gap-3 p-3">
-                {doDia.length === 0 && <p className="py-4 text-center text-xs text-[var(--ink)]/35">dia livre</p>}
+                {doDia.length === 0 && <p className="py-4 text-center text-xs text-[var(--ink)]/60">dia livre</p>}
                 {[...porArea.entries()].map(([nomeArea, lista]) => (
                   <div key={nomeArea}>
-                    <div className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--ink)]/45">
+                    <div className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-[var(--ink)]/70">
                       {nomeArea}
                     </div>
                     <ul className="cascata flex flex-col gap-1">
@@ -368,7 +368,7 @@ export function TarefasClient() {
                             <button
                               onClick={() => remover(r)}
                               aria-label="Remover rotina"
-                              className="mt-1 text-[10px] font-bold text-[var(--ink)]/0 transition-colors hover:text-red-500 group-hover:text-[var(--ink)]/30"
+                              className="mt-1 text-[10px] font-bold text-[var(--ink)]/0 transition-colors hover:text-red-500 group-hover:text-[var(--ink)]/55"
                             >
                               <X size={12} weight="bold" />
                             </button>
@@ -396,7 +396,7 @@ const inputCls =
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );

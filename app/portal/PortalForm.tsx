@@ -32,7 +32,7 @@ export function PortalForm() {
         <h1 className="mt-2 font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
           Portal do Cliente
         </h1>
-        <p className="text-xs text-[var(--ink)]/55">entre com seu acesso</p>
+        <p className="text-xs text-[var(--ink)]/75">entre com seu acesso</p>
       </div>
 
       {!supabaseConfigured ? (

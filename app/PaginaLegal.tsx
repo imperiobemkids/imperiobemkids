@@ -29,7 +29,7 @@ export function PaginaLegal({
         </h1>
         <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]/70">{resumo}</p>
         <article className="legal mt-8">{children}</article>
-        <p className="mt-10 text-xs text-[var(--ink)]/45">Última revisão em {revisada}.</p>
+        <p className="mt-10 text-xs text-[var(--ink)]/70">Última revisão em {revisada}.</p>
       </main>
       <SiteFooter />
     </>

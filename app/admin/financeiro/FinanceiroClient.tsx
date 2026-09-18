@@ -344,7 +344,7 @@ export function FinanceiroClient() {
                     )}
                   </span>
                   <span className="flex items-center gap-1">
-                    <button onClick={() => setEditando(m.id)} aria-label="editar" className="rounded-lg px-2 py-1 text-[var(--ink)]/40 hover:text-[var(--purple)]">
+                    <button onClick={() => setEditando(m.id)} aria-label="editar" className="rounded-lg px-2 py-1 text-[var(--ink)]/65 hover:text-[var(--purple)]">
                       <PencilSimple size={14} weight="bold" />
                     </button>
                     <button onClick={() => marcarPago(m)} className="rounded-lg bg-[var(--purple)] px-3 py-1 text-xs font-extrabold text-white hover:bg-[var(--purple-dark)]">
@@ -364,7 +364,7 @@ export function FinanceiroClient() {
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
                 <th className="p-3">Data</th>
                 <th className="p-3">Descrição</th>
                 <th className="hidden p-3 sm:table-cell">Categoria</th>
@@ -376,7 +376,7 @@ export function FinanceiroClient() {
             <tbody className="cascata">
               {loading && <SkeletonRows cols={6} />}
               {!loading && movs.length === 0 && (
-                <tr><td colSpan={6} className="p-6 text-center text-[var(--ink)]/50">nenhum lançamento ainda.</td></tr>
+                <tr><td colSpan={6} className="p-6 text-center text-[var(--ink)]/70">nenhum lançamento ainda.</td></tr>
               )}
               {movs.slice(0, 60).map((m) =>
                 editando === m.id ? (
@@ -390,7 +390,7 @@ export function FinanceiroClient() {
                     <td className="whitespace-nowrap p-3">{dataBr(m.data)}</td>
                     <td className="p-3">
                       <div className="text-[var(--ink)]">{m.descricao || catLabel(m.categoria)}</div>
-                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--ink)]/45">
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--ink)]/70">
                         {m.documento && <span>{m.documento}</span>}
                         {m.ref_venda_id && <Link href="/admin/vendas" className="underline">da venda</Link>}
                         {m.recorrencia_id && <span className="flex items-center gap-0.5"><Repeat size={10} weight="bold" /> recorrente</span>}
@@ -416,14 +416,14 @@ export function FinanceiroClient() {
             </tbody>
           </table>
         </div>
-        {movs.length > 60 && <p className="mt-2 text-xs text-[var(--ink)]/45">mostrando os 60 mais recentes de {movs.length}.</p>}
+        {movs.length > 60 && <p className="mt-2 text-xs text-[var(--ink)]/70">mostrando os 60 mais recentes de {movs.length}.</p>}
       </div>
 
       {/* por categoria */}
       <div className="card mt-5 overflow-x-auto">
         <table className="w-full min-w-[480px] text-left text-sm">
           <thead>
-            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+            <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
               <th className="p-3">Categoria</th>
               <th className="p-3 text-right">Entradas</th>
               <th className="p-3 text-right">Saídas</th>
@@ -467,7 +467,7 @@ function EditarMov({ mov, produtos, onSalvar, onRemover, onCancelar }: { mov: Mo
   return (
     <div>
       {mov.ref_venda_id && (
-        <p className="mb-2 text-[11px] text-[var(--ink)]/55">
+        <p className="mb-2 text-[11px] text-[var(--ink)]/75">
           este lançamento veio de uma venda: corrigir aqui não muda a venda. Se o valor da venda estiver errado, edite a venda.
         </p>
       )}
@@ -543,7 +543,7 @@ function EditarMov({ mov, produtos, onSalvar, onRemover, onCancelar }: { mov: Mo
               <button onClick={() => setConfirmando(false)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 font-bold text-[var(--purple)]">não</button>
             </>
           ) : (
-            <button onClick={() => setConfirmando(true)} className="flex items-center gap-1 font-bold text-[var(--ink)]/35 hover:text-red-500">
+            <button onClick={() => setConfirmando(true)} className="flex items-center gap-1 font-bold text-[var(--ink)]/60 hover:text-red-500">
               <Trash size={14} weight="bold" /> apagar
             </button>
           )}
@@ -607,7 +607,7 @@ function Recorrencias({ recs, onMudou }: { recs: Recorrencia[]; onMudou: () => v
   return (
     <div className="card mt-4 p-4">
       <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">Contas recorrentes</h2>
-      <p className="text-xs text-[var(--ink)]/55">
+      <p className="text-xs text-[var(--ink)]/75">
         O que vence todo mês. No começo do mês aparece o aviso pra lançar tudo de uma vez, já como a pagar. Valor zero (como o DAS, que muda) você preenche na hora.
       </p>
 
@@ -633,11 +633,11 @@ function Recorrencias({ recs, onMudou }: { recs: Recorrencia[]; onMudou: () => v
       {erro && <p className="mt-2 text-sm font-semibold text-red-500">{erro}</p>}
 
       <div className="mt-3 divide-y divide-[var(--purple)]/8">
-        {recs.length === 0 && <p className="py-3 text-sm text-[var(--ink)]/45">nenhuma ainda.</p>}
+        {recs.length === 0 && <p className="py-3 text-sm text-[var(--ink)]/70">nenhuma ainda.</p>}
         {recs.map((r) => (
           <div key={r.id} className={`flex flex-wrap items-center gap-3 py-2 text-sm ${r.ativo ? "" : "opacity-50"}`}>
             <span className="flex-1 font-semibold">{r.descricao}</span>
-            <span className="text-xs text-[var(--ink)]/55">{catLabel(r.categoria)} · dia {r.dia_vencimento} · próxima {dataBr(r.proximo_em)}</span>
+            <span className="text-xs text-[var(--ink)]/75">{catLabel(r.categoria)} · dia {r.dia_vencimento} · próxima {dataBr(r.proximo_em)}</span>
             <input
               defaultValue={txt(r.valor)}
               onBlur={(e) => atualizarValor(r, e.target.value)}
@@ -660,7 +660,7 @@ const inp = "rounded-lg border border-[var(--purple)]/20 bg-white px-2.5 py-1.5 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{label}</span>
+      <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{label}</span>
       {children}
     </label>
   );
@@ -669,9 +669,9 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 function Kpi({ titulo, valor, destaque, sub }: { titulo: string; valor: string; destaque?: boolean; sub?: string }) {
   return (
     <div className="rounded-xl bg-white px-4 py-2 shadow-[0_3px_0_rgba(109,40,184,0.1)]">
-      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
+      <div className="text-[10px] font-bold uppercase text-[var(--ink)]/70">{titulo}</div>
       <div className={`num font-[family-name:var(--font-baloo)] text-lg font-extrabold ${destaque === false ? "text-red-500" : "text-[var(--purple-dark)]"}`}>{valor}</div>
-      {sub && <div className="text-[10px] text-[var(--ink)]/50">{sub}</div>}
+      {sub && <div className="text-[10px] text-[var(--ink)]/70">{sub}</div>}
     </div>
   );
 }
@@ -679,7 +679,7 @@ function Kpi({ titulo, valor, destaque, sub }: { titulo: string; valor: string; 
 function Card({ titulo, valor, destaque }: { titulo: string; valor: string; destaque?: boolean }) {
   return (
     <div className="card p-4">
-      <div className="text-xs font-bold uppercase text-[var(--ink)]/45">{titulo}</div>
+      <div className="text-xs font-bold uppercase text-[var(--ink)]/70">{titulo}</div>
       <div className={`num mt-1 font-[family-name:var(--font-baloo)] text-xl font-extrabold ${destaque === false ? "text-red-500" : "text-[var(--purple-dark)]"}`}>{valor}</div>
     </div>
   );

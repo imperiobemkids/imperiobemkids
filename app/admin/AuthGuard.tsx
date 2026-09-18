@@ -43,10 +43,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [estado, router]);
 
   if (estado === "checando")
-    return <div className="p-10 text-center text-[var(--ink)]/50">verificando acesso...</div>;
+    return <div className="p-10 text-center text-[var(--ink)]/70">verificando acesso...</div>;
 
   if (estado === "fora")
-    return <div className="p-10 text-center text-[var(--ink)]/50">redirecionando...</div>;
+    return <div className="p-10 text-center text-[var(--ink)]/70">redirecionando...</div>;
 
   return <>{children}</>;
 }
