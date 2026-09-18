@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
+import { ConferirLote, type Conferencia } from "./ConferirLote";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { entradaEstoque } from "@/lib/estoque";
 import { SetupCard } from "../SetupCard";
@@ -30,7 +31,9 @@ type Lote = {
   data: string;
   descricao: string | null;
   fornecedor: { nome: string } | null;
-  ibk_lote_itens: { custo_total: number; tipo: string }[];
+  conferido_em: string | null;
+  conferencia: Conferencia | null;
+  ibk_lote_itens: { custo_total: number; tipo: string; qtd: number }[];
 };
 
 const brl = (v: number) =>
@@ -47,6 +50,7 @@ export function ComprasClient() {
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [aberto, setAberto] = useState(false);
+  const [conferindo, setConferindo] = useState<string | null>(null);
 
   // form
   const [fornecedorId, setFornecedorId] = useState("");
@@ -62,7 +66,7 @@ export function ComprasClient() {
       supabase.from("ibk_produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
       supabase
         .from("ibk_lotes")
-        .select("id, data, descricao, fornecedor:ibk_fornecedores(nome), ibk_lote_itens(custo_total, tipo)")
+        .select("id, data, descricao, conferido_em, conferencia, fornecedor:ibk_fornecedores(nome), ibk_lote_itens(custo_total, tipo, qtd)")
         .order("data", { ascending: false })
         .limit(50),
     ]);
@@ -202,22 +206,60 @@ export function ComprasClient() {
               <th className="p-3">Descrição</th>
               <th className="p-3">Itens</th>
               <th className="p-3">Total</th>
+              <th className="p-3">Conferência</th>
             </tr>
           </thead>
           <tbody className="cascata">
-            {loading && <SkeletonRows cols={5} />}
+            {loading && <SkeletonRows cols={6} />}
             {!loading && lotes.length === 0 && (
-              <tr><td colSpan={5} className="p-6 text-center text-[var(--ink)]/50">nenhuma compra registrada. clique em "+ Nova compra".</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-[var(--ink)]/50">nenhuma compra registrada. clique em "+ Nova compra".</td></tr>
             )}
-            {lotes.map((l) => (
-              <tr key={l.id} className="border-b border-[var(--purple)]/6 last:border-0">
-                <td className="p-3">{new Date(l.data).toLocaleDateString("pt-BR")}</td>
-                <td className="p-3 text-[var(--ink)]/70">{l.fornecedor?.nome ?? "-"}</td>
-                <td className="p-3 text-[var(--ink)]/70">{l.descricao ?? "-"}</td>
-                <td className="p-3">{l.ibk_lote_itens.length}</td>
-                <td className="p-3 font-bold text-[var(--purple-dark)]">{brl(totalLote(l))}</td>
-              </tr>
-            ))}
+            {lotes.map((l) => {
+              const c = l.conferencia;
+              const pendencia = c && (c.qtd_recebida < c.qtd_pedida || !c.etiqueta_ok || !c.cordoes_ok || c.avarias > 0);
+              const unidades = l.ibk_lote_itens.filter((i) => i.tipo === "mercadoria").reduce((s, i) => s + Number(i.qtd || 0), 0);
+              return (
+                <Fragment key={l.id}>
+                  <tr className="border-b border-[var(--purple)]/6 last:border-0">
+                    <td className="p-3">{new Date(l.data + "T12:00:00").toLocaleDateString("pt-BR")}</td>
+                    <td className="p-3 text-[var(--ink)]/70">{l.fornecedor?.nome ?? "-"}</td>
+                    <td className="p-3 text-[var(--ink)]/70">{l.descricao ?? "-"}</td>
+                    <td className="num p-3">{l.ibk_lote_itens.length}</td>
+                    <td className="num p-3 font-bold text-[var(--purple-dark)]">{brl(totalLote(l))}</td>
+                    <td className="p-3">
+                      {l.conferido_em ? (
+                        <button
+                          onClick={() => setConferindo(conferindo === l.id ? null : l.id)}
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${pendencia ? "bg-red-100 text-red-600" : "bg-emerald-100 text-emerald-700"}`}
+                        >
+                          {pendencia ? "com pendência" : "conferido"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setConferindo(conferindo === l.id ? null : l.id)}
+                          className="rounded-lg bg-[var(--sun)]/40 px-2.5 py-1 text-xs font-bold text-[var(--ink)] hover:bg-[var(--sun)]/70"
+                        >
+                          conferir
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {conferindo === l.id && (
+                    <tr className="border-b border-[var(--purple)]/6">
+                      <td colSpan={6} className="p-3">
+                        <ConferirLote
+                          loteId={l.id}
+                          qtdPedida={unidades}
+                          atual={c}
+                          onFechar={() => setConferindo(null)}
+                          onSalvo={() => { setConferindo(null); carregar(); }}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

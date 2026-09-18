@@ -126,7 +126,8 @@ export function PainelClient() {
 
   // caixa
   const entradas = movs.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0);
-  const saidas = movs.filter((m) => m.tipo === "saida").reduce((s, m) => s + m.valor, 0);
+  // saldo real: conta a pagar ainda nao saiu do caixa (aparece separada, embaixo)
+  const saidas = movs.filter((m) => m.tipo === "saida" && m.pago).reduce((s, m) => s + m.valor, 0);
   const caixa = entradas - saidas;
   const aPagar = movs.filter((m) => !m.pago).reduce((s, m) => s + m.valor, 0);
 
