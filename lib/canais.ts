@@ -15,15 +15,23 @@ export type CanalTaxas = {
   taxa_fixa: number;
   faixas?: Faixa[] | null;
   taxa_fixa_por_item?: boolean | null;
+  // programa opcional em cima da comissao (ex: Programa Frete Gratis, +6%)
+  programa_pct?: number | null;
+  programa_ativo?: boolean | null;
 };
+
+/* percentual extra do programa, so quando a loja aderiu */
+export const programaPct = (canal: CanalTaxas | undefined) =>
+  canal?.programa_ativo && canal.programa_pct ? canal.programa_pct : 0;
 
 /** Devolve a comissao e a tarifa fixa que valem para este preco. */
 export function taxaDoPreco(canal: CanalTaxas | undefined, preco: number) {
   if (!canal) return { pct: 0.2, fixo: 0 };
 
+  const extra = programaPct(canal);
   const faixas = Array.isArray(canal.faixas) ? canal.faixas : [];
   if (faixas.length === 0) {
-    return { pct: canal.taxa_pct, fixo: canal.taxa_fixa };
+    return { pct: canal.taxa_pct + extra, fixo: canal.taxa_fixa };
   }
 
   // da menor para a maior; "ate: null" e a ultima, sem teto
@@ -34,10 +42,10 @@ export function taxaDoPreco(canal: CanalTaxas | undefined, preco: number) {
   });
 
   for (const f of ordenadas) {
-    if (f.ate === null || preco < f.ate) return { pct: f.pct, fixo: f.fixo };
+    if (f.ate === null || preco < f.ate) return { pct: f.pct + extra, fixo: f.fixo };
   }
   const ultima = ordenadas[ordenadas.length - 1];
-  return { pct: ultima.pct, fixo: ultima.fixo };
+  return { pct: ultima.pct + extra, fixo: ultima.fixo };
 }
 
 export type ItemVenda = { precoUnit: number; qtd: number };
@@ -91,11 +99,15 @@ export function calcularTaxas(
 /** Texto curto da regra, para explicar na tela de onde saiu a taxa. */
 export function descreverFaixas(canal: CanalTaxas | undefined) {
   const faixas = canal && Array.isArray(canal.faixas) ? canal.faixas : [];
-  if (faixas.length === 0) return null;
-  return faixas
-    .map((f) => {
-      const onde = f.ate === null ? "acima disso" : `até R$ ${f.ate}`;
-      return `${onde}: ${Math.round(f.pct * 1000) / 10}% + R$ ${f.fixo.toFixed(2).replace(".", ",")}`;
-    })
-    .join(" · ");
+  const extra = programaPct(canal);
+  const sufixo = extra > 0 ? ` (+ ${Math.round(extra * 1000) / 10}% do programa)` : "";
+  if (faixas.length === 0) return extra > 0 ? `comissão${sufixo}` : null;
+  return (
+    faixas
+      .map((f) => {
+        const onde = f.ate === null ? "acima disso" : `até R$ ${f.ate}`;
+        return `${onde}: ${Math.round(f.pct * 1000) / 10}% + R$ ${f.fixo.toFixed(2).replace(".", ",")}`;
+      })
+      .join(" · ") + sufixo
+  );
 }
