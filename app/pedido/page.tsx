@@ -5,6 +5,8 @@ import { Assistant } from "../Assistant";
 import { jsonLdScript, listaDeProdutos, perguntas, FAQ } from "@/lib/seo";
 import { POSTS } from "@/lib/posts";
 import { EMPRESA } from "@/lib/empresa";
+import { Saida } from "../Saida";
+import { precoNumero } from "@/lib/pixel";
 
 export const metadata: Metadata = {
   // titulo escrito para a busca ("kit de roupa infantil"), nao so para a marca
@@ -202,16 +204,12 @@ function LinkCard({ link }: { link: BioLink }) {
         {inner}
       </div>
     );
+  const evento =
+    link.anchor === "promos" ? "Lead" : /wa\.me/.test(link.href) ? "Contact" : link.anchor === "loja" ? "InitiateCheckout" : "ViewContent";
   return (
-    <a
-      id={link.anchor}
-      href={link.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="w-full scroll-mt-4"
-    >
+    <Saida id={link.anchor} href={link.href} evento={evento} params={{ content_name: link.title }} className="w-full scroll-mt-4">
       {inner}
-    </a>
+    </Saida>
   );
 }
 
@@ -291,9 +289,14 @@ function ProdutoCard({ produto, prioridade }: { produto: Produto; prioridade?: b
 
   if (!produto.href) return inner;
   return (
-    <a href={produto.href} target="_blank" rel="noopener noreferrer" className="block h-full">
+    <Saida
+      href={produto.href}
+      evento="InitiateCheckout"
+      params={{ content_name: produto.nome, content_type: "product", value: precoNumero(produto.preco), num_items: 1 }}
+      className="block h-full"
+    >
       {inner}
-    </a>
+    </Saida>
   );
 }
 
@@ -317,10 +320,10 @@ function VitrineSecao({ vitrine }: { vitrine: Vitrine }) {
           ))}
         </div>
       ) : (
-        <a
+        <Saida
           href={LOJA_SHOPEE}
-          target="_blank"
-          rel="noopener noreferrer"
+          evento="InitiateCheckout"
+          params={{ content_name: "lojinha" }}
           className="block rounded-3xl border-2 border-dashed border-[var(--purple)]/25 bg-white/60 p-5 text-center"
         >
           <p className="text-sm text-[var(--ink)]/70">
@@ -329,7 +332,7 @@ function VitrineSecao({ vitrine }: { vitrine: Vitrine }) {
           <span className="mt-2 inline-block text-sm font-extrabold text-[var(--purple)]">
             ver na Shopee →
           </span>
-        </a>
+        </Saida>
       )}
     </section>
   );

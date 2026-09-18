@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { pixel } from "@/lib/pixel";
 
 /*
   Ursinha do Imperio: atendente que direciona a cliente pra vitrine, pra loja
@@ -151,6 +152,7 @@ function Chat({ onClose }: { onClose: () => void }) {
             (idade ? `\nÉ para: ${idade}` : "") +
             `\n${d.key === "duvida" ? "Tenho uma dúvida." : "Quero fazer um pedido."}`,
         );
+    pixel(d.key === "promos" ? "Lead" : d.url ? "InitiateCheckout" : "Contact", { content_name: `ursinha: ${d.key}` });
     window.open(destinoUrl, "_blank", "noopener,noreferrer");
     onClose();
   };
