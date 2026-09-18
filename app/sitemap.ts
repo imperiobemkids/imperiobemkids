@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { POSTS } from "@/lib/posts";
+import { listarProdutosPublicos } from "@/lib/produtosPublicos";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://imperiobemkids.vercel.app";
 
@@ -7,10 +8,11 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://imperiobemkids.vercel.
   Sitemap das paginas publicas. O /admin e o /portal ficam de fora
   de proposito: sao area interna e estao marcados como noindex.
 */
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const paginas = [
     { url: "", priority: 1 },
     { url: "/pedido", priority: 0.9 },
+    { url: "/produtos", priority: 0.9 },
     { url: "/sobre", priority: 0.7 },
     { url: "/blog", priority: 0.8 },
     { url: "/trocas", priority: 0.4 },
@@ -27,5 +29,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...paginas, ...posts];
+  const produtos = (await listarProdutosPublicos()).map((p) => ({
+    url: `${SITE}/produto/${p.slug}`,
+    lastModified: new Date(),
+    priority: 0.8,
+  }));
+
+  return [...paginas, ...produtos, ...posts];
 }

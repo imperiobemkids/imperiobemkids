@@ -339,6 +339,32 @@ export function FichaClient({ id }: { id: string }) {
               />
             )}
 
+            {/* pagina propria no site: publicado + endereco + foto */}
+            {!produto.produto_pai_id && (
+              <div className="mb-4 flex flex-wrap items-end gap-2 rounded-2xl border border-[var(--purple)]/10 bg-[var(--cream)]/60 p-3">
+                <Campo label="No site">
+                  <select value={form.publicado === "true" ? "true" : "false"} onChange={(e) => set("publicado", e.target.value)} className={inp}>
+                    <option value="false">escondido</option>
+                    <option value="true">publicado</option>
+                  </select>
+                </Campo>
+                <Campo label="Endereço (slug)">
+                  <input value={form.slug ?? ""} onChange={(e) => set("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-"))} placeholder="kit-4-pecas-verao-menina" className={`${inp} w-64`} />
+                </Campo>
+                <Campo label="Foto" dica="caminho em /produtos ou URL">
+                  <input value={form.foto_url ?? ""} onChange={(e) => set("foto_url", e.target.value)} placeholder="/produtos/kit-verao-menina.jpg" className={`${inp} w-64`} />
+                </Campo>
+                {form.publicado === "true" && form.slug && (
+                  <a href={`/produto/${form.slug}`} target="_blank" rel="noopener noreferrer" className="pb-2 text-xs font-bold text-[var(--purple)] underline">
+                    abrir página
+                  </a>
+                )}
+                <p className="w-full text-[11px] text-[var(--ink)]/50">
+                  a página usa o texto do canal &quot;Site proprio&quot; (ou o primeiro que existir), o preço de venda, as especificações e os tamanhos com estoque. Regera em até 1 hora.
+                </p>
+              </div>
+            )}
+
             <div className="mb-4">
               <Campo label="Palavras-chave" larga dica="separadas por vírgula, valem para todos os canais">
                 <input value={form.palavras_chave ?? ""} onChange={(e) => set("palavras_chave", e.target.value)} placeholder="conjunto infantil, roupa menino, kit verão" className={inp} />

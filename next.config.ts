@@ -37,6 +37,8 @@ const headers = [
 ];
 
 const nextConfig: NextConfig = {
+  // foto de produto pode vir do Storage do Supabase, alem de /public
+  images: { remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }] },
   async headers() {
     return [{ source: "/(.*)", headers }];
   },
