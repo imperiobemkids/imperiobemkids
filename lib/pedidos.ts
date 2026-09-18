@@ -158,6 +158,10 @@ export async function registrarVenda(v: NovaVendaDados): Promise<{ id: string } 
       entregue_em: v.entregueEm ?? null,
       nf_numero: v.nfNumero ?? null,
       obs: v.obs ?? null,
+      // canal sem taxa (loja fisica, WhatsApp/Pix) recebe no ato: nao tem repasse a conciliar
+      ...(v.comissao === 0 && v.taxaFixa === 0
+        ? { recebido: Math.round((v.total - (v.frete ?? 0)) * 100) / 100, data_recebimento: v.data, obs_conciliacao: "recebido no ato" }
+        : {}),
     })
     .select("id")
     .single();

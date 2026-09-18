@@ -84,7 +84,8 @@ export function DetalheVenda({
   const [nfNumero, setNfNumero] = useState(venda.nf_numero ?? "");
   const [nfChave, setNfChave] = useState(venda.nf_chave ?? "");
   const [pedidoExterno, setPedidoExterno] = useState(venda.pedido_externo ?? "");
-  const [confirmando, setConfirmando] = useState<"cancelar" | null>(null);
+  const [confirmando, setConfirmando] = useState<"cancelar" | "devolver" | null>(null);
+  const [custoDev, setCustoDev] = useState("0");
   const status: StatusPedido = venda.status ?? (venda.devolvida ? "devolvido" : "entregue");
 
   const mudarStatus = async (novo: StatusPedido) => {
@@ -126,6 +127,16 @@ export function DetalheVenda({
     setErro("");
     setSalvando(true);
     const erro = await estornarVenda(venda, "cancelado", 0);
+    setSalvando(false);
+    if (erro) return setErro(erro);
+    onSalvo();
+  };
+
+  /* devolucao: peca volta, caixa estorna, e sobra o custo (frete reverso, taxa retida) */
+  const devolver = async () => {
+    setErro("");
+    setSalvando(true);
+    const erro = await estornarVenda(venda, "devolvido", num(custoDev));
     setSalvando(false);
     if (erro) return setErro(erro);
     onSalvo();
@@ -298,6 +309,25 @@ export function DetalheVenda({
                   marcar entregue
                 </button>
               )}
+              {status === "entregue" &&
+                (confirmando === "devolver" ? (
+                  <span className="fade-in flex flex-wrap items-end gap-1.5 text-xs">
+                    <label className="flex flex-col gap-0.5 text-[10px] font-bold uppercase text-[var(--ink)]/70">
+                      custo da devolução (frete reverso, taxa retida)
+                      <input value={custoDev} onChange={(e) => setCustoDev(e.target.value)} inputMode="decimal" autoFocus className={`${inp} num w-24 normal-case`} />
+                    </label>
+                    <button onClick={devolver} disabled={salvando} className="rounded-lg bg-red-500 px-2.5 py-1.5 text-xs font-extrabold text-white disabled:opacity-60">
+                      {salvando ? "..." : "devolver"}
+                    </button>
+                    <button onClick={() => setConfirmando(null)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1.5 text-xs font-bold text-[var(--purple)]">
+                      não
+                    </button>
+                  </span>
+                ) : (
+                  <button onClick={() => setConfirmando("devolver")} className={btnS}>
+                    registrar devolução
+                  </button>
+                ))}
             </div>
           </div>
 

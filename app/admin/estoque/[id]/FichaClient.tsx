@@ -8,7 +8,7 @@ import { ajusteEstoque } from "@/lib/estoque";
 import { SetupCard } from "../../SetupCard";
 import { KardexModal } from "../KardexModal";
 import { GerarVariacoes } from "../GerarVariacoes";
-import { SkeletonCards } from "../../ui";
+import { SkeletonCards, Confirmar } from "../../ui";
 import { CodigosCanal } from "./CodigosCanal";
 import { ArrowLeft } from "@phosphor-icons/react";
 
@@ -161,9 +161,9 @@ export function FichaClient({ id }: { id: string }) {
     carregar();
   };
 
+  const [arquivando, setArquivando] = useState(false);
   const arquivar = async () => {
     if (!supabase) return;
-    if (!confirm("Arquivar este produto? Ele sai da lista de estoque.")) return;
     await supabase.from("ibk_produtos").update({ ativo: false }).eq("id", id);
     router.push("/admin/estoque");
   };
@@ -529,9 +529,13 @@ export function FichaClient({ id }: { id: string }) {
         <button onClick={salvar} disabled={salvando} className="rounded-xl bg-[var(--purple)] px-5 py-2.5 text-sm font-extrabold text-white hover:bg-[var(--purple-dark)] disabled:opacity-60">
           {salvando ? "salvando..." : "salvar ficha"}
         </button>
-        <button onClick={arquivar} className="ml-auto rounded-xl px-4 py-2.5 text-sm font-bold text-red-400 hover:text-red-600">
+        {arquivando ? (
+          <span className="ml-auto"><Confirmar texto="sai da lista de estoque (as vendas ficam). arquivar?" sim="arquivar" onSim={arquivar} onNao={() => setArquivando(false)} /></span>
+        ) : (
+        <button onClick={() => setArquivando(true)} className="ml-auto rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--ink)]/55 hover:text-red-600">
           arquivar produto
         </button>
+        )}
       </div>
 
       {verKardex && (

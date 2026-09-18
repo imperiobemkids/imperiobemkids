@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { CaretLeft, CaretRight, Check, X, Plus } from "@phosphor-icons/react";
-import { SkeletonCards, Vazio, btnPrimario } from "../ui";
+import { SkeletonCards, Vazio, Confirmar, btnPrimario } from "../ui";
 
 /*
   Visao semanal: uma coluna por dia (segunda a domingo) e, dentro dela, o que
@@ -147,9 +147,10 @@ export function TarefasClient() {
     carregar();
   };
 
+  const [removendo, setRemovendo] = useState<string | null>(null);
   const remover = async (r: Rotina) => {
     if (!supabase) return;
-    if (!confirm(`Tirar "${r.titulo}" do board? O histórico de marcações fica guardado.`)) return;
+    setRemovendo(null);
     const { error } = await supabase.from("ibk_rotinas").update({ ativo: false }).eq("id", r.id);
     if (error) setErro(error.message);
     else carregar();
@@ -341,7 +342,8 @@ export function TarefasClient() {
                         const feito = checks.has(`${r.id}|${data}`);
                         const passou = data < hoje && !feito;
                         return (
-                          <li key={r.id} className="group flex items-start gap-1">
+                          <Fragment key={r.id}>
+                          <li className="group flex items-start gap-1">
                             <button
                               onClick={() => alternar(r, data)}
                               className={`flex flex-1 items-start gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold leading-snug transition-colors ${
@@ -366,13 +368,19 @@ export function TarefasClient() {
                               <span className={feito ? "line-through opacity-70" : ""}>{r.titulo}</span>
                             </button>
                             <button
-                              onClick={() => remover(r)}
+                              onClick={() => setRemovendo(r.id)}
                               aria-label="Remover rotina"
                               className="mt-1 text-[10px] font-bold text-[var(--ink)]/0 transition-colors hover:text-red-500 group-hover:text-[var(--ink)]/55"
                             >
                               <X size={12} weight="bold" />
                             </button>
                           </li>
+                          {removendo === r.id && (
+                            <li className="px-2 py-1">
+                              <Confirmar texto="tirar do board? o histórico fica." sim="tirar" onSim={() => remover(r)} onNao={() => setRemovendo(null)} />
+                            </li>
+                          )}
+                          </Fragment>
                         );
                       })}
                     </ul>

@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { X } from "@phosphor-icons/react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
-import { STATUS, estornada, estornarVenda, situacaoDespacho, hojeIso, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
+import { STATUS, estornada, situacaoDespacho, hojeIso, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
 import { NovaVenda, type ProdutoVenda } from "./NovaVenda";
 import { DetalheVenda, type VendaDetalhe } from "./DetalheVenda";
 import type { Canal } from "../canais/CanaisClient";
@@ -132,19 +132,6 @@ export function VendasClient() {
     Devolucao: devolve a peca ao estoque, estorna a venda e a taxa no caixa e
     lanca o custo da devolucao (frete reverso + parte da comissao que nao volta).
   */
-  const devolver = async (v: VendaRow) => {
-    const resposta = prompt(
-      `Devolver a venda de ${brl(v.preco_venda)}?\n\nQuanto essa devolução vai custar (frete reverso + comissão que a Shopee não devolve)?`,
-      "0",
-    );
-    if (resposta === null) return;
-    const custoDev = parseFloat(resposta.replace(",", ".")) || 0;
-    setErro("");
-    const erro = await estornarVenda(v, "devolvido", custoDev);
-    if (erro) setErro(erro);
-    carregar();
-  };
-
   /*
     Ads por produto, ultimos 30 dias: gasto lancado no caixa apontando pro
     produto x o que esse produto (e suas variacoes) vendeu no periodo.
@@ -389,7 +376,7 @@ export function VendasClient() {
                         detalhes
                       </button>
                       {v.status === "entregue" && (
-                        <button onClick={() => devolver(v)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/70 hover:text-red-600 lg:block" title="registrar devolução">
+                        <button onClick={() => setDetalhe(v as unknown as VendaDetalhe)} className="hidden rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/70 hover:text-red-600 lg:block" title="registrar devolução no detalhe">
                           devolver
                         </button>
                       )}

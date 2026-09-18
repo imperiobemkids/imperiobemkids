@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
-import { SkeletonRows } from "../ui";
+import { SkeletonRows, Confirmar } from "../ui";
+import { hojeIso, dataBr } from "@/lib/formato";
 
 type Venda = {
   id: string;
@@ -58,30 +59,26 @@ export function ConciliacaoClient() {
 
   if (!supabaseConfigured) return <SetupCard />;
 
+  // conciliacao inline: a linha abre um campo com o valor esperado e uma obs
+  const [conciliando, setConciliando] = useState<string | null>(null);
+  const [recebidoTxt, setRecebidoTxt] = useState("");
+  const [obsTxt, setObsTxt] = useState("");
+  const [desfazendo, setDesfazendo] = useState<string | null>(null);
+
+  const abrirConciliar = (v: Venda) => {
+    setConciliando(v.id);
+    setRecebidoTxt(esperado(v).toFixed(2).replace(".", ","));
+    setObsTxt("");
+  };
+
   const conciliar = async (v: Venda) => {
     if (!supabase) return;
-    const sugestao = esperado(v).toFixed(2).replace(".", ",");
-    const resposta = prompt(
-      `Venda de ${brl(v.preco_venda)} em ${v.canal}.\n\nEsperado receber: ${brl(esperado(v))}\n\nQuanto caiu de verdade na conta?`,
-      sugestao,
-    );
-    if (resposta === null) return;
-    const valor = parseFloat(resposta.replace(",", ".")) || 0;
+    const valor = parseFloat(recebidoTxt.replace(/\./g, "").replace(",", ".")) || 0;
     const dif = valor - esperado(v);
-    let obs: string | null = null;
-    if (Math.abs(dif) >= 0.01) {
-      obs = prompt(
-        `Diferença de ${brl(dif)}. O que explica? (opcional)\n\nEx: taxa de campanha, frete debitado, estorno parcial.`,
-        "",
-      );
-    }
+    const obs = obsTxt.trim() || null;
     const { error } = await supabase
       .from("ibk_vendas")
-      .update({
-        recebido: valor,
-        data_recebimento: new Date().toISOString().slice(0, 10),
-        obs_conciliacao: obs || null,
-      })
+      .update({ recebido: valor, data_recebimento: hojeIso(), obs_conciliacao: obs })
       .eq("id", v.id);
     if (error) { setErro(error.message); return; }
 
@@ -95,12 +92,13 @@ export function ConciliacaoClient() {
         ref_venda_id: v.id,
       });
     }
+    setConciliando(null);
     carregar();
   };
 
   const desfazer = async (v: Venda) => {
     if (!supabase) return;
-    if (!confirm("Desfazer a conciliação desta venda?")) return;
+    setDesfazendo(null);
     await supabase
       .from("ibk_vendas")
       .update({ recebido: null, data_recebimento: null, obs_conciliacao: null })
@@ -108,8 +106,11 @@ export function ConciliacaoClient() {
     carregar();
   };
 
-  const pendentes = vendas.filter((v) => v.recebido === null);
-  const conciliadas = vendas.filter((v) => v.recebido !== null);
+  // venda direta (sem comissao nem fixa) e recebida no ato: fica fora da conciliacao
+  const marketplace = vendas.filter((v) => v.taxa_pct > 0 || (v.taxa_fixa ?? 0) > 0);
+  const diretas = vendas.length - marketplace.length;
+  const pendentes = marketplace.filter((v) => v.recebido === null);
+  const conciliadas = marketplace.filter((v) => v.recebido !== null);
   const lista = aba === "pendentes" ? pendentes : conciliadas;
 
   const aReceber = pendentes.reduce((s, v) => s + esperado(v), 0);
@@ -194,7 +195,7 @@ export function ConciliacaoClient() {
               const dif = (v.recebido ?? 0) - esp;
               return (
                 <tr key={v.id} className="border-b border-[var(--purple)]/6 last:border-0">
-                  <td className="p-3">{new Date(v.data).toLocaleDateString("pt-BR")}</td>
+                  <td className="p-3">{dataBr(v.data)}</td>
                   <td className="p-3 capitalize">{v.canal}</td>
                   <td className="p-3">{brl(v.preco_venda)}</td>
                   <td className="p-3 font-semibold">{brl(esp)}</td>
@@ -209,11 +210,30 @@ export function ConciliacaoClient() {
                   )}
                   <td className="p-3">
                     {v.recebido === null ? (
-                      <button onClick={() => conciliar(v)} className="rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
-                        conciliar
-                      </button>
+                      conciliando === v.id ? (
+                        <div className="fade-in flex flex-wrap items-end gap-2">
+                          <label className="flex flex-col gap-0.5 text-[10px] font-bold uppercase text-[var(--ink)]/70">
+                            caiu na conta
+                            <input value={recebidoTxt} onChange={(e) => setRecebidoTxt(e.target.value)} inputMode="decimal" autoFocus onKeyDown={(e) => e.key === "Enter" && conciliar(v)} className="num w-24 rounded-lg border border-[var(--purple)]/20 px-2 py-1 text-sm font-bold normal-case outline-none focus:border-[var(--purple)]" />
+                          </label>
+                          {Math.abs((parseFloat(recebidoTxt.replace(/\./g, "").replace(",", ".")) || 0) - esperado(v)) >= 0.01 && (
+                            <label className="flex flex-col gap-0.5 text-[10px] font-bold uppercase text-[var(--ink)]/70">
+                              o que explica a diferença
+                              <input value={obsTxt} onChange={(e) => setObsTxt(e.target.value)} placeholder="taxa de campanha, frete debitado..." className="w-44 rounded-lg border border-[var(--purple)]/20 px-2 py-1 text-sm font-normal normal-case outline-none focus:border-[var(--purple)]" />
+                            </label>
+                          )}
+                          <button onClick={() => conciliar(v)} className="rounded-lg bg-[var(--purple)] px-3 py-1.5 text-xs font-extrabold text-white hover:bg-[var(--purple-dark)]">confirmar</button>
+                          <button onClick={() => setConciliando(null)} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1.5 text-xs font-bold text-[var(--purple)]">cancelar</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => abrirConciliar(v)} className="rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
+                          conciliar
+                        </button>
+                      )
+                    ) : desfazendo === v.id ? (
+                      <Confirmar texto="desfazer a conciliação?" sim="desfazer" onSim={() => desfazer(v)} onNao={() => setDesfazendo(null)} />
                     ) : (
-                      <button onClick={() => desfazer(v)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/65 hover:text-red-500">
+                      <button onClick={() => setDesfazendo(v.id)} className="rounded-lg px-2 py-1 text-xs font-bold text-[var(--ink)]/65 hover:text-red-500">
                         desfazer
                       </button>
                     )}

@@ -94,6 +94,36 @@ export function Sparkline({ valores, cor = "var(--purple)" }: { valores: number[
   );
 }
 
+/*
+  Confirmacao inline, no lugar do confirm() do navegador: pergunta curta e
+  dois botoes, na propria linha. Quem chama controla quando mostrar.
+*/
+export function Confirmar({
+  texto,
+  sim = "sim",
+  onSim,
+  onNao,
+  ocupado,
+}: {
+  texto: string;
+  sim?: string;
+  onSim: () => void;
+  onNao: () => void;
+  ocupado?: boolean;
+}) {
+  return (
+    <span className="fade-in inline-flex flex-wrap items-center gap-1.5 text-xs">
+      <span className="font-semibold text-[var(--ink)]/80">{texto}</span>
+      <button onClick={onSim} disabled={ocupado} className="rounded-lg bg-red-500 px-2.5 py-1 font-extrabold text-white hover:bg-red-600 disabled:opacity-60">
+        {ocupado ? "..." : sim}
+      </button>
+      <button onClick={onNao} className="rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
+        não
+      </button>
+    </span>
+  );
+}
+
 export function Vazio({
   emoji,
   titulo,

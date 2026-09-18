@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
-import { SkeletonCards, Vazio } from "../ui";
+import { SkeletonCards, Vazio, Confirmar } from "../ui";
 
 type Fornecedor = {
   id: string;
@@ -74,9 +74,10 @@ export function FornecedoresClient() {
     carregar();
   };
 
+  const [removendo, setRemovendo] = useState<string | null>(null);
   const remover = async (f: Fornecedor) => {
     if (!supabase) return;
-    if (!confirm(`Remover o fornecedor "${f.nome}"? Os SKUs ligados a ele ficam sem fornecedor.`)) return;
+    setRemovendo(null);
     const { error } = await supabase.from("ibk_fornecedores").delete().eq("id", f.id);
     if (error) setErro(error.message);
     else carregar();
@@ -147,9 +148,15 @@ export function FornecedoresClient() {
                 {f.ibk_produtos?.[0]?.count ?? 0} SKUs
               </span>
             </div>
-            <button onClick={() => remover(f)} className="mt-2 text-xs font-bold text-red-400 hover:text-red-600">
-              remover
-            </button>
+            {removendo === f.id ? (
+              <div className="mt-2">
+                <Confirmar texto="os SKUs ligados ficam sem fornecedor. remover?" onSim={() => remover(f)} onNao={() => setRemovendo(null)} />
+              </div>
+            ) : (
+              <button onClick={() => setRemovendo(f.id)} className="mt-2 text-xs font-bold text-[var(--ink)]/55 hover:text-red-600">
+                remover
+              </button>
+            )}
           </div>
         ))}
       </div>
