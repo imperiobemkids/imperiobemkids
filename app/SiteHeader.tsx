@@ -8,7 +8,7 @@ import Image from "next/image";
 */
 const NAV = [
   { href: "/", label: "Home" },
-  { href: "/produtos", label: "Produtos" },
+  // "/produtos" existe mas fica fora do menu ate a vitrine propria virar prioridade
   { href: "/sobre", label: "Sobre" },
   { href: "/blog", label: "Blog" },
   { href: "/pedido", label: "Achadinhos" },

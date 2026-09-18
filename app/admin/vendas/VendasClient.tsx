@@ -51,7 +51,7 @@ type VendaRow = {
     qtd: number;
     preco_unit: number;
     produto_id: string | null;
-    produto: { nome: string | null; tamanho: string | null; cor: string | null; custo_unit: number } | null;
+    produto: { nome: string | null; tamanho: string | null; cor: string | null; custo_unit: number; produto_pai_id: string | null } | null;
   }[];
 };
 
@@ -92,6 +92,7 @@ export function VendasClient() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [vendas, setVendas] = useState<VendaRow[]>([]);
   const [investido, setInvestido] = useState(0);
+  const [ads, setAds] = useState<{ valor: number; data: string; produto_id: string | null }[]>([]);
   const [canais, setCanais] = useState<Canal[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -113,20 +114,22 @@ export function VendasClient() {
         .order("created_at", { ascending: false }),
       supabase
         .from("ibk_vendas")
-        .select("*, ibk_venda_itens(qtd, preco_unit, produto_id, produto:ibk_produtos(nome, tamanho, cor, custo_unit))")
+        .select("*, ibk_venda_itens(qtd, preco_unit, produto_id, produto:ibk_produtos(nome, tamanho, cor, custo_unit, produto_pai_id))")
         .order("data", { ascending: false })
         .limit(50),
       supabase
         .from("ibk_movimentos")
-        .select("valor, categoria, tipo")
+        .select("valor, categoria, tipo, data, produto_id")
         .eq("tipo", "saida")
-        .in("categoria", ["mercadoria", "insumo", "capex"]),
+        .in("categoria", ["mercadoria", "insumo", "capex", "ads"]),
       supabase.from("ibk_canais").select("*").eq("ativo", true).order("ordem"),
     ]);
     if (error) setErro(error.message);
     setProdutos((prod as Produto[]) ?? []);
     setVendas((vend as VendaRow[]) ?? []);
-    setInvestido(((movs as { valor: number }[]) ?? []).reduce((s, m) => s + m.valor, 0));
+    const lista = (movs as { valor: number; categoria: string; data: string; produto_id: string | null }[]) ?? [];
+    setInvestido(lista.filter((m) => m.categoria !== "ads").reduce((s, m) => s + m.valor, 0));
+    setAds(lista.filter((m) => m.categoria === "ads"));
     setCanais((cans as Canal[]) ?? []);
     setLoading(false);
   }, []);
@@ -155,6 +158,40 @@ export function VendasClient() {
     if (erro) setErro(erro);
     carregar();
   };
+
+  /*
+    Ads por produto, ultimos 30 dias: gasto lancado no caixa apontando pro
+    produto x o que esse produto (e suas variacoes) vendeu no periodo.
+    ROAS = vendido / gasto. ACOS = gasto / vendido. So aparece se houver ads
+    ligado a produto.
+  */
+  const adsPorProduto = (() => {
+    const desde = new Date();
+    desde.setDate(desde.getDate() - 30);
+    const desdeIso = desde.toISOString().slice(0, 10);
+    const gasto = new Map<string, number>();
+    for (const a of ads) if (a.produto_id && a.data >= desdeIso) gasto.set(a.produto_id, (gasto.get(a.produto_id) ?? 0) + a.valor);
+    if (gasto.size === 0) return [];
+    const vendido = new Map<string, { valor: number; pedidos: Set<string> }>();
+    for (const v of vendas) {
+      if (estornada(v.status) || v.data < desdeIso) continue;
+      for (const it of v.ibk_venda_itens) {
+        const pai = it.produto?.produto_pai_id ?? it.produto_id;
+        if (!pai || !gasto.has(pai)) continue;
+        const r = vendido.get(pai) ?? { valor: 0, pedidos: new Set<string>() };
+        r.valor += it.preco_unit * it.qtd;
+        r.pedidos.add(v.id);
+        vendido.set(pai, r);
+      }
+    }
+    return [...gasto.entries()]
+      .map(([id, g]) => {
+        const p = produtos.find((x) => x.id === id);
+        const v = vendido.get(id);
+        return { id, nome: p ? (p.nome?.trim() || "Produto") : "produto", gasto: g, vendido: v?.valor ?? 0, pedidos: v?.pedidos.size ?? 0 };
+      })
+      .sort((x, y) => y.gasto - x.gasto);
+  })();
 
   // somas gerais (venda devolvida sai do faturamento)
   const totalVendido = vendas.filter((v) => !estornada(v.status)).reduce((s, v) => s + v.preco_venda, 0);
@@ -237,6 +274,46 @@ export function VendasClient() {
       </div>
 
       {/* lista de vendas */}
+      {/* ads por produto (30 dias) */}
+      {adsPorProduto.length > 0 && (
+        <div className="card mt-5 overflow-x-auto">
+          <div className="flex items-center justify-between px-4 pt-3">
+            <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">Ads por produto</h2>
+            <span className="text-[11px] text-[var(--ink)]/50">últimos 30 dias · gasto lançado no caixa com o produto</span>
+          </div>
+          <table className="mt-2 w-full min-w-[520px] text-sm">
+            <thead>
+              <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/45">
+                <th className="p-3 text-left">Produto</th>
+                <th className="p-3 text-right">Gasto</th>
+                <th className="p-3 text-right">Vendido</th>
+                <th className="p-3 text-right">Pedidos</th>
+                <th className="p-3 text-right">ROAS</th>
+                <th className="p-3 text-right">ACOS</th>
+              </tr>
+            </thead>
+            <tbody className="cascata">
+              {adsPorProduto.map((r) => {
+                const roas = r.gasto > 0 ? r.vendido / r.gasto : 0;
+                const acos = r.vendido > 0 ? r.gasto / r.vendido : 1;
+                // abaixo de 3x o anuncio come a margem de um kit a R$ 49,90 com 20% de taxa
+                const cor = roas >= 5 ? "text-emerald-600" : roas >= 3 ? "text-amber-600" : "text-red-500";
+                return (
+                  <tr key={r.id} className="border-b border-[var(--purple)]/6 last:border-0">
+                    <td className="p-3 font-semibold">{r.nome}</td>
+                    <td className="num p-3 text-right text-red-500">{brl(r.gasto)}</td>
+                    <td className="num p-3 text-right">{brl(r.vendido)}</td>
+                    <td className="num p-3 text-right">{r.pedidos}</td>
+                    <td className={`num p-3 text-right font-extrabold ${cor}`}>{roas.toFixed(1)}x</td>
+                    <td className={`num p-3 text-right ${cor}`}>{Math.round(acos * 100)}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* filtro por status; atrasado e o que mais importa ver primeiro */}
       <div className="mt-5 flex flex-wrap items-center gap-1.5">
         {(["todos", "aguardando", "enviado", "entregue", "cancelado", "devolvido"] as const).map((f) => {

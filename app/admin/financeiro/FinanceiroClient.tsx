@@ -28,7 +28,11 @@ type Mov = {
   data_pagamento: string | null;
   ref_venda_id: string | null;
   recorrencia_id: string | null;
+  produto_id: string | null;
 };
+
+type ProdutoRef = { id: string; nome: string | null; tamanho: string | null; produto_pai_id: string | null };
+const nomeProd = (p: ProdutoRef) => (p.nome?.trim() || "Produto") + (p.tamanho ? ` · ${p.tamanho}` : "");
 
 type Recorrencia = {
   id: string;
@@ -81,6 +85,8 @@ const somaMes = (d: string, meses: number) => {
 export function FinanceiroClient() {
   const [movs, setMovs] = useState<Mov[]>([]);
   const [recs, setRecs] = useState<Recorrencia[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoRef[]>([]);
+  const [produtoId, setProdutoId] = useState("");
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -102,10 +108,13 @@ export function FinanceiroClient() {
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [m, r] = await Promise.all([
+    const [m, r, p] = await Promise.all([
       supabase.from("ibk_movimentos").select("*").order("data", { ascending: false }).order("created_at", { ascending: false }).limit(300),
       supabase.from("ibk_recorrencias").select("*").order("dia_vencimento"),
+      // so produto pai ou avulso: o anuncio e do produto, nao da variacao
+      supabase.from("ibk_produtos").select("id, nome, tamanho, produto_pai_id").eq("ativo", true).is("produto_pai_id", null).order("nome"),
     ]);
+    setProdutos((p.data as ProdutoRef[]) ?? []);
     if (m.error) setErro(m.error.message);
     else setMovs((m.data as Mov[]) ?? []);
     // se a 0023 ainda nao rodou, r.error vem e as recorrencias so nao aparecem
@@ -143,6 +152,7 @@ export function FinanceiroClient() {
       forma_pagamento: formaPagamento || null,
       documento: documento.trim() || null,
       data_pagamento: pago ? data : null,
+      produto_id: categoria === "ads" && produtoId ? produtoId : null,
     });
     setSalvando(false);
     if (error) return setErro(error.message);
@@ -279,6 +289,14 @@ export function FinanceiroClient() {
         <Campo label="Descrição">
           <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="opcional" className={`${inp} w-48`} onKeyDown={(e) => e.key === "Enter" && adicionar()} />
         </Campo>
+        {categoria === "ads" && (
+          <Campo label="Produto anunciado">
+            <select value={produtoId} onChange={(e) => setProdutoId(e.target.value)} className={`${inp} max-w-[220px]`}>
+              <option value="">loja inteira</option>
+              {produtos.map((p) => (<option key={p.id} value={p.id}>{nomeProd(p)}</option>))}
+            </select>
+          </Campo>
+        )}
         <Campo label="Forma">
           <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} className={inp}>
             <option value="">não informada</option>
@@ -371,7 +389,7 @@ export function FinanceiroClient() {
                 editando === m.id ? (
                   <tr key={m.id} className="border-b border-[var(--purple)]/6 bg-[var(--purple)]/4">
                     <td colSpan={6} className="p-3">
-                      <EditarMov mov={m} onSalvar={(patch) => salvarEdicao(m, patch)} onRemover={() => remover(m)} onCancelar={() => setEditando(null)} />
+                      <EditarMov mov={m} produtos={produtos} onSalvar={(patch) => salvarEdicao(m, patch)} onRemover={() => remover(m)} onCancelar={() => setEditando(null)} />
                     </td>
                   </tr>
                 ) : (
@@ -383,6 +401,7 @@ export function FinanceiroClient() {
                         {m.documento && <span>{m.documento}</span>}
                         {m.ref_venda_id && <Link href="/admin/vendas" className="underline">da venda</Link>}
                         {m.recorrencia_id && <span className="flex items-center gap-0.5"><Repeat size={10} weight="bold" /> recorrente</span>}
+                        {m.produto_id && <span>ads: {produtos.find((p) => p.id === m.produto_id) ? nomeProd(produtos.find((p) => p.id === m.produto_id)!) : "produto"}</span>}
                         {!m.pago && (
                           <span className="rounded-full bg-[var(--sun)]/40 px-2 py-0.5 text-[10px] font-extrabold uppercase text-[var(--ink)]">a pagar</span>
                         )}
@@ -436,8 +455,9 @@ export function FinanceiroClient() {
 }
 
 /* edicao inline de um lancamento, com remover confirmado na propria linha */
-function EditarMov({ mov, onSalvar, onRemover, onCancelar }: { mov: Mov; onSalvar: (p: Partial<Mov>) => void; onRemover: () => void; onCancelar: () => void }) {
+function EditarMov({ mov, produtos, onSalvar, onRemover, onCancelar }: { mov: Mov; produtos: ProdutoRef[]; onSalvar: (p: Partial<Mov>) => void; onRemover: () => void; onCancelar: () => void }) {
   const [f, setF] = useState({
+    produto_id: mov.produto_id ?? "",
     data: mov.data,
     tipo: mov.tipo,
     categoria: mov.categoria,
@@ -473,6 +493,14 @@ function EditarMov({ mov, onSalvar, onRemover, onCancelar }: { mov: Mov; onSalva
         </Campo>
         <Campo label="Valor"><input value={f.valor} onChange={(e) => set("valor", e.target.value)} inputMode="decimal" className={`${inp} num w-24`} /></Campo>
         <Campo label="Descrição"><input value={f.descricao} onChange={(e) => set("descricao", e.target.value)} className={`${inp} w-48`} /></Campo>
+        {f.categoria === "ads" && (
+          <Campo label="Produto anunciado">
+            <select value={f.produto_id} onChange={(e) => set("produto_id", e.target.value)} className={`${inp} max-w-[220px]`}>
+              <option value="">loja inteira</option>
+              {produtos.map((p) => (<option key={p.id} value={p.id}>{nomeProd(p)}</option>))}
+            </select>
+          </Campo>
+        )}
         <Campo label="Forma">
           <select value={f.forma_pagamento} onChange={(e) => set("forma_pagamento", e.target.value)} className={inp}>
             <option value="">não informada</option>
@@ -504,6 +532,7 @@ function EditarMov({ mov, onSalvar, onRemover, onCancelar }: { mov: Mov; onSalva
               pago: f.pago,
               vencimento: !f.pago ? f.vencimento || null : null,
               data_pagamento: f.pago ? mov.data_pagamento ?? f.data : null,
+              produto_id: f.categoria === "ads" && f.produto_id ? f.produto_id : null,
             })
           }
           className={`flex items-center gap-1 ${btnPrimario}`}
