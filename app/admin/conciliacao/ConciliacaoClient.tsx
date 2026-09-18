@@ -37,6 +37,10 @@ export function ConciliacaoClient() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [aba, setAba] = useState<"pendentes" | "conciliadas">("pendentes");
+  const [conciliando, setConciliando] = useState<string | null>(null);
+  const [recebidoTxt, setRecebidoTxt] = useState("");
+  const [obsTxt, setObsTxt] = useState("");
+  const [desfazendo, setDesfazendo] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
@@ -60,10 +64,6 @@ export function ConciliacaoClient() {
   if (!supabaseConfigured) return <SetupCard />;
 
   // conciliacao inline: a linha abre um campo com o valor esperado e uma obs
-  const [conciliando, setConciliando] = useState<string | null>(null);
-  const [recebidoTxt, setRecebidoTxt] = useState("");
-  const [obsTxt, setObsTxt] = useState("");
-  const [desfazendo, setDesfazendo] = useState<string | null>(null);
 
   const abrirConciliar = (v: Venda) => {
     setConciliando(v.id);

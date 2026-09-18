@@ -61,6 +61,7 @@ export function TarefasClient() {
   const [titulo, setTitulo] = useState("");
   const [dias, setDias] = useState<number[]>([1, 2, 3, 4, 5]);
   const [salvando, setSalvando] = useState(false);
+  const [removendo, setRemovendo] = useState<string | null>(null);
 
   const hoje = isoLocal(new Date());
   const datas = useMemo(() => DIAS.map((d) => isoLocal(somarDias(semana, d.n - 1))), [semana]);
@@ -147,7 +148,6 @@ export function TarefasClient() {
     carregar();
   };
 
-  const [removendo, setRemovendo] = useState<string | null>(null);
   const remover = async (r: Rotina) => {
     if (!supabase) return;
     setRemovendo(null);

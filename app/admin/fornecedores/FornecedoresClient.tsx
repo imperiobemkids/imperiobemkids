@@ -20,6 +20,7 @@ export function FornecedoresClient() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [removendo, setRemovendo] = useState<string | null>(null);
 
   const [nome, setNome] = useState("");
   const [contato, setContato] = useState("");
@@ -74,7 +75,6 @@ export function FornecedoresClient() {
     carregar();
   };
 
-  const [removendo, setRemovendo] = useState<string | null>(null);
   const remover = async (f: Fornecedor) => {
     if (!supabase) return;
     setRemovendo(null);

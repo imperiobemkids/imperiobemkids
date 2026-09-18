@@ -10,6 +10,7 @@ import { KardexModal } from "../KardexModal";
 import { GerarVariacoes } from "../GerarVariacoes";
 import { SkeletonCards, Confirmar } from "../../ui";
 import { CodigosCanal } from "./CodigosCanal";
+import { GradeVariacoes } from "../GradeVariacoes";
 import { ArrowLeft } from "@phosphor-icons/react";
 
 type Produto = Record<string, unknown> & {
@@ -74,6 +75,7 @@ export function FichaClient({ id }: { id: string }) {
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
   const [canais, setCanais] = useState<Canal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [arquivando, setArquivando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const [ok, setOk] = useState(false);
@@ -161,7 +163,6 @@ export function FichaClient({ id }: { id: string }) {
     carregar();
   };
 
-  const [arquivando, setArquivando] = useState(false);
   const arquivar = async () => {
     if (!supabase) return;
     await supabase.from("ibk_produtos").update({ ativo: false }).eq("id", id);
@@ -274,20 +275,20 @@ export function FichaClient({ id }: { id: string }) {
               {variacoes.length > 0 ? (
                 <>
                   <p className="mt-1 text-sm text-[var(--ink)]/65">
-                    {variacoes.length} variações. O estoque fica em cada uma; clique para ajustar
-                    peso e dimensões, que mudam conforme o tamanho.
+                    {variacoes.length} variações. O estoque fica em cada uma: ajuste aqui com mais e menos,
+                    ou clique no número pra abrir a ficha da variação (peso e medidas mudam por tamanho).
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {variacoes.map((v) => (
-                      <Link
-                        key={v.id}
-                        href={`/admin/estoque/${v.id}`}
-                        className="rounded-full bg-[var(--purple)]/8 px-3 py-1.5 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16"
-                      >
-                        {[v.tamanho && `tam ${v.tamanho}`, v.cor as string].filter(Boolean).join(" · ") || "variação"}
-                        <span className="ml-1.5 text-[var(--ink)]/70">{String(v.qtd_atual)} un</span>
-                      </Link>
-                    ))}
+                  <div className="mt-3">
+                    <GradeVariacoes
+                      filhos={variacoes.map((v) => ({ id: v.id, tamanho: v.tamanho, cor: (v.cor as string) ?? null, qtd_atual: v.qtd_atual }))}
+                      minimo={produto.estoque_minimo ?? 0}
+                      comLink
+                      onAjustar={async (v, delta) => {
+                        const novo = Math.max(0, v.qtd_atual + delta);
+                        setVariacoes((arr) => arr.map((x) => (x.id === v.id ? { ...x, qtd_atual: novo } : x)));
+                        try { await ajusteEstoque(v.id, novo, delta > 0 ? "ajuste manual (+)" : "ajuste manual (-)"); } catch (e) { setErro(e instanceof Error ? e.message : "erro no ajuste"); }
+                      }}
+                    />
                   </div>
                 </>
               ) : produto.produto_pai_id ? (
