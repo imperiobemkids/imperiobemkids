@@ -248,6 +248,7 @@ export function ConciliacaoClient() {
       <p className="mt-3 text-xs text-[var(--ink)]/70">
         Esperado = preço − comissão − tarifa fixa − frete pago pela loja. Quando o valor recebido difere,
         o sistema lança a diferença no caixa para o saldo refletir o dinheiro real.
+        {diretas > 0 && ` ${diretas} ${diretas === 1 ? "venda direta" : "vendas diretas"} (loja física, WhatsApp) ${diretas === 1 ? "fica" : "ficam"} fora: dinheiro recebido no ato.`}
       </p>
     </div>
   );
