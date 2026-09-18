@@ -72,17 +72,32 @@ export function EstoqueClient() {
   const [aberto, setAberto] = useState(false);
   const [form, setForm] = useState<Form>(formVazio);
   const [kardex, setKardex] = useState<Produto | null>(null);
+  const [vendidos30, setVendidos30] = useState<Map<string, number>>(new Map()); // produto_id -> unidades nos ultimos 30 dias
+  const [reposicaoAberta, setReposicaoAberta] = useState(false);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [{ data, error }, { data: forns }] = await Promise.all([
+    const desde = new Date();
+    desde.setDate(desde.getDate() - 30);
+    const [{ data, error }, { data: forns }, { data: itens }] = await Promise.all([
       supabase.from("ibk_produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
       supabase.from("ibk_fornecedores").select("id, nome").order("nome"),
+      // giro: unidades vendidas por produto nos ultimos 30 dias (sem cancelada/devolvida)
+      supabase
+        .from("ibk_venda_itens")
+        .select("produto_id, qtd, venda:ibk_vendas!inner(data, status)")
+        .gte("venda.data", desde.toISOString().slice(0, 10))
+        .not("venda.status", "in", '("cancelado","devolvido")'),
     ]);
     if (error) setErro(error.message);
     else setRows((data as Produto[]) ?? []);
     setFornecedores((forns as Fornecedor[]) ?? []);
+    const m = new Map<string, number>();
+    for (const it of (itens as { produto_id: string | null; qtd: number }[]) ?? []) {
+      if (it.produto_id) m.set(it.produto_id, (m.get(it.produto_id) ?? 0) + it.qtd);
+    }
+    setVendidos30(m);
     setLoading(false);
   }, []);
 
@@ -177,6 +192,33 @@ export function EstoqueClient() {
       return { p: r, filhos, agregado };
     });
 
+  /*
+    Reposicao: o que esta abaixo do minimo ou zerado, com o giro dos ultimos
+    30 dias. Sugestao de compra = o que falta pra cobrir 30 dias de venda com
+    folga (1,5x) ou pra voltar ao dobro do minimo, o que for maior.
+  */
+  const reposicao = rows
+    .filter((p) => !p.tem_variacoes)
+    .map((p) => {
+      // variacao: o minimo do pai e do produto inteiro, entao rateia entre as variacoes
+      // (nunca abaixo de 1). O gerador copiou o minimo do pai em cada variacao; valor
+      // igual ao do pai conta como herdado, so um valor diferente e proprio da variacao.
+      const pai0 = p.produto_pai_id ? rows.find((x) => x.id === p.produto_pai_id) : null;
+      const irmas = pai0 ? rows.filter((x) => x.produto_pai_id === pai0.id).length || 1 : 1;
+      const proprio = pai0 && p.estoque_minimo != null && p.estoque_minimo !== (pai0.estoque_minimo ?? null);
+      const minimo = pai0 ? (proprio ? p.estoque_minimo! : Math.max(1, Math.ceil((pai0.estoque_minimo ?? 0) / irmas))) : (p.estoque_minimo ?? 0);
+      const giro = vendidos30.get(p.id) ?? 0;
+      const alvo = Math.max(Math.ceil(giro * 1.5), minimo * 2, giro > 0 || minimo > 0 ? 1 : 0);
+      const comprar = Math.max(0, alvo - p.qtd_atual);
+      const pai = p.produto_pai_id ? rows.find((x) => x.id === p.produto_pai_id) : null;
+      const nome = pai ? `${nomeExibido(pai)} · ${[p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ")}` : nomeExibido(p);
+      const dias = giro > 0 ? Math.floor(p.qtd_atual / (giro / 30)) : null;
+      return { p, nome, minimo, giro, comprar, dias, fornecedor: (pai ?? p).fornecedor_id };
+    })
+    .filter((r) => r.p.qtd_atual === 0 || r.p.qtd_atual < r.minimo || (r.dias !== null && r.dias < 15))
+    .filter((r) => r.comprar > 0 || r.p.qtd_atual === 0)
+    .sort((a, b) => (a.dias ?? 999) - (b.dias ?? 999) || a.p.qtd_atual - b.p.qtd_atual);
+
   const unidades = rows.reduce((s, p) => s + p.qtd_atual, 0);
   const valorEstoque = rows.reduce((s, p) => s + p.qtd_atual * p.custo_unit, 0);
   const fornMap = new Map(fornecedores.map((f) => [f.id, f.nome]));
@@ -200,6 +242,54 @@ export function EstoqueClient() {
       </div>
 
       {erro && !aberto && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
+
+      {/* reposicao */}
+      {!loading && reposicao.length > 0 && (
+        <div className={`card mt-5 border-2 ${reposicao.some((r) => r.p.qtd_atual === 0 && r.giro > 0) ? "border-red-300" : "border-[var(--sun)]"}`}>
+          <button onClick={() => setReposicaoAberta((v) => !v)} className="flex w-full items-center justify-between px-4 py-3 text-left">
+            <span className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
+              Reposição <span className="num rounded-full bg-[var(--purple)]/10 px-2 py-0.5 text-xs text-[var(--purple)]">{reposicao.length}</span>
+            </span>
+            <span className="text-xs font-bold text-[var(--purple)]">{reposicaoAberta ? "esconder" : "ver o que comprar"}</span>
+          </button>
+          {reposicaoAberta && (
+            <div className="overflow-x-auto border-t border-[var(--purple)]/10">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="text-[11px] uppercase text-[var(--ink)]/70">
+                    <th className="p-3 text-left">Produto</th>
+                    <th className="p-3 text-right">Estoque</th>
+                    <th className="p-3 text-right">Mínimo</th>
+                    <th className="p-3 text-right">Vendidos 30d</th>
+                    <th className="p-3 text-right">Dura</th>
+                    <th className="p-3 text-right">Comprar</th>
+                    <th className="p-3 text-left">Fornecedor</th>
+                  </tr>
+                </thead>
+                <tbody className="cascata">
+                  {reposicao.map((r) => (
+                    <tr key={r.p.id} className="border-t border-[var(--purple)]/6">
+                      <td className="p-3 font-semibold">{r.nome}</td>
+                      <td className={`num p-3 text-right font-bold ${r.p.qtd_atual === 0 ? "text-red-500" : "text-[var(--ink)]"}`}>{r.p.qtd_atual}</td>
+                      <td className="num p-3 text-right text-[var(--ink)]/70">{r.minimo || "-"}</td>
+                      <td className="num p-3 text-right">{r.giro || "-"}</td>
+                      <td className={`num p-3 text-right ${r.dias !== null && r.dias < 7 ? "text-red-500 font-bold" : "text-[var(--ink)]/70"}`}>
+                        {r.dias === null ? "-" : r.p.qtd_atual === 0 ? "acabou" : `${r.dias}d`}
+                      </td>
+                      <td className="num p-3 text-right font-extrabold text-[var(--purple-dark)]">{r.comprar}</td>
+                      <td className="p-3 text-[var(--ink)]/70">{r.fornecedor ? fornMap.get(r.fornecedor) ?? "-" : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-[var(--ink)]/70">
+                <span>entra quem está zerado, abaixo do mínimo ou com menos de 15 dias de estoque pelo giro. Sugestão = cobrir 30 dias de venda com folga (1,5x) ou voltar ao dobro do mínimo. Variação sem mínimo próprio rateia o mínimo do produto.</span>
+                <Link href="/admin/compras" className="font-bold text-[var(--purple)] hover:underline">registrar compra</Link>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* tabela */}
       {/*
