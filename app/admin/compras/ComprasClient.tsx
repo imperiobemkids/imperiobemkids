@@ -62,7 +62,7 @@ export function ComprasClient() {
     if (!supabase) return;
     setLoading(true);
     const [{ data: forns }, { data: prods }, { data: ls, error }] = await Promise.all([
-      supabase.from("ibk_fornecedores").select("id, nome").order("nome"),
+      supabase.from("ibk_fornecedores").select("id, nome").not("status", "in", "(pista,descartado)").order("nome"),
       supabase.from("ibk_produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
       supabase
         .from("ibk_lotes")

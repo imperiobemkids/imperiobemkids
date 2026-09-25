@@ -83,7 +83,7 @@ export function EstoqueClient() {
     desde.setDate(desde.getDate() - 30);
     const [{ data, error }, { data: forns }, { data: itens }] = await Promise.all([
       supabase.from("ibk_produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
-      supabase.from("ibk_fornecedores").select("id, nome").order("nome"),
+      supabase.from("ibk_fornecedores").select("id, nome").not("status", "in", "(pista,descartado)").order("nome"),
       // giro: unidades vendidas por produto nos ultimos 30 dias (sem cancelada/devolvida)
       supabase
         .from("ibk_venda_itens")
