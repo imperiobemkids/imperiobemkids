@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { WhatsappLogo, Plus, X, Baby, MagnifyingGlass } from "@phosphor-icons/react";
-import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonCards, Vazio, btnPrimario, btnSecundario } from "../ui";
 import { ORIGENS, idadeTexto, tamanhoSugerido, linkWhatsapp, type Cliente, type Crianca } from "@/lib/clientes";
@@ -28,17 +28,21 @@ export function ClientesClient() {
   const [busca, setBusca] = useState("");
   const [aberto, setAberto] = useState<string | null>(null); // id em edicao
   const [novo, setNovo] = useState(false);
+  const [mostrar, setMostrar] = useState(60);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
+    // cada comprador importado vira cliente: passa de 1000 rapido, entao pagina
     const [c, v] = await Promise.all([
-      supabase.from("ibk_clientes").select("*, ibk_criancas(*)").order("nome"),
-      supabase.from("ibk_vendas").select("cliente_id, data, preco_venda, status, canal").not("cliente_id", "is", null),
+      buscarTodos<Cliente>((de, ate) => supabase!.from("ibk_clientes").select("*, ibk_criancas(*)").order("nome").order("id").range(de, ate)),
+      buscarTodos<VendaResumo>((de, ate) =>
+        supabase!.from("ibk_vendas").select("cliente_id, data, preco_venda, status, canal").not("cliente_id", "is", null).order("id").range(de, ate),
+      ),
     ]);
-    if (c.error) setErro(c.error.message);
-    setClientes((c.data as Cliente[]) ?? []);
-    setVendas((v.data as VendaResumo[]) ?? []);
+    if (c.error) setErro(c.error);
+    setClientes(c.data);
+    setVendas(v.data);
     setLoading(false);
   }, []);
 
@@ -140,7 +144,7 @@ export function ClientesClient() {
       )}
 
       <div className="cascata mt-5 grid gap-3 sm:grid-cols-2">
-        {visiveis.map((c) => {
+        {visiveis.slice(0, mostrar).map((c) => {
           const r = resumoPor.get(c.id);
           const wa = linkWhatsapp(c.whatsapp);
           return aberto === c.id ? (
@@ -213,6 +217,11 @@ export function ClientesClient() {
           );
         })}
       </div>
+      {visiveis.length > mostrar && (
+        <button onClick={() => setMostrar((n) => n + 60)} className="mt-3 w-full rounded-xl bg-[var(--purple)]/8 p-3 text-sm font-bold text-[var(--purple)] hover:bg-[var(--purple)]/14">
+          mostrar mais clientes (faltam {visiveis.length - mostrar}); a busca acha qualquer um
+        </button>
+      )}
     </div>
   );
 }

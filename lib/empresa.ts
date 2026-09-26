@@ -16,6 +16,12 @@ export const EMPRESA = {
   whatsapp: "+55 11 94795-6479",
   whatsappLink: "https://wa.me/5511947956479",
   grupoAchadinhos: "https://chat.whatsapp.com/GKQ58djmnyGHG2HMrPUxYb",
+  // perfil da loja em cada marketplace (secao "Nossas lojas" do /pedido)
+  lojas: {
+    shopee: "https://s.shopee.com.br/2qUrOrWHk8",
+    mercadoLivre: "https://lista.mercadolivre.com.br/_CustId_1044208642",
+    kwai: "https://s.kw.ai/w/Pe5CgyXU",
+  },
   // data da ultima revisao das politicas (aparece no rodape de cada uma)
   politicasRevisadasEm: "2026-09-17",
 };

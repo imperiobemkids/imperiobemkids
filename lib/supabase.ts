@@ -23,3 +23,24 @@ export const supabase = supabaseConfigured
       },
     })
   : null;
+
+/*
+  O Supabase devolve no maximo 1000 linhas por consulta, sem avisar. Soma de
+  caixa, faturamento e lucro precisa de TODAS as linhas, entao pagina de 1000
+  em 1000. A consulta precisa de uma ordem estavel (termine com .order("id")).
+*/
+// sem tipos gerados do banco, o formato da linha vem de quem chama (T)
+type Pagina = PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
+
+export async function buscarTodos<T>(
+  consulta: (de: number, ate: number) => Pagina,
+  tamanho = 1000,
+): Promise<{ data: T[]; error: string | null }> {
+  const linhas: T[] = [];
+  for (let de = 0; ; de += tamanho) {
+    const { data, error } = await consulta(de, de + tamanho - 1);
+    if (error) return { data: linhas, error: error.message };
+    linhas.push(...((data ?? []) as T[]));
+    if (!data || data.length < tamanho) return { data: linhas, error: null };
+  }
+}

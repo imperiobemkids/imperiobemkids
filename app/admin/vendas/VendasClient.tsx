@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { X } from "@phosphor-icons/react";
-import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { STATUS, estornada, situacaoDespacho, hojeIso, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
+import { diasAtrasIso } from "@/lib/formato";
 import { NovaVenda, type ProdutoVenda } from "./NovaVenda";
 import { DetalheVenda, type VendaDetalhe } from "./DetalheVenda";
 import type { Canal } from "../canais/CanaisClient";
@@ -85,6 +86,8 @@ export function VendasClient() {
   const [caixaAberto, setCaixaAberto] = useState(false);
   const [detalhe, setDetalhe] = useState<VendaDetalhe | null>(null);
   const [filtro, setFiltro] = useState<"todos" | StatusPedido>("todos");
+  // as somas usam todas as vendas; a tabela mostra aos poucos
+  const [mostrar, setMostrar] = useState(50);
   // ?cliente=<id> vem do card em /admin/clientes
   const clienteFiltro = useSearchParams().get("cliente");
 
@@ -98,22 +101,30 @@ export function VendasClient() {
         .select("*")
         .eq("ativo", true)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("ibk_vendas")
-        .select("*, ibk_venda_itens(qtd, preco_unit, produto_id, produto:ibk_produtos(nome, tamanho, cor, custo_unit, produto_pai_id))")
-        .order("data", { ascending: false })
-        .limit(50),
-      supabase
-        .from("ibk_movimentos")
-        .select("valor, categoria, tipo, data, produto_id")
-        .eq("tipo", "saida")
-        .in("categoria", ["mercadoria", "insumo", "capex", "ads"]),
+      buscarTodos<VendaRow>((de, ate) =>
+        supabase!
+          .from("ibk_vendas")
+          .select("*, ibk_venda_itens(qtd, preco_unit, produto_id, produto:ibk_produtos(nome, tamanho, cor, custo_unit, produto_pai_id))")
+          .order("data", { ascending: false })
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(de, ate),
+      ),
+      buscarTodos<{ valor: number; categoria: string; data: string; produto_id: string | null }>((de, ate) =>
+        supabase!
+          .from("ibk_movimentos")
+          .select("valor, categoria, tipo, data, produto_id")
+          .eq("tipo", "saida")
+          .in("categoria", ["mercadoria", "insumo", "capex", "ads"])
+          .order("id")
+          .range(de, ate),
+      ),
       supabase.from("ibk_canais").select("*").eq("ativo", true).order("ordem"),
     ]);
-    if (error) setErro(error.message);
+    if (error) setErro(error);
     setProdutos((prod as Produto[]) ?? []);
-    setVendas((vend as VendaRow[]) ?? []);
-    const lista = (movs as { valor: number; categoria: string; data: string; produto_id: string | null }[]) ?? [];
+    setVendas(vend);
+    const lista = movs;
     setInvestido(lista.filter((m) => m.categoria !== "ads").reduce((s, m) => s + m.valor, 0));
     setAds(lista.filter((m) => m.categoria === "ads"));
     setCanais((cans as Canal[]) ?? []);
@@ -139,9 +150,7 @@ export function VendasClient() {
     ligado a produto.
   */
   const adsPorProduto = (() => {
-    const desde = new Date();
-    desde.setDate(desde.getDate() - 30);
-    const desdeIso = desde.toISOString().slice(0, 10);
+    const desdeIso = diasAtrasIso(30);
     const gasto = new Map<string, number>();
     for (const a of ads) if (a.produto_id && a.data >= desdeIso) gasto.set(a.produto_id, (gasto.get(a.produto_id) ?? 0) + a.valor);
     if (gasto.size === 0) return [];
@@ -277,7 +286,7 @@ export function VendasClient() {
                     <td className="num p-3 text-right text-red-500">{brl(r.gasto)}</td>
                     <td className="num p-3 text-right">{brl(r.vendido)}</td>
                     <td className="num p-3 text-right">{r.pedidos}</td>
-                    <td className={`num p-3 text-right font-extrabold ${cor}`}>{roas.toFixed(1)}x</td>
+                    <td className={`num p-3 text-right font-extrabold ${cor}`}>{roas.toFixed(1).replace(".", ",")}x</td>
                     <td className={`num p-3 text-right ${cor}`}>{Math.round(acos * 100)}%</td>
                   </tr>
                 );
@@ -340,7 +349,7 @@ export function VendasClient() {
                 </td>
               </tr>
             )}
-            {visiveis.map((v) => {
+            {visiveis.slice(0, mostrar).map((v) => {
               const l = lucroVenda(v);
               const qtdItens = v.ibk_venda_itens.reduce((s, it) => s + it.qtd, 0);
               const st = STATUS[v.status] ?? STATUS.entregue;
@@ -387,6 +396,14 @@ export function VendasClient() {
             })}
           </tbody>
         </table>
+        {visiveis.length > mostrar && (
+          <button
+            onClick={() => setMostrar((n) => n + 50)}
+            className="w-full border-t border-[var(--purple)]/10 p-3 text-sm font-bold text-[var(--purple)] hover:bg-[var(--purple)]/5"
+          >
+            mostrar mais vendas (faltam {visiveis.length - mostrar})
+          </button>
+        )}
       </div>
     </div>
   );

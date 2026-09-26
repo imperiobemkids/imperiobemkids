@@ -4,11 +4,12 @@ import { Fragment, useEffect, useState, useCallback } from "react";
 import { ConferirLote, type Conferencia } from "./ConferirLote";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { entradaEstoque } from "@/lib/estoque";
+import { num, hojeIso } from "@/lib/formato";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows } from "../ui";
 
 type Fornecedor = { id: string; nome: string };
-type Produto = { id: string; nome: string | null; linha: string | null; genero: string | null; tamanho: string | null; custo_unit: number; qtd_atual: number };
+type Produto = { id: string; nome: string | null; linha: string | null; genero: string | null; tamanho: string | null; cor: string | null; custo_unit: number; qtd_atual: number; tem_variacoes: boolean | null };
 type Tipo = "mercadoria" | "insumo" | "capex";
 type Item = {
   tipo: Tipo;
@@ -21,7 +22,7 @@ type Item = {
 };
 
 const rotulo = (p: Produto) => {
-  if (p.nome && p.nome.trim()) return p.nome.trim() + (p.tamanho ? ` · ${p.tamanho}` : "");
+  if (p.nome && p.nome.trim()) return [p.nome.trim(), p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ");
   const linha = p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "";
   return [linha, p.genero, p.tamanho].filter(Boolean).join(" · ") || "Produto";
 };
@@ -38,8 +39,7 @@ type Lote = {
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-const num = (s: string) => parseFloat(s.replace(",", ".")) || 0;
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = hojeIso;
 const itemVazio = (): Item => ({ tipo: "mercadoria", produtoId: "", descricao: "", categoria: "", tamanho: "", qtd: "", custoUnit: "" });
 
 export function ComprasClient() {
@@ -72,7 +72,8 @@ export function ComprasClient() {
     ]);
     if (error) setErro(error.message);
     setFornecedores((forns as Fornecedor[]) ?? []);
-    setProdutos((prods as Produto[]) ?? []);
+    // produto com variacoes e so agrupador: a compra entra na variacao (tamanho e tipo)
+    setProdutos(((prods as Produto[]) ?? []).filter((p) => !p.tem_variacoes));
     setLotes((ls as unknown as Lote[]) ?? []);
     setLoading(false);
   }, []);

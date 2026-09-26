@@ -177,7 +177,9 @@ export function CanaisClient() {
     setForm((f) => ({ ...f, faixas: f.faixas.map((x, idx) => (idx === i ? { ...x, ...patch } : x)) }));
 
   const editando = novo || editId !== null;
-  const velhas = rows.filter((c) => c.ativo && (!c.taxas_conferidas_em || diasDesde(c.taxas_conferidas_em) > 90));
+  // canal sem taxa nenhuma (loja fisica, Pix) nao tem tabela pra conferir
+  const temTaxa = (c: Canal) => c.taxa_pct > 0 || c.taxa_fixa > 0 || (c.faixas?.length ?? 0) > 0;
+  const velhas = rows.filter((c) => c.ativo && temTaxa(c) && (!c.taxas_conferidas_em || diasDesde(c.taxas_conferidas_em) > 90));
 
   return (
     <div className="page-in">

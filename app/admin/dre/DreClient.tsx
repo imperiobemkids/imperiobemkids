@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows, Vazio } from "../ui";
 import { brl, pct, hojeIso } from "@/lib/formato";
@@ -67,14 +67,20 @@ export function DreClient() {
     if (!supabase) return;
     setLoading(true);
     const [v, m] = await Promise.all([
-      supabase
-        .from("ibk_vendas")
-        .select("data, status, devolvida, custo_devolucao, preco_venda, taxa_pct, taxa_fixa, insumo_custo, frete, ibk_venda_itens(qtd, produto:ibk_produtos(custo_unit))"),
-      supabase.from("ibk_movimentos").select("data, tipo, categoria, valor").eq("tipo", "saida").in("categoria", ["ads", "imposto", "servico", "pro_labore", "outro"]),
+      buscarTodos<Venda>((de, ate) =>
+        supabase!
+          .from("ibk_vendas")
+          .select("data, status, devolvida, custo_devolucao, preco_venda, taxa_pct, taxa_fixa, insumo_custo, frete, ibk_venda_itens(qtd, produto:ibk_produtos(custo_unit))")
+          .order("id")
+          .range(de, ate),
+      ),
+      buscarTodos<Mov>((de, ate) =>
+        supabase!.from("ibk_movimentos").select("data, tipo, categoria, valor").eq("tipo", "saida").in("categoria", ["ads", "imposto", "servico", "pro_labore", "outro"]).order("id").range(de, ate),
+      ),
     ]);
-    if (v.error) setErro(v.error.message);
-    setVendas((v.data as unknown as Venda[]) ?? []);
-    setMovs((m.data as Mov[]) ?? []);
+    if (v.error) setErro(v.error);
+    setVendas(v.data);
+    setMovs(m.data);
     setLoading(false);
   }, []);
 

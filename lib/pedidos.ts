@@ -70,6 +70,24 @@ export async function estornarVenda(
   if (!supabase) return "banco nao configurado";
   const data = hojeIso();
 
+  /*
+    Primeiro troca o status, e so se a venda ainda estiver no ciclo. Assim um
+    clique duplo ou a mesma venda aberta em duas abas nao devolve a peca e
+    estorna o caixa duas vezes: a segunda tentativa nao acha a venda e para aqui.
+  */
+  const { data: trocou, error: e0 } = await supabase
+    .from("ibk_vendas")
+    .update(
+      motivo === "cancelado"
+        ? { status: "cancelado", cancelado_em: data }
+        : { status: "devolvido", devolvida: true, data_devolucao: data, custo_devolucao: custo },
+    )
+    .eq("id", v.id)
+    .not("status", "in", "(cancelado,devolvido)")
+    .select("id");
+  if (e0) return e0.message;
+  if (!trocou || trocou.length === 0) return "essa venda já foi cancelada ou devolvida";
+
   for (const it of v.ibk_venda_itens) {
     if (it.produto_id) await devolucaoEstoque(it.produto_id, it.qtd, { vendaId: v.id, data });
   }
@@ -86,17 +104,7 @@ export async function estornarVenda(
     movs.push({ data, tipo: "saida", categoria: "frete", valor: custo, descricao: "Custo da devolução (frete reverso e taxa retida)", ref_venda_id: v.id });
   }
   const { error: e1 } = await supabase.from("ibk_movimentos").insert(movs);
-  if (e1) return e1.message;
-
-  const { error: e2 } = await supabase
-    .from("ibk_vendas")
-    .update(
-      motivo === "cancelado"
-        ? { status: "cancelado", cancelado_em: data }
-        : { status: "devolvido", devolvida: true, data_devolucao: data, custo_devolucao: custo },
-    )
-    .eq("id", v.id);
-  return e2?.message ?? null;
+  return e1?.message ?? null;
 }
 
 /*
@@ -170,7 +178,11 @@ export async function registrarVenda(v: NovaVendaDados): Promise<{ id: string } 
   const { error: e2 } = await supabase.from("ibk_venda_itens").insert(
     v.itens.map((i) => ({ venda_id: venda.id, produto_id: i.produtoId, qtd: i.qtd, preco_unit: i.precoUnit })),
   );
-  if (e2) return { erro: e2.message };
+  if (e2) {
+    // sem itens a venda fica orfa: apaga o cabecalho pra nao sobrar venda vazia
+    await supabase.from("ibk_vendas").delete().eq("id", venda.id);
+    return { erro: e2.message };
+  }
 
   for (const i of v.itens) {
     await saidaEstoque(i.produtoId, i.qtd, "venda", { vendaId: venda.id, data: v.data });

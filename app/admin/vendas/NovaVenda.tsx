@@ -6,7 +6,7 @@ import type { Canal } from "../canais/CanaisClient";
 import { calcularTaxas, descreverFaixas } from "@/lib/canais";
 import { acharOuCriarCliente } from "@/lib/clientes";
 import { registrarVenda } from "@/lib/pedidos";
-import { num, txt, brl } from "@/lib/formato";
+import { num, txt, brl, hojeIso, pct } from "@/lib/formato";
 
 /*
   Registro de venda no formato de caixa: o produto entra como linha com preco
@@ -51,7 +51,7 @@ export function NovaVenda({
   canais: Canal[];
   aoRegistrar: () => void;
 }) {
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeIso();
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [canalId, setCanalId] = useState(canais[0]?.id ?? "");
   const [data, setData] = useState(hoje);
@@ -174,25 +174,30 @@ export function NovaVenda({
     setSalvando(true);
 
     const balcao = !!canal && /fisica/i.test(canal.nome);
-    const r = await registrarVenda({
-      data,
-      canalNome: canal?.nome ?? "outro",
-      canalId: canalId || null,
-      itens: linhas.map((l) => ({ produtoId: l.produto.id, qtd: l.qtd, precoUnit: num(l.precoTexto) })),
-      total,
-      desconto: descontoN,
-      comissao,
-      taxaFixa,
-      insumo,
-      freteCobrado: freteCobradoN,
-      frete: freteLojaN,
-      cliente: cliente.trim() || null,
-      clienteId: await acharOuCriarCliente(cliente, balcao ? "loja" : undefined),
-      pedidoExterno: pedidoExterno.trim() || null,
-      // venda no balcao ja saiu entregue; o resto precisa ser enviado
-      status: balcao ? "entregue" : "aguardando",
-      formaPagamento: formaPagamento || null,
-    });
+    let r: Awaited<ReturnType<typeof registrarVenda>>;
+    try {
+      r = await registrarVenda({
+        data,
+        canalNome: canal?.nome ?? "outro",
+        canalId: canalId || null,
+        itens: linhas.map((l) => ({ produtoId: l.produto.id, qtd: l.qtd, precoUnit: num(l.precoTexto) })),
+        total,
+        desconto: descontoN,
+        comissao,
+        taxaFixa,
+        insumo,
+        freteCobrado: freteCobradoN,
+        frete: freteLojaN,
+        cliente: cliente.trim() || null,
+        clienteId: await acharOuCriarCliente(cliente, balcao ? "loja" : undefined),
+        pedidoExterno: pedidoExterno.trim() || null,
+        // venda no balcao ja saiu entregue; o resto precisa ser enviado
+        status: balcao ? "entregue" : "aguardando",
+        formaPagamento: formaPagamento || null,
+      });
+    } catch (e) {
+      r = { erro: e instanceof Error ? e.message : "erro ao registrar a venda" };
+    }
     if ("erro" in r) {
       setErro(r.erro);
       setSalvando(false);
@@ -377,7 +382,7 @@ export function NovaVenda({
           <div className="self-start rounded-xl bg-[var(--cream)] p-3 text-sm">
             <Linha2 rotulo="Total da venda" valor={brl(total)} forte />
             <div className="my-2 border-t border-[var(--purple)]/15" />
-            <Linha2 rotulo={`Comissão ${canal?.nome ?? ""} (${Math.round(taxaPct * 1000) / 10}%)`} valor={`− ${brl(comissao)}`} sutil />
+            <Linha2 rotulo={`Comissão ${canal?.nome ?? ""} (${pct(taxaPct)})`} valor={`− ${brl(comissao)}`} sutil />
             {regraFaixas && (
               <p className="py-0.5 text-[11px] leading-snug text-[var(--ink)]/70">
                 faixa aplicada pelo total: {regraFaixas}

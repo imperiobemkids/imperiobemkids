@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { PencilSimple, Trash, Check, X, Repeat, Plus } from "@phosphor-icons/react";
-import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows, btnPrimario, btnSecundario } from "../ui";
 import { num, txt, brl, dataBr, hojeIso } from "@/lib/formato";
@@ -63,6 +63,9 @@ const ROTULO: Record<string, string> = {
 };
 const catLabel = (c: string) => ROTULO[c] ?? c;
 const FORMAS = ["pix", "cartao", "boleto", "dinheiro", "transferencia", "debito_automatico"];
+// o valor gravado fica sem acento (compatibilidade); na tela aparece escrito certo
+const FORMA_LABEL: Record<string, string> = { pix: "Pix", cartao: "cartão", boleto: "boleto", dinheiro: "dinheiro", transferencia: "transferência", debito_automatico: "débito automático" };
+const formaLabel = (f: string | null) => (f ? FORMA_LABEL[f] ?? f.replace("_", " ") : "");
 
 const diasAte = (iso: string) => Math.round((new Date(iso + "T12:00:00").getTime() - new Date(hojeIso() + "T12:00:00").getTime()) / 86400000);
 const noMes = (iso: string) => iso.slice(0, 7) === hojeIso().slice(0, 7);
@@ -77,6 +80,8 @@ const somaMes = (d: string, meses: number) => {
 
 export function FinanceiroClient() {
   const [movs, setMovs] = useState<Mov[]>([]);
+  // saldo e somas usam todos os lancamentos; o extrato mostra aos poucos
+  const [mostrar, setMostrar] = useState(60);
   const [recs, setRecs] = useState<Recorrencia[]>([]);
   const [produtos, setProdutos] = useState<ProdutoRef[]>([]);
   const [produtoId, setProdutoId] = useState("");
@@ -102,14 +107,16 @@ export function FinanceiroClient() {
     if (!supabase) return;
     setLoading(true);
     const [m, r, p] = await Promise.all([
-      supabase.from("ibk_movimentos").select("*").order("data", { ascending: false }).order("created_at", { ascending: false }).limit(300),
+      buscarTodos<Mov>((de, ate) =>
+        supabase!.from("ibk_movimentos").select("*").order("data", { ascending: false }).order("created_at", { ascending: false }).order("id").range(de, ate),
+      ),
       supabase.from("ibk_recorrencias").select("*").order("dia_vencimento"),
       // so produto pai ou avulso: o anuncio e do produto, nao da variacao
       supabase.from("ibk_produtos").select("id, nome, tamanho, produto_pai_id").eq("ativo", true).is("produto_pai_id", null).order("nome"),
     ]);
     setProdutos((p.data as ProdutoRef[]) ?? []);
-    if (m.error) setErro(m.error.message);
-    else setMovs((m.data as Mov[]) ?? []);
+    if (m.error) setErro(m.error);
+    else setMovs(m.data);
     // se a 0023 ainda nao rodou, r.error vem e as recorrencias so nao aparecem
     setRecs(r.error ? [] : ((r.data as Recorrencia[]) ?? []));
     setLoading(false);
@@ -293,7 +300,7 @@ export function FinanceiroClient() {
         <Campo label="Forma">
           <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} className={inp}>
             <option value="">não informada</option>
-            {FORMAS.map((f) => (<option key={f} value={f}>{f.replace("_", " ")}</option>))}
+            {FORMAS.map((f) => (<option key={f} value={f}>{formaLabel(f)}</option>))}
           </select>
         </Campo>
         <Campo label="Documento">
@@ -378,7 +385,7 @@ export function FinanceiroClient() {
               {!loading && movs.length === 0 && (
                 <tr><td colSpan={6} className="p-6 text-center text-[var(--ink)]/70">nenhum lançamento ainda.</td></tr>
               )}
-              {movs.slice(0, 60).map((m) =>
+              {movs.slice(0, mostrar).map((m) =>
                 editando === m.id ? (
                   <tr key={m.id} className="border-b border-[var(--purple)]/6 bg-[var(--purple)]/4">
                     <td colSpan={6} className="p-3">
@@ -401,7 +408,7 @@ export function FinanceiroClient() {
                       </div>
                     </td>
                     <td className="hidden p-3 text-[var(--ink)]/70 sm:table-cell">{catLabel(m.categoria)}</td>
-                    <td className="hidden p-3 capitalize text-[var(--ink)]/60 lg:table-cell">{m.forma_pagamento?.replace("_", " ") || "-"}</td>
+                    <td className="hidden p-3 text-[var(--ink)]/70 lg:table-cell">{formaLabel(m.forma_pagamento) || "-"}</td>
                     <td className={`num whitespace-nowrap p-3 text-right font-bold ${m.tipo === "entrada" ? "text-emerald-600" : "text-red-500"}`}>
                       {m.tipo === "entrada" ? "+" : "−"} {brl(m.valor)}
                     </td>
@@ -416,7 +423,11 @@ export function FinanceiroClient() {
             </tbody>
           </table>
         </div>
-        {movs.length > 60 && <p className="mt-2 text-xs text-[var(--ink)]/70">mostrando os 60 mais recentes de {movs.length}.</p>}
+        {movs.length > mostrar && (
+          <button onClick={() => setMostrar((n) => n + 60)} className="mt-2 text-xs font-bold text-[var(--purple)] underline">
+            mostrando os {mostrar} mais recentes de {movs.length}. Mostrar mais
+          </button>
+        )}
       </div>
 
       {/* por categoria */}
@@ -497,7 +508,7 @@ function EditarMov({ mov, produtos, onSalvar, onRemover, onCancelar }: { mov: Mo
         <Campo label="Forma">
           <select value={f.forma_pagamento} onChange={(e) => set("forma_pagamento", e.target.value)} className={inp}>
             <option value="">não informada</option>
-            {FORMAS.map((x) => (<option key={x} value={x}>{x.replace("_", " ")}</option>))}
+            {FORMAS.map((x) => (<option key={x} value={x}>{formaLabel(x)}</option>))}
           </select>
         </Campo>
         <Campo label="Documento"><input value={f.documento} onChange={(e) => set("documento", e.target.value)} className={`${inp} w-32`} /></Campo>
@@ -623,7 +634,7 @@ function Recorrencias({ recs, onMudou }: { recs: Recorrencia[]; onMudou: () => v
         <Campo label="Forma">
           <select value={forma} onChange={(e) => setForma(e.target.value)} className={inp}>
             <option value="">não informada</option>
-            {FORMAS.map((x) => (<option key={x} value={x}>{x.replace("_", " ")}</option>))}
+            {FORMAS.map((x) => (<option key={x} value={x}>{formaLabel(x)}</option>))}
           </select>
         </Campo>
         <button onClick={adicionar} disabled={salvando} className={`flex items-center gap-1 ${btnPrimario}`}>

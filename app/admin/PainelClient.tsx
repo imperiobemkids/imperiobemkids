@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { SetupCard } from "./SetupCard";
 import { GRUPOS } from "./AdminNav";
 import { SkeletonCards, Sparkline } from "./ui";
 import { Check, Truck } from "@phosphor-icons/react";
 import { situacaoDespacho, estornada, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
+import { calcularReposicao } from "@/lib/reposicao";
 
 type Produto = {
   id: string;
@@ -15,9 +16,14 @@ type Produto = {
   linha: string | null;
   genero: string | null;
   tamanho: string | null;
+  cor: string | null;
   custo_unit: number;
   qtd_atual: number;
   qtd_inicial: number;
+  tem_variacoes: boolean | null;
+  estoque_minimo: number | null;
+  produto_pai_id: string | null;
+  fornecedor_id: string | null;
 };
 type Mov = { tipo: "entrada" | "saida"; categoria: string; valor: number; data: string; pago: boolean };
 type Venda = {
@@ -32,12 +38,10 @@ type Venda = {
   recebido: number | null;
   status: StatusPedido;
   pedido_externo: string | null;
-  ibk_venda_itens: { qtd: number; produto: { custo_unit: number } | null }[];
+  ibk_venda_itens: { qtd: number; produto_id: string | null; produto: { custo_unit: number } | null }[];
 };
 
 type Rotina = { id: string; area: string; titulo: string; dias: number[] };
-
-const ESTOQUE_BAIXO = 3;
 
 const isoLocal = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -50,17 +54,8 @@ const saudacao = () => {
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-const nomeProduto = (p: Produto) => {
-  if (p.nome && p.nome.trim()) return p.nome.trim() + (p.tamanho ? ` · ${p.tamanho}` : "");
-  const linha = p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "";
-  return [linha, p.genero, p.tamanho].filter(Boolean).join(" · ") || "Produto";
-};
-
-const noMes = (iso: string) => {
-  const d = new Date(iso);
-  const h = new Date();
-  return d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth();
-};
+// compara o texto "2026-09": new Date("2026-09-01") e UTC e caia no mes anterior no Brasil
+const noMes = (iso: string) => iso.slice(0, 7) === isoLocal(new Date()).slice(0, 7);
 
 
 export function PainelClient() {
@@ -81,15 +76,15 @@ export function PainelClient() {
     (async () => {
       const [{ data: p }, { data: m }, { data: v }, { data: r }, { data: c }] = await Promise.all([
         supabase!.from("ibk_produtos").select("*").eq("ativo", true),
-        supabase!.from("ibk_movimentos").select("tipo, categoria, valor, data, pago"),
-        supabase!.from("ibk_vendas").select("*, ibk_venda_itens(qtd, produto:ibk_produtos(custo_unit))"),
+        buscarTodos<Mov>((de, ate) => supabase!.from("ibk_movimentos").select("tipo, categoria, valor, data, pago").order("id").range(de, ate)),
+        buscarTodos<Venda>((de, ate) => supabase!.from("ibk_vendas").select("*, ibk_venda_itens(qtd, produto_id, produto:ibk_produtos(custo_unit))").order("id").range(de, ate)),
         // rotinas de hoje: se a migration 0019 ainda nao rodou, vem erro e o bloco some
         supabase!.from("ibk_rotinas").select("id, area, titulo, dias").eq("ativo", true).contains("dias", [diaSemana]).order("area").order("ordem"),
         supabase!.from("ibk_rotina_checks").select("rotina_id").eq("data", hoje),
       ]);
       setProdutos((p as Produto[]) ?? []);
-      setMovs((m as Mov[]) ?? []);
-      setVendas((v as unknown as Venda[]) ?? []);
+      setMovs(m);
+      setVendas(v);
       setRotinas((r as Rotina[]) ?? []);
       setFeitas(new Set(((c as { rotina_id: string }[]) ?? []).map((x) => x.rotina_id)));
       setLoading(false);
@@ -122,7 +117,14 @@ export function PainelClient() {
   // estoque
   const unidades = produtos.reduce((s, p) => s + p.qtd_atual, 0);
   const valorEstoque = produtos.reduce((s, p) => s + p.qtd_atual * p.custo_unit, 0);
-  const baixos = produtos.filter((p) => p.qtd_atual <= ESTOQUE_BAIXO).sort((a, b) => a.qtd_atual - b.qtd_atual);
+  // reposicao: a mesma regra da tela de Estoque (minimo rateado entre variacoes + giro de 30 dias)
+  const vendidos30 = new Map<string, number>();
+  const desde30 = isoLocal(new Date(Date.now() - 30 * 86400000));
+  for (const v of vendas) {
+    if (estornada(v.status) || v.data < desde30) continue;
+    for (const it of v.ibk_venda_itens) if (it.produto_id) vendidos30.set(it.produto_id, (vendidos30.get(it.produto_id) ?? 0) + it.qtd);
+  }
+  const baixos = calcularReposicao(produtos, vendidos30);
 
   // caixa
   const entradas = movs.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0);
@@ -160,7 +162,9 @@ export function PainelClient() {
     return vendas.filter((v) => v.data.slice(0, 10) === dia && !estornada(v.status)).reduce((s, v) => s + v.preco_venda, 0);
   });
   const paybackPct = investido > 0 ? Math.min(100, Math.round((lucroBruto / investido) * 100)) : 0;
-  const roas = ads > 0 ? lucroBruto / ads : null;
+  // ROAS = faturamento / ads, a mesma conta da tela de Vendas (antes usava o lucro)
+  const faturamento = vendas.filter((v) => !estornada(v.status)).reduce((s, v) => s + v.preco_venda, 0);
+  const roas = ads > 0 ? faturamento / ads : null;
 
   if (loading)
     return (
@@ -193,7 +197,7 @@ export function PainelClient() {
         <Kpi
           titulo={aReceber > 0 ? "A receber" : "Vendido no mês"}
           valor={brl(aReceber > 0 ? aReceber : vendidoMes)}
-          sub={aReceber > 0 ? "repasse ainda não conciliado" : ads > 0 ? `ads: ${brl(ads)}${roas ? ` · ROAS ${roas.toFixed(1)}x` : ""}` : "sem gasto de ads"}
+          sub={aReceber > 0 ? "repasse ainda não conciliado" : ads > 0 ? `ads: ${brl(ads)}${roas ? ` · ROAS ${roas.toFixed(1).replace(".", ",")}x` : ""}` : "sem gasto de ads"}
           grafico={serie14.some((v) => v > 0) ? <Sparkline valores={serie14} /> : null}
         />
       </div>
@@ -287,17 +291,17 @@ export function PainelClient() {
       {baixos.length > 0 && (
         <div className="mt-4 card border-2 border-[var(--sun)] p-4">
           <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">
-            Estoque baixo ({baixos.length})
+            Reposição ({baixos.length})
           </h2>
           <div className="mt-2 flex flex-wrap gap-2">
-            {baixos.slice(0, 8).map((p) => (
-              <span key={p.id} className={`rounded-full px-3 py-1 text-xs font-bold ${p.qtd_atual === 0 ? "bg-red-100 text-red-600" : "bg-[var(--sun)]/30 text-[var(--ink)]"}`}>
-                {nomeProduto(p)}: {p.qtd_atual === 0 ? "esgotado" : `${p.qtd_atual} un`}
+            {baixos.slice(0, 8).map((r) => (
+              <span key={r.p.id} className={`rounded-full px-3 py-1 text-xs font-bold ${r.p.qtd_atual === 0 ? "bg-red-100 text-red-600" : "bg-[var(--sun)]/30 text-[var(--ink)]"}`}>
+                {r.nome}: {r.p.qtd_atual === 0 ? "esgotado" : `${r.p.qtd_atual} un`}
               </span>
             ))}
           </div>
-          <Link href="/admin/compras" className="mt-3 inline-block text-sm font-bold text-[var(--purple)] hover:text-[var(--purple-dark)]">
-            registrar uma compra
+          <Link href="/admin/estoque" className="mt-3 inline-block text-sm font-bold text-[var(--purple)] hover:text-[var(--purple-dark)]">
+            ver o que comprar
           </Link>
         </div>
       )}

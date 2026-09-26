@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { hojeIso } from "./formato";
 
 /*
   Motor de estoque do ERP. Toda entrada e saida passa por aqui para que:
@@ -69,7 +70,8 @@ async function gravarMov(args: {
     ref_lote_id: args.ref?.loteId ?? null,
     ref_venda_id: args.ref?.vendaId ?? null,
     obs: args.ref?.obs ?? null,
-    ...(args.ref?.data ? { data: args.ref.data } : {}),
+    // sem data explicita o banco usaria current_date, que e UTC e vira amanha a noite
+    data: args.ref?.data ?? hojeIso(),
   });
 }
 

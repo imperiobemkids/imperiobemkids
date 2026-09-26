@@ -4,6 +4,8 @@ import { Fragment, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { ajusteEstoque } from "@/lib/estoque";
+import { calcularReposicao, nomeExibido } from "@/lib/reposicao";
+import { num, hojeIso, diasAtrasIso } from "@/lib/formato";
 import { SetupCard } from "../SetupCard";
 import { KardexModal } from "./KardexModal";
 import { SkeletonRows } from "../ui";
@@ -40,12 +42,6 @@ const INSUMO = 0.4; // etiqueta + saco por pedido
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-const nomeExibido = (p: Produto) => {
-  if (p.nome && p.nome.trim()) return p.nome.trim();
-  const linha = p.linha === "verao" ? "Verão" : p.linha === "inverno" ? "Inverno" : "";
-  const base = [linha, p.genero].filter(Boolean).join(" ");
-  return base || "Produto";
-};
 
 type Form = {
   nome: string;
@@ -75,12 +71,11 @@ export function EstoqueClient() {
   const [kardex, setKardex] = useState<Produto | null>(null);
   const [vendidos30, setVendidos30] = useState<Map<string, number>>(new Map()); // produto_id -> unidades nos ultimos 30 dias
   const [reposicaoAberta, setReposicaoAberta] = useState(false);
+  const [abertos, setAbertos] = useState<Set<string>>(new Set()); // grades abertas
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const desde = new Date();
-    desde.setDate(desde.getDate() - 30);
     const [{ data, error }, { data: forns }, { data: itens }] = await Promise.all([
       supabase.from("ibk_produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
       supabase.from("ibk_fornecedores").select("id, nome").not("status", "in", "(pista,descartado)").order("nome"),
@@ -88,7 +83,7 @@ export function EstoqueClient() {
       supabase
         .from("ibk_venda_itens")
         .select("produto_id, qtd, venda:ibk_vendas!inner(data, status)")
-        .gte("venda.data", desde.toISOString().slice(0, 10))
+        .gte("venda.data", diasAtrasIso(30))
         .not("venda.status", "in", '("cancelado","devolvido")'),
     ]);
     if (error) setErro(error.message);
@@ -116,7 +111,7 @@ export function EstoqueClient() {
 
   const salvar = async () => {
     if (!supabase) return;
-    const custo = parseFloat(form.custo.replace(",", ".")) || 0;
+    const custo = num(form.custo);
     const qtdAtual = parseInt(form.qtdAtual, 10) || 0;
     const qtdInicial = form.qtdInicial.trim() ? parseInt(form.qtdInicial, 10) || 0 : qtdAtual;
     if (!form.nome.trim() && !form.linha) {
@@ -142,7 +137,7 @@ export function EstoqueClient() {
       await supabase.from("ibk_estoque_mov").insert({
         produto_id: (res.data as { id: string }).id,
         tipo: "entrada", origem: "inicial", qtd: qtdAtual, custo_unit: custo,
-        saldo_depois: qtdAtual, custo_medio_depois: custo, obs: "cadastro manual",
+        saldo_depois: qtdAtual, custo_medio_depois: custo, obs: "cadastro manual", data: hojeIso(),
       });
     }
     setSalvando(false);
@@ -151,7 +146,6 @@ export function EstoqueClient() {
     carregar();
   };
 
-  const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const alternarGrade = (id: string) =>
     setAbertos((a) => {
       const n = new Set(a);
@@ -193,32 +187,8 @@ export function EstoqueClient() {
       return { p: r, filhos, agregado };
     });
 
-  /*
-    Reposicao: o que esta abaixo do minimo ou zerado, com o giro dos ultimos
-    30 dias. Sugestao de compra = o que falta pra cobrir 30 dias de venda com
-    folga (1,5x) ou pra voltar ao dobro do minimo, o que for maior.
-  */
-  const reposicao = rows
-    .filter((p) => !p.tem_variacoes)
-    .map((p) => {
-      // variacao: o minimo do pai e do produto inteiro, entao rateia entre as variacoes
-      // (nunca abaixo de 1). O gerador copiou o minimo do pai em cada variacao; valor
-      // igual ao do pai conta como herdado, so um valor diferente e proprio da variacao.
-      const pai0 = p.produto_pai_id ? rows.find((x) => x.id === p.produto_pai_id) : null;
-      const irmas = pai0 ? rows.filter((x) => x.produto_pai_id === pai0.id).length || 1 : 1;
-      const proprio = pai0 && p.estoque_minimo != null && p.estoque_minimo !== (pai0.estoque_minimo ?? null);
-      const minimo = pai0 ? (proprio ? p.estoque_minimo! : Math.max(1, Math.ceil((pai0.estoque_minimo ?? 0) / irmas))) : (p.estoque_minimo ?? 0);
-      const giro = vendidos30.get(p.id) ?? 0;
-      const alvo = Math.max(Math.ceil(giro * 1.5), minimo * 2, giro > 0 || minimo > 0 ? 1 : 0);
-      const comprar = Math.max(0, alvo - p.qtd_atual);
-      const pai = p.produto_pai_id ? rows.find((x) => x.id === p.produto_pai_id) : null;
-      const nome = pai ? `${nomeExibido(pai)} · ${[p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ")}` : nomeExibido(p);
-      const dias = giro > 0 ? Math.floor(p.qtd_atual / (giro / 30)) : null;
-      return { p, nome, minimo, giro, comprar, dias, fornecedor: (pai ?? p).fornecedor_id };
-    })
-    .filter((r) => r.p.qtd_atual === 0 || r.p.qtd_atual < r.minimo || (r.dias !== null && r.dias < 15))
-    .filter((r) => r.comprar > 0 || r.p.qtd_atual === 0)
-    .sort((a, b) => (a.dias ?? 999) - (b.dias ?? 999) || a.p.qtd_atual - b.p.qtd_atual);
+  // reposicao: mesma regra do Painel (lib/reposicao)
+  const reposicao = calcularReposicao(rows, vendidos30);
 
   const unidades = rows.reduce((s, p) => s + p.qtd_atual, 0);
   const valorEstoque = rows.reduce((s, p) => s + p.qtd_atual * p.custo_unit, 0);

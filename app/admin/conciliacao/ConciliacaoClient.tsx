@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows, Confirmar } from "../ui";
 import { hojeIso, dataBr } from "@/lib/formato";
@@ -45,14 +45,19 @@ export function ConciliacaoClient() {
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("ibk_vendas")
-      .select("*")
-      .eq("devolvida", false)
-      .order("data", { ascending: false })
-      .limit(200);
-    if (error) setErro(error.message);
-    else setVendas((data as Venda[]) ?? []);
+    // cancelada nao tem repasse: fora da conta, senao infla o "a receber"
+    const { data, error } = await buscarTodos<Venda>((de, ate) =>
+      supabase!
+        .from("ibk_vendas")
+        .select("*")
+        .eq("devolvida", false)
+        .neq("status", "cancelado")
+        .order("data", { ascending: false })
+        .order("id")
+        .range(de, ate),
+    );
+    if (error) setErro(error);
+    else setVendas(data);
     setLoading(false);
   }, []);
 
@@ -190,7 +195,7 @@ export function ConciliacaoClient() {
                 </td>
               </tr>
             )}
-            {lista.map((v) => {
+            {lista.slice(0, 200).map((v) => {
               const esp = esperado(v);
               const dif = (v.recebido ?? 0) - esp;
               return (

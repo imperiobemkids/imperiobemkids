@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { SkeletonRows } from "../ui";
+import { dataBr } from "@/lib/formato";
 
 type Mov = {
   id: string;
@@ -77,7 +78,7 @@ export function KardexModal({ produtoId, titulo, onClose }: { produtoId: string;
               )}
               {movs.map((m) => (
                 <tr key={m.id} className="border-b border-[var(--purple)]/6 last:border-0">
-                  <td className="p-2">{new Date(m.data).toLocaleDateString("pt-BR")}</td>
+                  <td className="p-2">{dataBr(m.data)}</td>
                   <td className="p-2">
                     {rotuloOrigem[m.origem] ?? m.origem}
                     {m.obs && <div className="text-[11px] text-[var(--ink)]/70">{m.obs}</div>}

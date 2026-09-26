@@ -25,12 +25,19 @@ export const txt = (v: number | null | undefined): string =>
 export const brl = (v: number | null | undefined): string =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v as number) ? (v as number) : 0);
 
-export const pct = (v: number): string => `${Math.round(v * 1000) / 10}%`;
+export const pct = (v: number): string => `${String(Math.round(v * 1000) / 10).replace(".", ",")}%`;
 
-/* hoje em ISO no fuso local (toISOString e UTC e vira amanha a noite no Brasil) */
-export const hojeIso = (): string => {
+/* data em ISO no fuso local (toISOString e UTC e vira amanha a noite no Brasil) */
+export const isoDe = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+export const hojeIso = (): string => isoDe(new Date());
+
+/* ISO de n dias atras, no fuso local */
+export const diasAtrasIso = (n: number): string => {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  d.setDate(d.getDate() - n);
+  return isoDe(d);
 };
 
 export const dataBr = (iso: string): string => new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString("pt-BR");

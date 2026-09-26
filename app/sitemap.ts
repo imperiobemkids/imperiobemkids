@@ -9,10 +9,12 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://imperiobemkids.vercel.
   de proposito: sao area interna e estao marcados como noindex.
 */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const publicados = await listarProdutosPublicos();
   const paginas = [
     { url: "", priority: 1 },
     { url: "/pedido", priority: 0.9 },
-    { url: "/produtos", priority: 0.9 },
+    // vitrine vazia nao vai pro Google: so entra quando houver produto publicado
+    ...(publicados.length ? [{ url: "/produtos", priority: 0.9 }] : []),
     { url: "/sobre", priority: 0.7 },
     { url: "/blog", priority: 0.8 },
     { url: "/trocas", priority: 0.4 },
@@ -29,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  const produtos = (await listarProdutosPublicos()).map((p) => ({
+  const produtos = publicados.map((p) => ({
     url: `${SITE}/produto/${p.slug}`,
     lastModified: new Date(),
     priority: 0.8,

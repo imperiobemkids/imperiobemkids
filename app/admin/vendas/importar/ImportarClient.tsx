@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, UploadSimple, Check, Warning, X } from "@phosphor-icons/react";
-import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { SetupCard } from "../../SetupCard";
 import { calcularTaxas } from "@/lib/canais";
 import { STATUS, registrarVenda, hojeIso } from "@/lib/pedidos";
@@ -31,6 +31,15 @@ import { acharOuCriarCliente } from "@/lib/clientes";
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
 type Existente = { id: string; status: string; rastreio: string | null; nf_numero: string | null; pedido_externo: string | null; data: string; preco_venda: number };
+
+// todas as vendas do canal (paginado): com mais de 1000, o corte faria o mesmo pedido entrar duas vezes
+const existentesDoCanal = async (canalId: string): Promise<Existente[]> => {
+  if (!supabase) return [];
+  const { data } = await buscarTodos<Existente>((de, ate) =>
+    supabase!.from("ibk_vendas").select("id, pedido_externo, status, rastreio, nf_numero, data, preco_venda").eq("canal_id", canalId).order("id").range(de, ate),
+  );
+  return data;
+};
 
 export function ImportarClient() {
   const [canais, setCanais] = useState<Canal[]>([]);
@@ -73,12 +82,11 @@ export function ImportarClient() {
   useEffect(() => {
     if (!supabase || !canalId) return;
     (async () => {
-      const [cod, ex] = await Promise.all([
+      const [cod, todas] = await Promise.all([
         supabase!.from("ibk_produto_canais").select("produto_id, id_anuncio, id_variacao, sku_canal").eq("canal_id", canalId),
-        supabase!.from("ibk_vendas").select("id, pedido_externo, status, rastreio, nf_numero, data, preco_venda").eq("canal_id", canalId),
+        existentesDoCanal(canalId),
       ]);
       setCodigos((cod.data as CodigoCanal[]) ?? []);
-      const todas = (ex.data as Existente[]) ?? [];
       setExistentes(new Map(todas.filter((v) => v.pedido_externo).map((v) => [String(v.pedido_externo), v])));
       setManuais(todas.filter((v) => !v.pedido_externo));
     })();
@@ -161,74 +169,77 @@ export function ImportarClient() {
     setErro("");
     let novos = 0, atualizados = 0, pulados = 0;
 
-    for (const p of pedidos) {
-      const c = classificar(p);
-      if (c.tipo === "pular") { pulados++; continue; }
+    try {
+      for (const p of pedidos) {
+        const c = classificar(p);
+        if (c.tipo === "pular") { pulados++; continue; }
 
-      if (c.tipo === "vincular") {
-        const { error } = await supabase.from("ibk_vendas").update({ pedido_externo: p.pedido, rastreio: p.rastreio || null, nf_numero: p.nf || null }).eq("id", c.ex.id);
-        if (error) { setErro(`pedido ${p.pedido}: ${error.message}`); break; }
-        atualizados++;
-        continue;
-      }
-
-      if (c.tipo === "atualizar") {
-        // so anda pra frente no ciclo; cancelamento e devolucao ficam manuais
-        const ordem = ["aguardando", "enviado", "entregue"];
-        const patch: Record<string, unknown> = {};
-        if (ordem.includes(p.status) && ordem.includes(c.ex.status) && ordem.indexOf(p.status) > ordem.indexOf(c.ex.status)) {
-          patch.status = p.status;
-          if (p.status !== "aguardando") patch.enviado_em = p.data;
-          if (p.status === "entregue") patch.entregue_em = hojeIso();
-        }
-        if (p.rastreio && p.rastreio !== c.ex.rastreio) patch.rastreio = p.rastreio;
-        if (p.nf && p.nf !== c.ex.nf_numero) patch.nf_numero = p.nf;
-        if (Object.keys(patch).length) {
-          const { error } = await supabase.from("ibk_vendas").update(patch).eq("id", c.ex.id);
+        if (c.tipo === "vincular") {
+          const { error } = await supabase.from("ibk_vendas").update({ pedido_externo: p.pedido, rastreio: p.rastreio || null, nf_numero: p.nf || null }).eq("id", c.ex.id);
           if (error) { setErro(`pedido ${p.pedido}: ${error.message}`); break; }
           atualizados++;
-        } else pulados++;
-        continue;
-      }
+          continue;
+        }
 
-      // novo: a mesma sequencia do caixa, em lib/pedidos
-      const itens = p.itens.map((it) => ({ precoUnit: it.preco, qtd: it.qtd }));
-      const total = itens.reduce((s, i) => s + i.precoUnit * i.qtd, 0);
-      const desconto = p.itens.reduce((s, it) => s + Math.max(0, it.precoOriginal - it.preco) * it.qtd, 0);
-      // taxa real da planilha quando existe; senao a tabela do canal
-      const calc = calcularTaxas(canal, itens, 0);
-      const r = await registrarVenda({
-        data: p.data,
-        canalNome: canal.nome,
-        canalId: canal.id,
-        itens: p.itens.map((it) => ({ produtoId: it.produtoId!, qtd: it.qtd, precoUnit: it.preco })),
-        total,
-        desconto,
-        comissao: p.temTaxas ? p.taxas : calc.comissao,
-        taxaFixa: p.temTaxas ? 0 : calc.fixa,
-        insumo: canal.insumo_custo ?? 0,
-        freteCobrado: p.freteComprador,
-        cliente: p.comprador || null,
-        clienteId: p.comprador ? await acharOuCriarCliente(p.comprador, canal.nome.toLowerCase()) : null,
-        pedidoExterno: p.pedido,
-        status: p.status as "aguardando" | "enviado" | "entregue",
-        formaPagamento: "marketplace",
-        rastreio: p.rastreio || null,
-        enviadoEm: p.status === "enviado" || p.status === "entregue" ? p.data : null,
-        entregueEm: p.status === "entregue" ? p.data : null,
-        nfNumero: p.nf || null,
-        obs: `importado de ${arquivo}`,
-        descricaoCaixa: `Venda ${canal.nome} #${p.pedido}`,
-      });
-      if ("erro" in r) { setErro(`pedido ${p.pedido}: ${r.erro}`); break; }
-      novos++;
+        if (c.tipo === "atualizar") {
+          // so anda pra frente no ciclo; cancelamento e devolucao ficam manuais
+          const ordem = ["aguardando", "enviado", "entregue"];
+          const patch: Record<string, unknown> = {};
+          if (ordem.includes(p.status) && ordem.includes(c.ex.status) && ordem.indexOf(p.status) > ordem.indexOf(c.ex.status)) {
+            patch.status = p.status;
+            if (p.status !== "aguardando") patch.enviado_em = p.data;
+            if (p.status === "entregue") patch.entregue_em = hojeIso();
+          }
+          if (p.rastreio && p.rastreio !== c.ex.rastreio) patch.rastreio = p.rastreio;
+          if (p.nf && p.nf !== c.ex.nf_numero) patch.nf_numero = p.nf;
+          if (Object.keys(patch).length) {
+            const { error } = await supabase.from("ibk_vendas").update(patch).eq("id", c.ex.id);
+            if (error) { setErro(`pedido ${p.pedido}: ${error.message}`); break; }
+            atualizados++;
+          } else pulados++;
+          continue;
+        }
+
+        // novo: a mesma sequencia do caixa, em lib/pedidos
+        const itens = p.itens.map((it) => ({ precoUnit: it.preco, qtd: it.qtd }));
+        const total = itens.reduce((s, i) => s + i.precoUnit * i.qtd, 0);
+        const desconto = p.itens.reduce((s, it) => s + Math.max(0, it.precoOriginal - it.preco) * it.qtd, 0);
+        // taxa real da planilha quando existe; senao a tabela do canal
+        const calc = calcularTaxas(canal, itens, 0);
+        const r = await registrarVenda({
+          data: p.data,
+          canalNome: canal.nome,
+          canalId: canal.id,
+          itens: p.itens.map((it) => ({ produtoId: it.produtoId!, qtd: it.qtd, precoUnit: it.preco })),
+          total,
+          desconto,
+          comissao: p.temTaxas ? p.taxas : calc.comissao,
+          taxaFixa: p.temTaxas ? 0 : calc.fixa,
+          insumo: canal.insumo_custo ?? 0,
+          freteCobrado: p.freteComprador,
+          cliente: p.comprador || null,
+          clienteId: p.comprador ? await acharOuCriarCliente(p.comprador, canal.nome.toLowerCase()) : null,
+          pedidoExterno: p.pedido,
+          status: p.status as "aguardando" | "enviado" | "entregue",
+          formaPagamento: "marketplace",
+          rastreio: p.rastreio || null,
+          enviadoEm: p.status === "enviado" || p.status === "entregue" ? p.data : null,
+          entregueEm: p.status === "entregue" ? p.data : null,
+          nfNumero: p.nf || null,
+          obs: `importado de ${arquivo}`,
+          descricaoCaixa: `Venda ${canal.nome} #${p.pedido}`,
+        });
+        if ("erro" in r) { setErro(`pedido ${p.pedido}: ${r.erro}`); break; }
+        novos++;
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "erro ao importar");
     }
 
     setImportando(false);
     setResultado({ novos, atualizados, pulados });
     // recarrega os existentes pra nao importar duas vezes se clicar de novo
-    const { data } = await supabase.from("ibk_vendas").select("id, pedido_externo, status, rastreio, nf_numero, data, preco_venda").eq("canal_id", canal.id);
-    const todas = (data as Existente[]) ?? [];
+    const todas = await existentesDoCanal(canal.id);
     setExistentes(new Map(todas.filter((v) => v.pedido_externo).map((v) => [String(v.pedido_externo), v])));
     setManuais(todas.filter((v) => !v.pedido_externo));
   };

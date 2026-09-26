@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { hojeIso } from "@/lib/formato";
 
 /*
   Painel inline (dentro da aba Geral da ficha, sem abrir janela) que gera as
@@ -133,6 +134,7 @@ export function GerarVariacoes({
         return;
       }
       await supabase.from("ibk_estoque_mov").insert({
+        data: hojeIso(),
         produto_id: filho.id,
         tipo: "entrada",
         origem: "inicial",
@@ -147,6 +149,7 @@ export function GerarVariacoes({
     // o pai vira agrupador: transfere o saldo e registra a saida no kardex
     if (total > 0) {
       await supabase.from("ibk_estoque_mov").insert({
+        data: hojeIso(),
         produto_id: produto.id,
         tipo: "saida",
         origem: "ajuste",

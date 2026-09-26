@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { calcularTaxas } from "@/lib/canais";
+import { num, txt, brl, pct } from "@/lib/formato";
 import { STATUS, estornarVenda, hojeIso, estornada, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
 import type { Canal } from "../canais/CanaisClient";
 
@@ -40,6 +41,8 @@ export type VendaDetalhe = {
   entregue_em: string | null;
   nf_numero: string | null;
   nf_chave: string | null;
+  recebido?: number | null;
+  obs_conciliacao?: string | null;
   ibk_venda_itens: {
     qtd: number;
     preco_unit: number;
@@ -48,10 +51,6 @@ export type VendaDetalhe = {
   }[];
 };
 
-const brl = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-const num = (s: string) => parseFloat(String(s).replace(",", ".")) || 0;
-const txt = (v: number) => String(Math.round(v * 100) / 100).replace(".", ",");
 
 const nomeItem = (i: VendaDetalhe["ibk_venda_itens"][number]) => {
   const p = i.produto;
@@ -178,6 +177,8 @@ export function DetalheVenda({
               preco_venda: novoTotal,
               taxa_pct: novoTotal > 0 ? taxas.comissao / novoTotal : 0,
               taxa_fixa: taxas.fixa,
+              // venda direta recebida no ato: o recebido acompanha, senao a conciliacao acusa diferenca
+              ...(venda.obs_conciliacao === "recebido no ato" ? { recebido: Math.round((novoTotal - (venda.frete ?? 0)) * 100) / 100 } : {}),
             }
           : {}),
       })
@@ -198,6 +199,9 @@ export function DetalheVenda({
       if (taxas.comissao > 0) movs.push({ data, tipo: "saida", categoria: "taxa_shopee", valor: taxas.comissao, descricao: `Comissão ${nomeCanal}`, ref_venda_id: venda.id });
       if (taxas.fixa > 0) movs.push({ data, tipo: "saida", categoria: "taxa_shopee", valor: taxas.fixa, descricao: `Tarifa fixa ${nomeCanal}`, ref_venda_id: venda.id });
       await supabase.from("ibk_movimentos").insert(movs);
+    } else if (data !== venda.data) {
+      // so a data mudou: os lancamentos da venda vao junto, pro caixa do mes bater
+      await supabase.from("ibk_movimentos").update({ data }).eq("ref_venda_id", venda.id);
     }
 
     setSalvando(false);
@@ -256,7 +260,7 @@ export function DetalheVenda({
           <Linha rotulo="Total da venda" valor={brl(venda.preco_venda)} forte />
           {venda.desconto > 0 && <Linha rotulo="Desconto aplicado" valor={brl(venda.desconto)} sutil />}
           <div className="my-2 border-t border-[var(--purple)]/15" />
-          <Linha rotulo={`Comissão (${Math.round(venda.taxa_pct * 1000) / 10}%)`} valor={`− ${brl(comissao)}`} sutil />
+          <Linha rotulo={`Comissão (${pct(venda.taxa_pct)})`} valor={`− ${brl(comissao)}`} sutil />
           {venda.taxa_fixa > 0 && (
             <Linha rotulo={`Tarifa fixa (${venda.qtd_itens || venda.ibk_venda_itens.length} itens)`} valor={`− ${brl(venda.taxa_fixa)}`} sutil />
           )}

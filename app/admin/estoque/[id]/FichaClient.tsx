@@ -261,7 +261,7 @@ export function FichaClient({ id }: { id: string }) {
             {margem !== null && (
               <div className="col-span-2 rounded-xl bg-[var(--purple)]/6 p-3 text-sm">
                 Ao preço de {brl(precoVenda)}, com taxa de 20% e embalagem, a margem fica em{" "}
-                <strong className={margem >= 0 ? "text-emerald-600" : "text-red-500"}>{margem.toFixed(1)}%</strong>.
+                <strong className={margem >= 0 ? "text-emerald-600" : "text-red-500"}>{margem.toFixed(1).replace(".", ",")}%</strong>.
               </div>
             )}
 

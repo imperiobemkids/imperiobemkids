@@ -44,6 +44,17 @@ const LOJA_SHOPEE =
 
 const GRUPO_ACHADINHOS = "https://chat.whatsapp.com/GKQ58djmnyGHG2HMrPUxYb";
 
+/*
+  Nossas lojas: o perfil da loja em cada marketplace. Selo com a cor da marca
+  e a inicial (sem logo de terceiro); Kwai e ML com letra escura porque branco
+  sobre laranja claro e amarelo nao passa no contraste.
+*/
+const LOJAS = [
+  { nome: "Shopee", sigla: "S", href: EMPRESA.lojas.shopee, fundo: "#EE4D2D", letra: "#fff" },
+  { nome: "Mercado Livre", sigla: "ML", href: EMPRESA.lojas.mercadoLivre, fundo: "#FFE600", letra: "#2d3277" },
+  { nome: "Kwai", sigla: "K", href: EMPRESA.lojas.kwai, fundo: "#FF8A00", letra: "var(--ink)" },
+];
+
 const LINKS: BioLink[] = [
   {
     href: GRUPO_ACHADINHOS,
@@ -61,15 +72,6 @@ const LINKS: BioLink[] = [
     desc: "fala direto com a gente e monta seu pedido",
     accent: "var(--teal)",
     featured: true,
-  },
-  {
-    href: LOJA_SHOPEE,
-    emoji: "🛒",
-    title: "Nossa lojinha na Shopee",
-    desc: "veja todos os produtos e compre com segurança",
-    accent: "var(--yellow)",
-    featured: true,
-    anchor: "loja",
   },
   {
     href: "https://www.tiktok.com/@imperiobemkids",
@@ -344,7 +346,8 @@ export default function Home() {
   const todosProdutos = VITRINES.flatMap((v) => v.produtos);
 
   return (
-    <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center px-5 pb-28 pt-8">
+    // overflow-x-clip: as bolhas decorativas vazavam 40px e a pagina rolava pro lado no celular
+    <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center overflow-x-clip px-5 pb-28 pt-8">
       {/* bolhas decorativas de fundo */}
       <div className="pointer-events-none absolute -left-10 top-24 h-40 w-40 rounded-full bg-[var(--pink)]/30 blur-3xl" />
       <div className="pointer-events-none absolute -right-10 top-72 h-40 w-40 rounded-full bg-[var(--mint)]/40 blur-3xl" />
@@ -380,6 +383,45 @@ export default function Home() {
           <LinkCard key={l.title} link={l} />
         ))}
       </div>
+
+      {/* nossas lojas: um botao por marketplace, cada um abre o perfil da loja */}
+      <section id="loja" className="relative z-10 mb-8 w-full scroll-mt-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-xl">🛍️</span>
+          <div>
+            <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold leading-none text-[var(--purple-dark)]">
+              Nossas lojas
+            </h2>
+            <p className="text-xs text-[var(--ink)]/70">compre pelo app que você já usa, com a garantia dele</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {LOJAS.map((l) => (
+            <Saida
+              key={l.nome}
+              href={l.href}
+              evento="InitiateCheckout"
+              params={{ content_name: `loja ${l.nome}` }}
+              aria-label={`Abrir nossa loja no ${l.nome}`}
+              className="group flex flex-col items-center gap-2 rounded-3xl border-2 border-transparent bg-white px-2 py-4 text-center shadow-[0_4px_0_rgba(109,40,184,0.12)] transition-all hover:-translate-y-1 hover:border-[var(--purple)] hover:shadow-[0_8px_0_rgba(109,40,184,0.18)]"
+            >
+              <span
+                className="flex h-12 w-12 items-center justify-center rounded-2xl font-[family-name:var(--font-baloo)] text-lg font-extrabold"
+                style={{ background: l.fundo, color: l.letra }}
+                aria-hidden
+              >
+                {l.sigla}
+              </span>
+              <span className="font-[family-name:var(--font-baloo)] text-[15px] font-bold leading-tight text-[var(--purple-dark)]">
+                {l.nome}
+              </span>
+              <span className="mt-auto text-xs font-extrabold text-[var(--purple)] transition-transform group-hover:translate-x-0.5">
+                ver loja →
+              </span>
+            </Saida>
+          ))}
+        </div>
+      </section>
 
       {/* vitrines de produtos */}
       {VITRINES.map((v) => (

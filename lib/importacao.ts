@@ -1,3 +1,4 @@
+import { num } from "./formato";
 /*
   Importacao da planilha de pedidos do marketplace (Seller Center da Shopee,
   Centro do Vendedor do TikTok). O arquivo tem uma linha por item; as colunas
@@ -119,14 +120,8 @@ export async function lerArquivo(file: File): Promise<{ cabecalhos: string[]; li
   return { cabecalhos, linhas };
 }
 
-export const numero = (v: unknown) => {
-  if (typeof v === "number") return v;
-  const s = String(v ?? "").replace(/[^\d,.-]/g, "");
-  if (!s) return 0;
-  // "1.234,56" -> 1234.56 ; "1234.56" fica ; "49,90" -> 49.90
-  const semMilhar = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s;
-  return parseFloat(semMilhar) || 0;
-};
+// mesma regra do resto do painel ("1.234,56", "49,90", "49.90", "1.234")
+export const numero = (v: unknown) => num(typeof v === "number" ? v : String(v ?? ""));
 
 export const dataIso = (v: unknown): string => {
   if (v instanceof Date && !isNaN(v.getTime())) {
