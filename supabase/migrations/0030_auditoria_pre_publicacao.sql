@@ -1,7 +1,29 @@
--- Ajustes da auditoria antes de publicar (25/09/2026). Idempotente.
--- Rodar no SQL Editor.
+-- Ajustes da auditoria antes de publicar (25/09/2026). Idempotente: pode rodar
+-- de novo sem problema. Rodar no SQL Editor, o arquivo inteiro de uma vez.
 
--- 1) SEGURANCA: fecha a view antiga de estoque.
+-- 1) COLUNAS DA CONCILIACAO (as da migration 0010, que nao tinha rodado).
+--
+-- Sem elas, registrar venda direta falha (o painel grava "recebido no ato") e
+-- a Conciliacao mostrava a venda Shopee de 14/08 como conciliada com R$ 0.
+
+alter table ibk_vendas add column if not exists recebido numeric;          -- null = ainda nao caiu
+alter table ibk_vendas add column if not exists data_recebimento date;
+alter table ibk_vendas add column if not exists obs_conciliacao text;
+create index if not exists ibk_vendas_recebido_idx on ibk_vendas (recebido);
+
+-- Venda direta (sem comissao e sem tarifa: loja fisica, Pix) e recebida no
+-- ato: nao fica esperando repasse. Olha a taxa gravada na propria venda, e nao
+-- o canal, porque venda antiga pode estar sem canal_id.
+update ibk_vendas
+set recebido = preco_venda - coalesce(frete, 0),
+    data_recebimento = coalesce(data_recebimento, data),
+    obs_conciliacao = coalesce(obs_conciliacao, 'recebido no ato')
+where coalesce(taxa_pct, 0) = 0
+  and coalesce(taxa_fixa, 0) = 0
+  and recebido is null
+  and status <> 'cancelado';
+
+-- 2) SEGURANCA: fecha a view antiga de estoque.
 --
 -- A view ibk_v_estoque (migration 0001) roda com o dono do banco, entao ignora
 -- o RLS das tabelas. E o Supabase libera select em toda view do schema public
@@ -14,19 +36,6 @@
 -- mostra produto marcado como publicado, sem custo.
 
 drop view if exists ibk_v_estoque;
-
--- 2) CONCILIACAO: venda de marketplace "conciliada com zero" volta a pendente.
---
--- A 0028 fez isso so para venda com canal vinculado (canal_id). Venda antiga
--- sem canal_id, mas com comissao ou tarifa, ficou com recebido = 0 e aparecia
--- como divergencia falsa (a venda Shopee de 14/08: R$ 26,33 "a menos").
-
-update ibk_vendas
-set recebido = null, data_recebimento = null
-where recebido = 0
-  and obs_conciliacao is null
-  and (coalesce(taxa_pct, 0) > 0 or coalesce(taxa_fixa, 0) > 0)
-  and status <> 'cancelado';
 
 -- 3) FORNECEDORES: celular que estava no campo antigo "contato" vai pro
 -- WhatsApp (os ativos, cadastrados antes da 0029, ficavam sem o botao).
@@ -44,7 +53,12 @@ where whatsapp is null
 
 update ibk_canais set ativo = true where nome ilike '%kwai%' and not ativo;
 
--- Conferencia:
+-- Conferencia (rodar depois, separado):
+--   select count(*) filter (where recebido is not null) as recebidas,
+--          count(*) filter (where recebido is null) as pendentes
+--   from ibk_vendas;
+--   (esperado hoje: 10 recebidas no ato e 1 pendente, a venda Shopee)
+--
 --   select table_name from information_schema.views
 --   where table_schema = 'public' and table_name like 'ibk_%';
 --   (deve sobrar so ibk_produtos_publicos)
