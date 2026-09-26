@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 import { POSTS } from "@/lib/posts";
 import { listarProdutosPublicos } from "@/lib/produtosPublicos";
-
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://imperiobemkids.vercel.app";
+import { SITE } from "@/lib/seo";
 
 /*
   Sitemap das paginas publicas. O /admin e o /portal ficam de fora

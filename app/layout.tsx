@@ -3,6 +3,7 @@ import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 import { MetaPixel } from "./MetaPixel";
 import { AvisoCookies } from "./AvisoCookies";
+import { SITE } from "@/lib/seo";
 
 const baloo = Baloo_2({
   variable: "--font-baloo",
@@ -17,7 +18,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://imperiobemkids.vercel.app"),
+  metadataBase: new URL(SITE),
   title: {
     default: "Império Bem Kids",
     template: "%s | Império Bem Kids",

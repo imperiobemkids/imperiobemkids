@@ -4,7 +4,12 @@
   escapando "<" para evitar injecao (ver 01-app/02-guides/json-ld.md).
 */
 
-export const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://imperiobemkids.vercel.app";
+/*
+  Endereco publico do site, num lugar so (canonical, sitemap, robots, JSON-LD).
+  O dominio sem www redireciona para o com www, entao o oficial e este.
+  NEXT_PUBLIC_SITE_URL na Vercel sobrepoe, se um dia mudar.
+*/
+export const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.imperiobemkids.com.br").replace(/\/$/, "");
 
 export const jsonLdScript = (dados: object) => ({
   __html: JSON.stringify(dados).replace(/</g, "\\u003c"),
