@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { calcularTaxas } from "@/lib/canais";
-import { num, txt, brl, pct } from "@/lib/formato";
-import { STATUS, estornarVenda, hojeIso, estornada, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
+import { num, txt, brl, pct, dataBr } from "@/lib/formato";
+import { STATUS, estornarVenda, hojeIso, estornada, lucroDaVenda, FIADO, fiadoAberto, receberFiado, trocarItemVenda, type StatusPedido } from "@/lib/pedidos";
 import type { Canal } from "../canais/CanaisClient";
 
 /*
@@ -13,9 +13,20 @@ import type { Canal } from "../canais/CanaisClient";
 
   O que da para editar aqui: data, cliente, forma de pagamento e o total.
   Mexer no total refaz a comissao e os lancamentos de caixa daquela venda.
-  Trocar os itens NAO entra aqui de proposito, porque mexeria no estoque: para
-  isso o caminho e devolver a venda e registrar de novo.
+  Trocar o produto de um item (tamanho ou modelo errado) tambem: a peca errada
+  volta ao estoque e a certa sai, pelo trocarItemVenda. Preco e qtd ficam.
 */
+
+// produto que pode entrar no lugar de um item: variacao ou produto simples
+export type ProdutoTroca = {
+  id: string;
+  nome: string | null;
+  tamanho: string | null;
+  cor: string | null;
+  qtd_atual: number;
+  tem_variacoes: boolean | null;
+};
+const nomeTroca = (p: ProdutoTroca) => [p.nome?.trim() || "Produto", p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ");
 
 export type VendaDetalhe = {
   id: string;
@@ -42,12 +53,14 @@ export type VendaDetalhe = {
   nf_numero: string | null;
   nf_chave: string | null;
   recebido?: number | null;
+  data_recebimento?: string | null;
   obs_conciliacao?: string | null;
   ibk_venda_itens: {
+    id: string;
     qtd: number;
     preco_unit: number;
     produto_id: string | null;
-    produto: { nome: string | null; tamanho: string | null; cor: string | null; custo_unit: number } | null;
+    produto: { nome: string | null; tamanho: string | null; cor: string | null; custo_unit: number; tem_variacoes?: boolean | null } | null;
   }[];
 };
 
@@ -62,11 +75,13 @@ const nomeItem = (i: VendaDetalhe["ibk_venda_itens"][number]) => {
 export function DetalheVenda({
   venda,
   canais,
+  produtos,
   onFechar,
   onSalvo,
 }: {
   venda: VendaDetalhe;
   canais: Canal[];
+  produtos: ProdutoTroca[];
   onFechar: () => void;
   onSalvo: () => void;
 }) {
@@ -77,6 +92,9 @@ export function DetalheVenda({
   const [totalTexto, setTotalTexto] = useState(txt(venda.preco_venda));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  // troca de produto de um item: qual item e para qual produto
+  const [trocando, setTrocando] = useState<string | null>(null);
+  const [novoProduto, setNovoProduto] = useState("");
 
   // ciclo do pedido
   const [rastreio, setRastreio] = useState(venda.rastreio ?? "");
@@ -141,6 +159,33 @@ export function DetalheVenda({
     onSalvo();
   };
 
+  const confirmarTroca = async (itemId: string) => {
+    if (!novoProduto) return setErro("escolha o produto certo");
+    setErro("");
+    setSalvando(true);
+    let erro: string | null;
+    try {
+      erro = await trocarItemVenda(venda.id, itemId, novoProduto);
+    } catch (e) {
+      erro = e instanceof Error ? e.message : "erro na troca";
+    }
+    setSalvando(false);
+    if (erro) return setErro(erro);
+    setTrocando(null);
+    setNovoProduto("");
+    onSalvo();
+  };
+
+  /* fiado: a cliente pagou, o dinheiro entra no caixa hoje */
+  const quitarFiado = async () => {
+    setErro("");
+    setSalvando(true);
+    const erro = await receberFiado(venda.id);
+    setSalvando(false);
+    if (erro) return setErro(erro);
+    onSalvo();
+  };
+
   const canal = canais.find((c) => c.id === venda.canal_id);
   const custoProdutos = venda.ibk_venda_itens.reduce(
     (s, i) => s + (i.produto?.custo_unit ?? 0) * i.qtd,
@@ -190,11 +235,23 @@ export function DetalheVenda({
     }
 
     if (taxas) {
-      // refaz os lancamentos de caixa desta venda, para o saldo nao ficar torto
+      // refaz os lancamentos de caixa desta venda, para o saldo nao ficar torto.
+      // Fiado ainda nao pago continua a receber, com o mesmo vencimento
+      const { data: antiga } = await supabase
+        .from("ibk_movimentos")
+        .select("pago, vencimento")
+        .eq("ref_venda_id", venda.id)
+        .eq("tipo", "entrada")
+        .eq("categoria", "venda")
+        .limit(1);
+      const aReceber = antiga?.[0]?.pago === false;
       await supabase.from("ibk_movimentos").delete().eq("ref_venda_id", venda.id);
       const nomeCanal = canal?.nome ?? venda.canal;
       const movs: Record<string, unknown>[] = [
-        { data, tipo: "entrada", categoria: "venda", valor: novoTotal, descricao: `Venda ${nomeCanal}`, ref_venda_id: venda.id },
+        {
+          data, tipo: "entrada", categoria: "venda", valor: novoTotal, descricao: `Venda ${nomeCanal}${aReceber ? " (fiado)" : ""}`, ref_venda_id: venda.id,
+          ...(aReceber ? { pago: false, vencimento: antiga?.[0]?.vencimento ?? null, forma_pagamento: FIADO } : {}),
+        },
       ];
       if (taxas.comissao > 0) movs.push({ data, tipo: "saida", categoria: "taxa_shopee", valor: taxas.comissao, descricao: `Comissão ${nomeCanal}`, ref_venda_id: venda.id });
       if (taxas.fixa > 0) movs.push({ data, tipo: "saida", categoria: "taxa_shopee", valor: taxas.fixa, descricao: `Tarifa fixa ${nomeCanal}`, ref_venda_id: venda.id });
@@ -229,6 +286,30 @@ export function DetalheVenda({
           </button>
         </div>
 
+        {/* fiado: quanto falta receber e de quem */}
+        {venda.forma_pagamento === FIADO && !foraDoCiclo && (
+          <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm ${fiadoAberto(venda) ? "bg-[var(--sun)]/40" : "bg-emerald-50"}`}>
+            {fiadoAberto(venda) ? (
+              <>
+                <span className="text-[var(--ink)]">
+                  <b>Fiado:</b> falta receber <b className="num">{brl(venda.preco_venda)}</b>
+                  {venda.cliente ? ` de ${venda.cliente}` : ""}
+                </span>
+                <button onClick={quitarFiado} disabled={salvando} className={btnP}>
+                  {salvando ? "..." : "marcar como pago"}
+                </button>
+              </>
+            ) : (
+              <span className="font-semibold text-emerald-800">
+                Fiado pago{venda.data_recebimento ? ` em ${dataBr(venda.data_recebimento)}` : ""}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* erro de troca, fiado ou status aparece aqui; o da edicao fica junto do formulario */}
+        {erro && !editando && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
+
         {/* itens */}
         <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--purple)]/15">
           <table className="w-full text-left text-sm">
@@ -239,17 +320,56 @@ export function DetalheVenda({
                 <th className="p-2.5">Preço un.</th>
                 <th className="p-2.5">Subtotal</th>
                 <th className="hidden p-2.5 sm:table-cell">Custo</th>
+                <th className="p-2.5"></th>
               </tr>
             </thead>
             <tbody>
-              {venda.ibk_venda_itens.map((i, idx) => (
-                <tr key={idx} className="border-b border-[var(--purple)]/6 last:border-0">
-                  <td className="p-2.5 font-semibold text-[var(--ink)]">{nomeItem(i)}</td>
-                  <td className="p-2.5">{i.qtd}</td>
-                  <td className="p-2.5">{brl(i.preco_unit)}</td>
-                  <td className="p-2.5 font-bold text-[var(--purple-dark)]">{brl(i.preco_unit * i.qtd)}</td>
-                  <td className="hidden p-2.5 text-[var(--ink)]/75 sm:table-cell">{brl((i.produto?.custo_unit ?? 0) * i.qtd)}</td>
-                </tr>
+              {venda.ibk_venda_itens.map((i) => (
+                <Fragment key={i.id}>
+                  <tr className="border-b border-[var(--purple)]/6 last:border-0">
+                    <td className="p-2.5 font-semibold text-[var(--ink)]">{nomeItem(i)}</td>
+                    <td className="p-2.5">{i.qtd}</td>
+                    <td className="p-2.5">{brl(i.preco_unit)}</td>
+                    <td className="p-2.5 font-bold text-[var(--purple-dark)]">{brl(i.preco_unit * i.qtd)}</td>
+                    <td className="hidden p-2.5 text-[var(--ink)]/75 sm:table-cell">{brl((i.produto?.custo_unit ?? 0) * i.qtd)}</td>
+                    <td className="p-2.5 text-right">
+                      {!foraDoCiclo && trocando !== i.id && (
+                        <button onClick={() => { setTrocando(i.id); setNovoProduto(""); setErro(""); }} className="text-xs font-bold text-[var(--purple)] hover:underline">
+                          trocar
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {trocando === i.id && (
+                    <tr className="bg-[var(--purple)]/[0.04]">
+                      <td colSpan={6} className="p-2.5">
+                        <div className="flex flex-wrap items-end gap-2">
+                          <Campo label="Produto certo">
+                            <select value={novoProduto} onChange={(e) => setNovoProduto(e.target.value)} className={`${inp} min-w-[240px]`} autoFocus>
+                              <option value="">selecione...</option>
+                              {produtos
+                                // venda de antes da grade so troca o rotulo: qualquer tamanho serve, mesmo zerado
+                                .filter((p) => !p.tem_variacoes && p.id !== i.produto_id && (i.produto?.tem_variacoes || p.qtd_atual >= i.qtd))
+                                .sort((a, b) => nomeTroca(a).localeCompare(nomeTroca(b), "pt-BR", { numeric: true }))
+                                .map((p) => (
+                                  <option key={p.id} value={p.id}>{nomeTroca(p)} ({p.qtd_atual} em estoque)</option>
+                                ))}
+                            </select>
+                          </Campo>
+                          <button onClick={() => confirmarTroca(i.id)} disabled={salvando || !novoProduto} className={btnP}>
+                            {salvando ? "trocando..." : "trocar"}
+                          </button>
+                          <button onClick={() => setTrocando(null)} className={btnS}>cancelar</button>
+                        </div>
+                        <p className="mt-1.5 text-[11px] text-[var(--ink)]/70">
+                          {i.produto?.tem_variacoes
+                            ? "Venda de antes da grade de tamanhos: só corrige o tamanho no item, o estoque não mexe (a peça já tinha saído antes da contagem)."
+                            : `${i.qtd} de "${nomeItem(i)}" volta ao estoque e sai do produto escolhido. Preço e quantidade ficam iguais; o lucro passa a usar o custo do produto novo.`}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -371,7 +491,7 @@ export function DetalheVenda({
                 <input value={cliente} onChange={(e) => setCliente(e.target.value)} className={`${inp} w-40`} />
               </Campo>
               <Campo label="Forma de pagamento">
-                <select value={forma} onChange={(e) => setForma(e.target.value)} className={inp}>
+                <select value={forma} onChange={(e) => setForma(e.target.value)} disabled={fiadoAberto(venda)} className={`${inp} disabled:opacity-60`}>
                   <option value="">nao informada</option>
                   <option value="pix">Pix</option>
                   <option value="cartao">Cartão</option>
@@ -379,6 +499,8 @@ export function DetalheVenda({
                   <option value="dinheiro">Dinheiro</option>
                   <option value="transferencia">Transferência</option>
                   <option value="marketplace">Pelo marketplace</option>
+                  {/* fiado so nasce no registro da venda: aqui so aparece para mostrar o valor atual */}
+                  {venda.forma_pagamento === FIADO && <option value={FIADO}>Fiado (paga depois)</option>}
                 </select>
               </Campo>
               <Campo label="Total da venda">
@@ -387,7 +509,8 @@ export function DetalheVenda({
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-[var(--ink)]/70">
               Mudar o total refaz a comissão e os lançamentos de caixa desta venda. Para trocar
-              os produtos, devolva a venda e registre de novo, senão o estoque fica errado.
+              o produto ou o tamanho de um item, use &quot;trocar&quot; na lista de itens: o estoque acerta sozinho.
+              {fiadoAberto(venda) && " Fiado em aberto: quando a cliente pagar, use \"marcar como pago\" lá em cima."}
             </p>
             {erro && <p className="mt-2 text-sm font-semibold text-red-500">{erro}</p>}
             <div className="mt-3 flex gap-2">

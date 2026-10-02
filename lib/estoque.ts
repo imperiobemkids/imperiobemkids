@@ -10,7 +10,28 @@ import { hojeIso } from "./formato";
   Na saida o custo NAO muda, apenas o saldo.
 */
 
-type Origem = "compra" | "venda" | "ajuste" | "devolucao" | "inicial";
+/*
+  Saida sem venda: a peca sai pelo custo medio e nao entra dinheiro (a compra
+  ja saiu do caixa). O custo vira despesa no DRE e no painel, em vez de sumir
+  num ajuste manual. Os tres motivos precisam da migration 0031.
+*/
+export type MotivoSaida = "presente" | "conteudo" | "perda";
+export const MOTIVOS_SAIDA: Record<MotivoSaida, { rotulo: string; dica: string; exemplo: string }> = {
+  presente: { rotulo: "Presente", dica: "brinde para cliente, parceira ou família", exemplo: "ex: presente para a Stephany" },
+  conteudo: { rotulo: "Conteúdo e divulgação", dica: "usado em vídeo, foto ou live", exemplo: "ex: vídeo da bomba no Kwai" },
+  perda: { rotulo: "Perda ou defeito", dica: "estragou, sumiu ou não dá pra vender", exemplo: "ex: manchou na lavagem" },
+};
+
+type Origem = "compra" | "venda" | "ajuste" | "devolucao" | "inicial" | MotivoSaida;
+
+/* agrupamento do jeito que a loja pensa: roupa por estacao, brinquedo junto (painel e estoque usam o mesmo) */
+export function grupoDoProduto(p: { linha: string | null; categoria: string | null }) {
+  if (p.linha === "verao") return "Roupas de verão";
+  if (p.linha === "inverno") return "Roupas de inverno";
+  const c = (p.categoria ?? "").trim();
+  if (/brinq|squish/i.test(c)) return "Brinquedos";
+  return c || "Outros";
+}
 
 /*
   Custo medio ponderado calculado em CENTAVOS INTEIROS.
@@ -120,6 +141,35 @@ export async function saidaEstoque(
     qtd: -qtd, custoUnit: p.custo_unit,
     saldoDepois: saldo, custoMedioDepois: p.custo_unit, ref,
   });
+}
+
+/*
+  Grava o kardex ANTES de baixar o saldo: sem a migration 0031 o banco recusa
+  o motivo, e baixar primeiro deixaria o estoque menor sem rastro do porque.
+*/
+export async function saidaSemVenda(produtoId: string, qtd: number, motivo: MotivoSaida, obs: string, data = hojeIso()) {
+  if (!supabase) return;
+  if (!(qtd > 0)) throw new Error("informe a quantidade");
+  const p = await lerProduto(produtoId);
+  if (qtd > p.qtd_atual) throw new Error(`estoque insuficiente: tem ${p.qtd_atual}`);
+  const saldo = p.qtd_atual - qtd;
+
+  const { error } = await supabase.from("ibk_estoque_mov").insert({
+    produto_id: produtoId,
+    tipo: "saida",
+    origem: motivo,
+    qtd: -qtd,
+    custo_unit: p.custo_unit,
+    saldo_depois: saldo,
+    custo_medio_depois: p.custo_unit,
+    obs: obs.trim() || MOTIVOS_SAIDA[motivo].rotulo.toLowerCase(),
+    data,
+  });
+  if (error) {
+    throw new Error(/origem_check/.test(error.message) ? "rode a migration 0031 no SQL Editor do Supabase antes" : error.message);
+  }
+  const { error: e2 } = await supabase.from("ibk_produtos").update({ qtd_atual: saldo }).eq("id", produtoId);
+  if (e2) throw new Error(e2.message);
 }
 
 /*

@@ -5,10 +5,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { X } from "@phosphor-icons/react";
 import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
-import { STATUS, estornada, situacaoDespacho, hojeIso, lucroDaVenda, type StatusPedido } from "@/lib/pedidos";
+import { STATUS, PAGAMENTO, estornada, situacaoDespacho, situacaoPagamento, valorAReceber, hojeIso, lucroDaVenda, type StatusPedido, type SituacaoPagamento } from "@/lib/pedidos";
 import { diasAtrasIso } from "@/lib/formato";
 import { NovaVenda, type ProdutoVenda } from "./NovaVenda";
-import { DetalheVenda, type VendaDetalhe } from "./DetalheVenda";
+import { DetalheVenda, type VendaDetalhe, type ProdutoTroca } from "./DetalheVenda";
 import type { Canal } from "../canais/CanaisClient";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows } from "../ui";
@@ -48,6 +48,7 @@ type VendaRow = {
   pedido_externo: string | null;
   rastreio: string | null;
   cliente_id: string | null;
+  recebido: number | null;
   ibk_venda_itens: {
     qtd: number;
     preco_unit: number;
@@ -86,6 +87,8 @@ export function VendasClient() {
   const [caixaAberto, setCaixaAberto] = useState(false);
   const [detalhe, setDetalhe] = useState<VendaDetalhe | null>(null);
   const [filtro, setFiltro] = useState<"todos" | StatusPedido>("todos");
+  const [filtroPag, setFiltroPag] = useState<"todos" | SituacaoPagamento>("todos");
+  const [legenda, setLegenda] = useState(false);
   // as somas usam todas as vendas; a tabela mostra aos poucos
   const [mostrar, setMostrar] = useState(50);
   // ?cliente=<id> vem do card em /admin/clientes
@@ -104,7 +107,7 @@ export function VendasClient() {
       buscarTodos<VendaRow>((de, ate) =>
         supabase!
           .from("ibk_vendas")
-          .select("*, ibk_venda_itens(qtd, preco_unit, produto_id, produto:ibk_produtos(nome, tamanho, cor, custo_unit, produto_pai_id))")
+          .select("*, ibk_venda_itens(id, qtd, preco_unit, produto_id, produto:ibk_produtos(nome, tamanho, cor, custo_unit, produto_pai_id, tem_variacoes))")
           .order("data", { ascending: false })
           .order("created_at", { ascending: false })
           .order("id")
@@ -181,8 +184,14 @@ export function VendasClient() {
   const aguardando = vendas.filter((v) => v.status === "aguardando");
   const atrasadas = aguardando.filter((v) => situacaoDespacho(v.data, v.status)?.nivel === "atrasado");
   const contagem = (s: StatusPedido) => vendas.filter((v) => v.status === s).length;
+  const contagemPag = (s: SituacaoPagamento) => vendas.filter((v) => situacaoPagamento(v) === s).length;
   const doCliente = clienteFiltro ? vendas.filter((v) => v.cliente_id === clienteFiltro) : vendas;
-  const visiveis = filtro === "todos" ? doCliente : doCliente.filter((v) => v.status === filtro);
+  // entrega e pagamento filtram juntos: "entregue" + "a receber" = fiado que ja foi levado
+  const visiveis = doCliente
+    .filter((v) => filtro === "todos" || v.status === filtro)
+    .filter((v) => filtroPag === "todos" || situacaoPagamento(v) === filtroPag);
+  const pendentesPag = vendas.filter((v) => ["a_receber", "repasse"].includes(situacaoPagamento(v)));
+  const totalAReceber = pendentesPag.reduce((s, v) => s + valorAReceber(v), 0);
   const lucroAcum = vendas.reduce((s, v) => s + lucroVenda(v), 0);
   // investido = tudo que saiu em mercadoria, insumo e capex (nao fixar no codigo)
   const paybackPct = investido > 0 ? Math.min(100, Math.round((lucroAcum / investido) * 100)) : 0;
@@ -202,6 +211,7 @@ export function VendasClient() {
           <Kpi titulo="Vendido" valor={brl(totalVendido)} />
           <Kpi titulo="Lucro acum." valor={brl(lucroAcum)} />
           <Kpi titulo="Payback" valor={`${paybackPct}%`} />
+          {pendentesPag.length > 0 && <Kpi titulo={`A receber (${pendentesPag.length})`} valor={brl(totalAReceber)} />}
           {devolvidas.length > 0 && (
             <Kpi
               titulo="Devoluções"
@@ -239,6 +249,7 @@ export function VendasClient() {
         <DetalheVenda
           venda={detalhe}
           canais={canais}
+          produtos={produtos as unknown as ProdutoTroca[]}
           onFechar={() => setDetalhe(null)}
           onSalvo={() => { setDetalhe(null); carregar(); }}
         />
@@ -296,8 +307,9 @@ export function VendasClient() {
         </div>
       )}
 
-      {/* filtro por status; atrasado e o que mais importa ver primeiro */}
+      {/* filtros: entrega e pagamento sao coisas diferentes; atrasado e o que mais importa ver primeiro */}
       <div className="mt-5 flex flex-wrap items-center gap-1.5">
+        <span className="w-20 text-[10px] font-bold uppercase text-[var(--ink)]/70">Entrega</span>
         {(["todos", "aguardando", "enviado", "entregue", "cancelado", "devolvido"] as const).map((f) => {
           const n = f === "todos" ? vendas.length : contagem(f);
           if (f !== "todos" && n === 0 && filtro !== f) return null;
@@ -326,25 +338,71 @@ export function VendasClient() {
           </span>
         )}
       </div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <span className="w-20 text-[10px] font-bold uppercase text-[var(--ink)]/70">Pagamento</span>
+        {(["todos", "a_receber", "repasse", "pago", "estornado"] as const).map((f) => {
+          const n = f === "todos" ? vendas.length : contagemPag(f);
+          if (f !== "todos" && n === 0 && filtroPag !== f) return null;
+          const ativo = filtroPag === f;
+          return (
+            <button
+              key={f}
+              onClick={() => setFiltroPag(f)}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
+                ativo ? "bg-[var(--purple)] text-white" : "bg-white text-[var(--ink)]/65 hover:bg-[var(--purple)]/8"
+              }`}
+            >
+              {f === "todos" ? "todos" : PAGAMENTO[f].rotulo} <span className="num opacity-60">{n}</span>
+            </button>
+          );
+        })}
+        <button onClick={() => setLegenda((l) => !l)} className="ml-1 text-xs font-bold text-[var(--purple)] underline-offset-2 hover:underline" aria-expanded={legenda}>
+          {legenda ? "esconder legenda" : "o que significa?"}
+        </button>
+      </div>
+      {legenda && (
+        <div className="fade-in mt-2 grid gap-3 rounded-xl bg-white/70 p-3 text-xs sm:grid-cols-2">
+          <div>
+            <div className="mb-1 text-[10px] font-bold uppercase text-[var(--ink)]/70">Entrega: onde o pedido está</div>
+            <ul className="space-y-1">
+              <li><Chip cor={STATUS.aguardando.cor}>{STATUS.aguardando.rotulo}</Chip> vendeu e ainda não postou (marketplace cobra em até 2 dias úteis)</li>
+              <li><Chip cor={STATUS.enviado.cor}>{STATUS.enviado.rotulo}</Chip> postado, com rastreio, a caminho</li>
+              <li><Chip cor={STATUS.entregue.cor}>{STATUS.entregue.rotulo}</Chip> chegou ou saiu na mão (loja física)</li>
+              <li><Chip cor={STATUS.cancelado.cor}>{STATUS.cancelado.rotulo}</Chip> desistiu antes de receber: peça e dinheiro voltaram</li>
+              <li><Chip cor={STATUS.devolvido.cor}>{STATUS.devolvido.rotulo}</Chip> voltou depois de entregue: fica o custo da devolução</li>
+            </ul>
+          </div>
+          <div>
+            <div className="mb-1 text-[10px] font-bold uppercase text-[var(--ink)]/70">Pagamento: o dinheiro</div>
+            <ul className="space-y-1">
+              {(Object.keys(PAGAMENTO) as SituacaoPagamento[]).map((k) => (
+                <li key={k}><Chip cor={PAGAMENTO[k].cor}>{PAGAMENTO[k].rotulo}</Chip> {PAGAMENTO[k].explica}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 overflow-x-auto card">
-        <table className="w-full min-w-[560px] text-left text-sm">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
-              <th className="p-3">Pedido</th>
+              <th className="p-3">Data</th>
               <th className="p-3">Produtos</th>
               <th className="hidden p-3 sm:table-cell">Canal</th>
-              <th className="hidden p-3 lg:table-cell">Taxas</th>
-              <th className="p-3">Total</th>
-              <th className="p-3">Lucro</th>
+              <th className="p-3">Entrega</th>
+              <th className="p-3">Pagamento</th>
+              <th className="hidden p-3 xl:table-cell">Taxas</th>
+              <th className="p-3 text-right">Total</th>
+              <th className="p-3 text-right">Lucro</th>
               <th className="p-3"></th>
             </tr>
           </thead>
           <tbody className="cascata">
-            {loading && <SkeletonRows cols={7} />}
+            {loading && <SkeletonRows cols={9} />}
             {!loading && visiveis.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-[var(--ink)]/70">
+                <td colSpan={9} className="p-6 text-center text-[var(--ink)]/70">
                   {vendas.length === 0 ? "nenhuma venda registrada ainda." : "nada nesse status."}
                 </td>
               </tr>
@@ -354,14 +412,12 @@ export function VendasClient() {
               const qtdItens = v.ibk_venda_itens.reduce((s, it) => s + it.qtd, 0);
               const st = STATUS[v.status] ?? STATUS.entregue;
               const desp = situacaoDespacho(v.data, v.status);
+              const pag = situacaoPagamento(v);
               return (
                 <tr key={v.id} className={`border-b border-[var(--purple)]/6 last:border-0 ${estornada(v.status) ? "bg-red-50/40" : ""}`}>
                   <td className="whitespace-nowrap p-3">
                     <div>{new Date(v.data + "T12:00:00").toLocaleDateString("pt-BR")}</div>
                     {v.pedido_externo && <div className="num text-[11px] text-[var(--ink)]/70">#{v.pedido_externo}</div>}
-                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${desp?.nivel === "atrasado" ? "bg-red-100 text-red-600" : st.cor}`}>
-                      {desp?.nivel === "atrasado" ? `atrasado ${desp.dias}d` : st.rotulo}
-                    </span>
                   </td>
                   <td className="p-3">
                     <button onClick={() => setDetalhe(v as unknown as VendaDetalhe)} className="text-left font-semibold text-[var(--ink)] hover:text-[var(--purple)] hover:underline">
@@ -374,11 +430,22 @@ export function VendasClient() {
                     </div>
                   </td>
                   <td className="hidden p-3 capitalize sm:table-cell">{v.canal}</td>
-                  <td className="hidden p-3 text-[var(--ink)]/60 lg:table-cell">
+                  <td className="p-3">
+                    <Chip cor={desp?.nivel === "atrasado" ? "bg-red-100 text-red-600" : st.cor}>
+                      {desp?.nivel === "atrasado" ? `atrasado ${desp.dias}d` : st.rotulo}
+                    </Chip>
+                  </td>
+                  <td className="p-3">
+                    <Chip cor={PAGAMENTO[pag].cor}>{PAGAMENTO[pag].rotulo}</Chip>
+                    {(pag === "a_receber" || pag === "repasse") && (
+                      <div className="num mt-0.5 text-[11px] text-[var(--ink)]/70">falta {brl(valorAReceber(v))}</div>
+                    )}
+                  </td>
+                  <td className="hidden p-3 text-[var(--ink)]/60 xl:table-cell">
                     {brl(v.preco_venda * v.taxa_pct + (v.taxa_fixa ?? 0))}
                   </td>
-                  <td className={`whitespace-nowrap p-3 font-semibold ${estornada(v.status) ? "text-[var(--ink)]/65 line-through" : ""}`}>{brl(v.preco_venda)}</td>
-                  <td className={`whitespace-nowrap p-3 font-bold ${l >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l)}</td>
+                  <td className={`whitespace-nowrap p-3 text-right font-semibold ${estornada(v.status) ? "text-[var(--ink)]/65 line-through" : ""}`}>{brl(v.preco_venda)}</td>
+                  <td className={`whitespace-nowrap p-3 text-right font-bold ${l >= 0 ? "text-emerald-600" : "text-red-500"}`}>{brl(l)}</td>
                   <td className="p-3">
                     <div className="flex gap-1">
                       <button onClick={() => setDetalhe(v as unknown as VendaDetalhe)} className="whitespace-nowrap rounded-lg bg-[var(--purple)]/8 px-2.5 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
@@ -419,6 +486,10 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </label>
   );
+}
+
+function Chip({ cor, children }: { cor: string; children: React.ReactNode }) {
+  return <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${cor}`}>{children}</span>;
 }
 
 function Kpi({ titulo, valor }: { titulo: string; valor: string }) {

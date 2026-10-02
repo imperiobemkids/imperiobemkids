@@ -2,15 +2,16 @@
 
 import { Fragment, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { supabase, supabaseConfigured } from "@/lib/supabase";
-import { ajusteEstoque } from "@/lib/estoque";
-import { calcularReposicao, nomeExibido } from "@/lib/reposicao";
+import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
+import { ajusteEstoque, grupoDoProduto } from "@/lib/estoque";
+import { calcularReposicao, calcularParados, nomeExibido } from "@/lib/reposicao";
 import { num, hojeIso, diasAtrasIso } from "@/lib/formato";
 import { SetupCard } from "../SetupCard";
 import { KardexModal } from "./KardexModal";
 import { SkeletonRows } from "../ui";
 import { CaretRight } from "@phosphor-icons/react";
 import { GradeVariacoes } from "./GradeVariacoes";
+import { SaidaSemVenda } from "./SaidaSemVenda";
 
 type Produto = {
   id: string;
@@ -33,6 +34,7 @@ type Produto = {
   largura_cm: number | null;
   altura_cm: number | null;
   ativo: boolean;
+  created_at: string | null;
 };
 
 type Fornecedor = { id: string; nome: string };
@@ -70,13 +72,21 @@ export function EstoqueClient() {
   const [form, setForm] = useState<Form>(formVazio);
   const [kardex, setKardex] = useState<Produto | null>(null);
   const [vendidos30, setVendidos30] = useState<Map<string, number>>(new Map()); // produto_id -> unidades nos ultimos 30 dias
+  const [ultimaVenda, setUltimaVenda] = useState<Map<string, string>>(new Map()); // produto pai (ou simples) -> data da ultima venda
   const [reposicaoAberta, setReposicaoAberta] = useState(false);
+  const [saidaAberta, setSaidaAberta] = useState(false);
   const [abertos, setAbertos] = useState<Set<string>>(new Set()); // grades abertas
+  // filtros da tabela, no mesmo formato da tela de Vendas
+  const [filtroSit, setFiltroSit] = useState<"todos" | Situacao>("todos");
+  const [filtroGrupo, setFiltroGrupo] = useState("todos");
+  const [filtroGenero, setFiltroGenero] = useState("todos");
+  const [filtroParado, setFiltroParado] = useState(0); // 0 = todos; 30, 60, 90 = sem venda ha pelo menos N dias
+  const [legenda, setLegenda] = useState(false);
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [{ data, error }, { data: forns }, { data: itens }] = await Promise.all([
+    const [{ data, error }, { data: forns }, { data: itens }, { data: todas }] = await Promise.all([
       supabase.from("ibk_produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
       supabase.from("ibk_fornecedores").select("id, nome").not("status", "in", "(pista,descartado)").order("nome"),
       // giro: unidades vendidas por produto nos ultimos 30 dias (sem cancelada/devolvida)
@@ -85,6 +95,15 @@ export function EstoqueClient() {
         .select("produto_id, qtd, venda:ibk_vendas!inner(data, status)")
         .gte("venda.data", diasAtrasIso(30))
         .not("venda.status", "in", '("cancelado","devolvido")'),
+      // ultima venda de cada produto, de todo o historico, para o estoque parado (paginado: o limite e 1000 linhas)
+      buscarTodos((de, ate) =>
+        supabase!
+          .from("ibk_venda_itens")
+          .select("produto_id, produto:ibk_produtos(produto_pai_id), venda:ibk_vendas!inner(data, status)")
+          .not("venda.status", "in", '("cancelado","devolvido")')
+          .order("id")
+          .range(de, ate),
+      ),
     ]);
     if (error) setErro(error.message);
     else setRows((data as Produto[]) ?? []);
@@ -94,6 +113,14 @@ export function EstoqueClient() {
       if (it.produto_id) m.set(it.produto_id, (m.get(it.produto_id) ?? 0) + it.qtd);
     }
     setVendidos30(m);
+    const u = new Map<string, string>();
+    type ItemHist = { produto_id: string | null; produto: { produto_pai_id: string | null } | null; venda: { data: string } | null };
+    for (const it of (todas as unknown as ItemHist[]) ?? []) {
+      const chave = it.produto?.produto_pai_id ?? it.produto_id;
+      const d = it.venda?.data?.slice(0, 10);
+      if (chave && d && (u.get(chave) ?? "") < d) u.set(chave, d);
+    }
+    setUltimaVenda(u);
     setLoading(false);
   }, []);
 
@@ -190,6 +217,26 @@ export function EstoqueClient() {
   // reposicao: mesma regra do Painel (lib/reposicao)
   const reposicao = calcularReposicao(rows, vendidos30);
 
+  /*
+    Situacao de cada linha da tabela, exclusiva como o status da venda:
+    esgotado (somou zero), repor (ele ou alguma variacao caiu na Reposicao) ou ok.
+  */
+  const idsRepor = new Set(reposicao.map((r) => r.p.id));
+  const situacaoDe = ({ p, filhos, agregado }: (typeof listaOrdenada)[number]): Situacao =>
+    agregado.qtd_atual === 0 ? "esgotado" : idsRepor.has(p.id) || filhos.some((f) => idsRepor.has(f.id)) ? "repor" : "ok";
+  // estoque parado: dias sem venda por produto (variacoes somadas), a mesma regra do Painel
+  const parados = new Map(calcularParados(rows, ultimaVenda, hojeIso()).map((x) => [x.id, x]));
+  const comSituacao = listaOrdenada.map((l) => ({ ...l, situacao: situacaoDe(l), grupo: grupoDoProduto(l.p), parado: parados.get(l.p.id) ?? null }));
+  const contar = <K extends "situacao" | "grupo">(k: K, v: string) => comSituacao.filter((l) => l[k] === v).length;
+  const grupos = [...new Set(comSituacao.map((l) => l.grupo))].sort((a, b) => contar("grupo", b) - contar("grupo", a));
+  const generos = (["menina", "menino", "unissex"] as const).filter((g) => comSituacao.some((l) => l.p.genero === g));
+  const visiveis = comSituacao
+    .filter((l) => filtroSit === "todos" || l.situacao === filtroSit)
+    .filter((l) => filtroGrupo === "todos" || l.grupo === filtroGrupo)
+    .filter((l) => filtroGenero === "todos" || l.p.genero === filtroGenero)
+    .filter((l) => filtroParado === 0 || (l.parado !== null && l.parado.dias >= filtroParado));
+  const filtrando = filtroSit !== "todos" || filtroGrupo !== "todos" || filtroGenero !== "todos" || filtroParado > 0;
+
   const unidades = rows.reduce((s, p) => s + p.qtd_atual, 0);
   const valorEstoque = rows.reduce((s, p) => s + p.qtd_atual * p.custo_unit, 0);
   const fornMap = new Map(fornecedores.map((f) => [f.id, f.nome]));
@@ -206,6 +253,9 @@ export function EstoqueClient() {
         <div className="flex flex-wrap items-center gap-2">
           <Kpi titulo="Unidades" valor={String(unidades)} />
           <Kpi titulo="Valor em estoque" valor={brl(valorEstoque)} />
+          <button onClick={() => setSaidaAberta((v) => !v)} className="rounded-xl bg-[var(--purple)]/8 px-4 py-2.5 text-sm font-bold text-[var(--purple-dark)] transition-colors hover:bg-[var(--purple)]/15">
+            Saída sem venda
+          </button>
           <button onClick={abrirNovo} className="rounded-xl bg-[var(--purple)] px-4 py-2.5 text-sm font-extrabold text-white transition-colors hover:bg-[var(--purple-dark)]">
             + Novo produto
           </button>
@@ -213,6 +263,9 @@ export function EstoqueClient() {
       </div>
 
       {erro && !aberto && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
+
+      {/* presente, uso em video, perda: sai do estoque pelo custo, sem venda; o historico abre junto */}
+      {saidaAberta && <SaidaSemVenda produtos={rows} onFeito={carregar} onFechar={() => setSaidaAberta(false)} />}
 
       {/* reposicao */}
       {!loading && reposicao.length > 0 && (
@@ -262,16 +315,82 @@ export function EstoqueClient() {
         </div>
       )}
 
+      {/* filtros: situacao, linha e genero se combinam, como entrega e pagamento em Vendas */}
+      {!loading && rows.length > 0 && (
+        <div className="mt-5 flex flex-col gap-1.5">
+          <LinhaFiltro rotulo="Situação">
+            <Filtro ativo={filtroSit === "todos"} n={comSituacao.length} onClick={() => setFiltroSit("todos")}>todos</Filtro>
+            {(["ok", "repor", "esgotado"] as Situacao[]).map((k) => {
+              const n = contar("situacao", k);
+              if (n === 0 && filtroSit !== k) return null;
+              return (
+                <Filtro key={k} ativo={filtroSit === k} n={n} onClick={() => setFiltroSit(k)}>
+                  {SITUACAO[k].rotulo}
+                </Filtro>
+              );
+            })}
+            <button onClick={() => setLegenda((l) => !l)} className="ml-1 text-xs font-bold text-[var(--purple)] underline-offset-2 hover:underline" aria-expanded={legenda}>
+              {legenda ? "esconder legenda" : "o que significa?"}
+            </button>
+          </LinhaFiltro>
+          <LinhaFiltro rotulo="Linha">
+            <Filtro ativo={filtroGrupo === "todos"} n={comSituacao.length} onClick={() => setFiltroGrupo("todos")}>todas</Filtro>
+            {grupos.map((g) => (
+              <Filtro key={g} ativo={filtroGrupo === g} n={contar("grupo", g)} onClick={() => setFiltroGrupo(g)}>
+                {g}
+              </Filtro>
+            ))}
+          </LinhaFiltro>
+          {generos.length > 1 && (
+            <LinhaFiltro rotulo="Gênero">
+              <Filtro ativo={filtroGenero === "todos"} n={comSituacao.length} onClick={() => setFiltroGenero("todos")}>todos</Filtro>
+              {generos.map((g) => (
+                <Filtro key={g} ativo={filtroGenero === g} n={comSituacao.filter((l) => l.p.genero === g).length} onClick={() => setFiltroGenero(g)}>
+                  {g}
+                </Filtro>
+              ))}
+            </LinhaFiltro>
+          )}
+          <LinhaFiltro rotulo="Sem venda">
+            <Filtro ativo={filtroParado === 0} n={comSituacao.length} onClick={() => setFiltroParado(0)}>todos</Filtro>
+            {[30, 60, 90].map((d) => (
+              <Filtro key={d} ativo={filtroParado === d} n={comSituacao.filter((l) => l.parado && l.parado.dias >= d).length} onClick={() => setFiltroParado(d)}>
+                há {d}+ dias
+              </Filtro>
+            ))}
+          </LinhaFiltro>
+          {legenda && (
+            <div className="fade-in grid gap-3 rounded-xl bg-white/70 p-3 text-xs sm:grid-cols-2">
+              <ul className="space-y-1">
+                {(Object.keys(SITUACAO) as Situacao[]).map((k) => (
+                  <li key={k}>
+                    <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${SITUACAO[k].cor}`}>{SITUACAO[k].rotulo}</span>{" "}
+                    {SITUACAO[k].explica}
+                  </li>
+                ))}
+              </ul>
+              <ul className="space-y-1 text-[var(--ink)]/80">
+                <li><b>Qtd 8/11:</b> 8 em estoque agora, de 11 que entraram.</li>
+                <li><b>Giro:</b> quanto do que entrou já saiu (vendido, presente, ajuste).</li>
+                <li><b>Sem venda:</b> dias desde a última venda do produto; com * conta desde que entrou, porque nunca vendeu. Amarelo a partir de 30 dias, vermelho a partir de 60.</li>
+                <li><b>Custo posto:</b> custo da peça mais a embalagem do pedido.</li>
+                <li><b>Var.:</b> produto com grade de tamanho e tipo; clique para abrir.</li>
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* tabela */}
       {/*
         Colunas secundarias somem no celular para a tabela caber sem espremer.
         A informacao completa continua na ficha do produto.
       */}
-      <div className="mt-5 overflow-x-auto card">
+      <div className="mt-3 overflow-x-auto card">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--purple)]/10 text-[11px] uppercase text-[var(--ink)]/70">
-              <th className="p-3">Produto</th>
+              <th className="p-3">Produto{filtrando && <span className="ml-1.5 normal-case text-[var(--ink)]/60">({visiveis.length} de {comSituacao.length})</span>}</th>
               <th className="hidden p-3 lg:table-cell">Categoria</th>
               <th className="hidden p-3 xl:table-cell">Fornecedor</th>
               <th className="p-3">Qtd</th>
@@ -279,15 +398,19 @@ export function EstoqueClient() {
               <th className="hidden p-3 xl:table-cell">Custo posto</th>
               <th className="hidden p-3 md:table-cell">Em estoque</th>
               <th className="hidden p-3 lg:table-cell">Giro</th>
+              <th className="hidden p-3 lg:table-cell">Sem venda</th>
               <th className="p-3"></th>
             </tr>
           </thead>
           <tbody className="cascata">
-            {loading && <SkeletonRows cols={9} />}
+            {loading && <SkeletonRows cols={10} />}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={9} className="p-6 text-center text-[var(--ink)]/70">nenhum produto. clique em "+ Novo produto".</td></tr>
+              <tr><td colSpan={10} className="p-6 text-center text-[var(--ink)]/70">nenhum produto. clique em "+ Novo produto".</td></tr>
             )}
-            {listaOrdenada.map(({ p, filhos, agregado }) => {
+            {!loading && rows.length > 0 && visiveis.length === 0 && (
+              <tr><td colSpan={10} className="p-6 text-center text-[var(--ink)]/70">nada com esses filtros.</td></tr>
+            )}
+            {visiveis.map(({ p, filhos, agregado, situacao, parado }) => {
               const a = agregado;
               const temGrade = filhos.length > 0;
               const aberta = abertos.has(p.id);
@@ -310,6 +433,9 @@ export function EstoqueClient() {
                           <button onClick={() => alternarGrade(p.id)} className="num rounded-full bg-[var(--purple)]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--purple)] hover:bg-[var(--purple)]/20">
                             {filhos.length} var.{zeradas > 0 && <span className="ml-1 text-red-500">{zeradas} zeradas</span>}
                           </button>
+                        )}
+                        {situacao !== "ok" && (
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${SITUACAO[situacao].cor}`}>{SITUACAO[situacao].rotulo}</span>
                         )}
                       </div>
                       <div className={`text-xs text-[var(--ink)]/70 ${temGrade ? "pl-5" : ""}`}>
@@ -335,6 +461,12 @@ export function EstoqueClient() {
                     <td className="num hidden p-3 xl:table-cell">{brl(a.custo_unit + INSUMO)}</td>
                     <td className="num hidden p-3 md:table-cell">{brl(temGrade ? filhos.reduce((s, f) => s + f.qtd_atual * f.custo_unit, 0) : a.qtd_atual * a.custo_unit)}</td>
                     <td className="num hidden p-3 lg:table-cell">{giro}%</td>
+                    <td
+                      className={`num hidden whitespace-nowrap p-3 lg:table-cell ${parado && parado.dias >= 60 ? "font-bold text-red-600" : parado && parado.dias >= 30 ? "font-bold text-amber-700" : "text-[var(--ink)]/70"}`}
+                      title={parado ? (parado.ultimaVenda ? `última venda em ${parado.ultimaVenda.split("-").reverse().join("/")}` : "nunca vendeu") : "sem peça em estoque"}
+                    >
+                      {parado ? `${parado.dias} dias${parado.ultimaVenda ? "" : "*"}` : "-"}
+                    </td>
                     <td className="p-3">
                       <div className="flex gap-1.5">
                         <Link href={`/admin/estoque/${p.id}`} className="whitespace-nowrap rounded-lg bg-[var(--purple)]/8 px-3 py-1 text-xs font-bold text-[var(--purple)] hover:bg-[var(--purple)]/16">
@@ -349,7 +481,7 @@ export function EstoqueClient() {
                   </tr>
                   {temGrade && aberta && (
                     <tr className="border-b border-[var(--purple)]/6 bg-[var(--purple)]/[0.03]">
-                      <td colSpan={9} className="px-3 pb-3 pt-1">
+                      <td colSpan={10} className="px-3 pb-3 pt-1">
                         <GradeVariacoes filhos={filhos} minimo={p.estoque_minimo ?? 0} onAjustar={ajustar} onExtrato={setKardex} />
                       </td>
                     </tr>
@@ -432,6 +564,34 @@ export function EstoqueClient() {
         </div>
       )}
     </div>
+  );
+}
+
+type Situacao = "ok" | "repor" | "esgotado";
+const SITUACAO: Record<Situacao, { rotulo: string; cor: string; explica: string }> = {
+  ok: { rotulo: "estoque ok", cor: "bg-emerald-100 text-emerald-700", explica: "tem peça e não está acabando" },
+  repor: { rotulo: "repor", cor: "bg-amber-100 text-amber-800", explica: "abaixo do mínimo ou acabando pelo giro de 30 dias (a mesma regra da Reposição)" },
+  esgotado: { rotulo: "esgotado", cor: "bg-red-100 text-red-600", explica: "zerou: nenhuma peça, somando todas as variações" },
+};
+
+function LinhaFiltro({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="w-20 text-[10px] font-bold uppercase text-[var(--ink)]/70">{rotulo}</span>
+      {children}
+    </div>
+  );
+}
+
+function Filtro({ ativo, n, onClick, children }: { ativo: boolean; n: number; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={ativo}
+      className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${ativo ? "bg-[var(--purple)] text-white" : "bg-white text-[var(--ink)]/65 hover:bg-[var(--purple)]/8"}`}
+    >
+      {children} <span className="num opacity-60">{n}</span>
+    </button>
   );
 }
 

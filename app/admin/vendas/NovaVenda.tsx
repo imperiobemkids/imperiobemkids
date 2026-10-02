@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { Canal } from "../canais/CanaisClient";
 import { calcularTaxas, descreverFaixas } from "@/lib/canais";
 import { acharOuCriarCliente } from "@/lib/clientes";
-import { registrarVenda } from "@/lib/pedidos";
+import { registrarVenda, FIADO } from "@/lib/pedidos";
 import { num, txt, brl, hojeIso, pct } from "@/lib/formato";
 
 /*
@@ -66,6 +66,7 @@ export function NovaVenda({
   const [freteCobrado, setFreteCobrado] = useState("0"); // pago pelo cliente, entra na receita
   const [freteLoja, setFreteLoja] = useState("0"); // pago pela loja, e custo
   const [formaPagamento, setFormaPagamento] = useState("");
+  const [vencimento, setVencimento] = useState(""); // so no fiado
   const [totalTexto, setTotalTexto] = useState("0");
   const [editandoTotal, setEditandoTotal] = useState(false);
   const [escolhido, setEscolhido] = useState("");
@@ -159,6 +160,8 @@ export function NovaVenda({
     if (!supabase) return;
     if (linhas.length === 0) return setErro("adicione ao menos um produto");
     if (total <= 0) return setErro("informe o preço dos produtos");
+    // fiado sem nome vira divida de ninguem
+    if (formaPagamento === FIADO && !cliente.trim()) return setErro("no fiado, informe quem vai pagar (campo Cliente)");
     // o mesmo produto pode estar em varias linhas, entao soma antes de conferir o estoque
     const porProduto = new Map<string, { p: ProdutoVenda; qtd: number }>();
     for (const l of linhas) {
@@ -194,6 +197,7 @@ export function NovaVenda({
         // venda no balcao ja saiu entregue; o resto precisa ser enviado
         status: balcao ? "entregue" : "aguardando",
         formaPagamento: formaPagamento || null,
+        vencimento: formaPagamento === FIADO ? vencimento || null : null,
       });
     } catch (e) {
       r = { erro: e instanceof Error ? e.message : "erro ao registrar a venda" };
@@ -211,6 +215,7 @@ export function NovaVenda({
     setDescontoPct("0");
     setFreteCobrado("0");
     setFreteLoja("0");
+    setVencimento("");
     aoRegistrar();
   };
 
@@ -370,8 +375,14 @@ export function NovaVenda({
                   <option value="dinheiro">Dinheiro</option>
                   <option value="transferencia">Transferência</option>
                   <option value="marketplace">Pelo marketplace</option>
+                  <option value={FIADO}>Fiado (paga depois)</option>
                 </select>
               </Campo>
+              {formaPagamento === FIADO && (
+                <Campo label="Combinou pagar até">
+                  <input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} className={inp} />
+                </Campo>
+              )}
               <Campo label="Frete pago pela loja">
                 <input inputMode="decimal" value={freteLoja} onChange={(e) => setFreteLoja(e.target.value)} className={`${inp} w-28`} />
               </Campo>

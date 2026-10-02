@@ -7,6 +7,8 @@
   --pink: #f9a8d4;
   --mint: #6ee7b7;
   --yellow: #fde68a;
+  /* as telas usam var(--sun) para alerta e "aguardando"; sem este apelido ficava transparente */
+  --sun: var(--yellow);
   --teal: #2dd4bf;
   --ink: #3b2b4f;
 

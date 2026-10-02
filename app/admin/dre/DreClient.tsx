@@ -6,6 +6,7 @@ import { SetupCard } from "../SetupCard";
 import { SkeletonRows, Vazio } from "../ui";
 import { brl, pct, hojeIso } from "@/lib/formato";
 import { estornada, type StatusPedido } from "@/lib/pedidos";
+import { MOTIVOS_SAIDA } from "@/lib/estoque";
 
 /*
   DRE mensal: o resultado de verdade, mes a mes. Diferente do caixa, aqui
@@ -16,6 +17,8 @@ import { estornada, type StatusPedido } from "@/lib/pedidos";
   Receita e custos da venda saem das vendas (pela data da venda). Despesas
   (ads, imposto, servico, pro-labore, outro) saem do caixa (pela data do
   lancamento). Cancelada nao entra; devolvida entra com o custo da devolucao.
+  Peca que saiu sem venda (presente, conteudo, perda) entra pelo custo, pela
+  data da saida no kardex: o dinheiro ja saiu na compra, mas o lucro diminui.
 */
 
 type Venda = {
@@ -31,6 +34,7 @@ type Venda = {
   ibk_venda_itens: { qtd: number; produto: { custo_unit: number } | null }[];
 };
 type Mov = { data: string; tipo: "entrada" | "saida"; categoria: string; valor: number };
+type SaidaSemVenda = { data: string; origem: string; qtd: number; custo_unit: number };
 
 type Linha = { chave: string; rotulo: string; sinal: -1 | 1 | 0; forte?: boolean; sutil?: boolean };
 
@@ -43,6 +47,8 @@ const LINHAS: Linha[] = [
   { chave: "devolucoes", rotulo: "Custo de devoluções", sinal: -1 },
   { chave: "lucroBruto", rotulo: "Lucro bruto", sinal: 0, forte: true },
   { chave: "ads", rotulo: "Anúncios (ads)", sinal: -1 },
+  { chave: "presentes", rotulo: "Presentes e conteúdo (custo das peças)", sinal: -1 },
+  { chave: "perdas", rotulo: "Perdas de estoque", sinal: -1 },
   { chave: "imposto", rotulo: "Imposto (DAS)", sinal: -1 },
   { chave: "servico", rotulo: "Serviços e ferramentas", sinal: -1 },
   { chave: "pro_labore", rotulo: "Pró-labore", sinal: -1 },
@@ -60,13 +66,14 @@ const rotuloMes = (ym: string) => {
 export function DreClient() {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [movs, setMovs] = useState<Mov[]>([]);
+  const [semVenda, setSemVenda] = useState<SaidaSemVenda[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
 
   const carregar = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [v, m] = await Promise.all([
+    const [v, m, k] = await Promise.all([
       buscarTodos<Venda>((de, ate) =>
         supabase!
           .from("ibk_vendas")
@@ -77,10 +84,14 @@ export function DreClient() {
       buscarTodos<Mov>((de, ate) =>
         supabase!.from("ibk_movimentos").select("data, tipo, categoria, valor").eq("tipo", "saida").in("categoria", ["ads", "imposto", "servico", "pro_labore", "outro"]).order("id").range(de, ate),
       ),
+      buscarTodos<SaidaSemVenda>((de, ate) =>
+        supabase!.from("ibk_estoque_mov").select("data, origem, qtd, custo_unit").in("origem", Object.keys(MOTIVOS_SAIDA)).order("id").range(de, ate),
+      ),
     ]);
     if (v.error) setErro(v.error);
     setVendas(v.data);
     setMovs(m.data);
+    setSemVenda(k.data);
     setLoading(false);
   }, []);
 
@@ -93,6 +104,7 @@ export function DreClient() {
     const todos = new Set<string>([mesDe(hojeIso())]);
     for (const v of vendas) todos.add(mesDe(v.data));
     for (const m of movs) todos.add(mesDe(m.data));
+    for (const k of semVenda) todos.add(mesDe(k.data));
     // do mais antigo ao mais novo, no maximo 12
     const meses = [...todos].sort().slice(-12);
     const zero = () => Object.fromEntries(LINHAS.map((l) => [l.chave, 0])) as Record<string, number>;
@@ -118,13 +130,19 @@ export function DreClient() {
       if (!valores[m]) continue;
       valores[m][mv.categoria] = (valores[m][mv.categoria] ?? 0) + mv.valor;
     }
+    for (const k of semVenda) {
+      const m = mesDe(k.data);
+      if (!valores[m]) continue;
+      const chave = k.origem === "perda" ? "perdas" : "presentes";
+      valores[m][chave] += Math.abs(k.qtd) * k.custo_unit;
+    }
     for (const m of meses) {
       const r = valores[m];
       r.lucroBruto = r.receita - r.taxas - r.cmv - r.embalagem - r.frete - r.devolucoes;
-      r.resultado = r.lucroBruto - r.ads - r.imposto - r.servico - r.pro_labore - r.outro;
+      r.resultado = r.lucroBruto - r.ads - r.presentes - r.perdas - r.imposto - r.servico - r.pro_labore - r.outro;
     }
     return { meses, valores };
-  }, [vendas, movs]);
+  }, [vendas, movs, semVenda]);
 
   if (!supabaseConfigured) return <SetupCard />;
 
@@ -206,7 +224,7 @@ export function DreClient() {
           <b className="text-[var(--purple-dark)]">Receita e custos da venda</b> saem das vendas, pela data da venda: preço, taxa do canal, custo das peças (custo médio), embalagem e frete pago pela loja.
         </div>
         <div className="card p-3">
-          <b className="text-[var(--purple-dark)]">Despesas</b> saem do caixa, pela data do lançamento: ads, imposto, serviços, pró-labore e outros. Conta a pagar já entra no mês da competência.
+          <b className="text-[var(--purple-dark)]">Despesas</b> saem do caixa, pela data do lançamento: ads, imposto, serviços, pró-labore e outros. Conta a pagar já entra no mês da competência. Presentes, conteúdo e perdas saem do estoque, pelo custo da peça.
         </div>
         <div className="card p-3">
           <b className="text-[var(--purple-dark)]">Fora do DRE:</b> compra de mercadoria, insumo e equipamento (viram estoque e patrimônio). Venda cancelada não entra; devolvida entra só com o custo da devolução.

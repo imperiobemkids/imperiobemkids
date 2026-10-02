@@ -7,10 +7,12 @@ import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows, btnPrimario, btnSecundario } from "../ui";
 import { num, txt, brl, dataBr, hojeIso } from "@/lib/formato";
+import { receberFiado } from "@/lib/pedidos";
 
 /*
-  Caixa: entradas e saidas, contas a pagar por vencimento e o que se repete
-  todo mes (DAS, pro-labore, ferramenta). Todo lancamento e editavel na
+  Caixa: entradas e saidas, contas a pagar e a receber por vencimento e o que
+  se repete todo mes (DAS, pro-labore, ferramenta). Entrada com pago = false e
+  dinheiro combinado que ainda nao chegou (venda fiado): fica fora do saldo. Todo lancamento e editavel na
   propria linha. O que veio de uma venda pode ser corrigido aqui, mas a venda
   nao muda junto; o caminho certo pra isso e editar a venda.
 */
@@ -171,6 +173,15 @@ export function FinanceiroClient() {
     if (error) setErro(error.message);
   };
 
+  /* entrada a receber: se veio de venda fiado, a venda fica recebida junto */
+  const marcarRecebido = async (m: Mov) => {
+    if (!supabase) return;
+    setErro("");
+    const erro = m.ref_venda_id ? await receberFiado(m.ref_venda_id) : (await supabase.from("ibk_movimentos").update({ pago: true, data_pagamento: hoje }).eq("id", m.id)).error?.message;
+    if (erro) return setErro(erro);
+    carregar();
+  };
+
   const salvarEdicao = async (m: Mov, patch: Partial<Mov>) => {
     if (!supabase) return;
     setErro("");
@@ -213,10 +224,11 @@ export function FinanceiroClient() {
   };
 
   // somas
-  const entradas = movs.filter((m) => m.tipo === "entrada").reduce((s, m) => s + m.valor, 0);
+  // so conta no saldo o que de fato entrou ou saiu; fiado entra no mes em que foi pago
+  const entradas = movs.filter((m) => m.tipo === "entrada" && m.pago).reduce((s, m) => s + m.valor, 0);
   const saidas = movs.filter((m) => m.tipo === "saida" && m.pago).reduce((s, m) => s + m.valor, 0);
   const saldo = entradas - saidas;
-  const entradasMes = movs.filter((m) => m.tipo === "entrada" && noMes(m.data)).reduce((s, m) => s + m.valor, 0);
+  const entradasMes = movs.filter((m) => m.tipo === "entrada" && m.pago && noMes(m.data_pagamento ?? m.data)).reduce((s, m) => s + m.valor, 0);
   const saidasMes = movs.filter((m) => m.tipo === "saida" && noMes(m.data)).reduce((s, m) => s + m.valor, 0);
 
   const porCategoria = CATEGORIAS.map((c) => {
@@ -226,7 +238,10 @@ export function FinanceiroClient() {
   }).filter((x) => x.entradas || x.saidas);
 
   // contas a pagar: vencidas primeiro, depois por vencimento; sem vencimento no fim
-  const aPagar = [...movs.filter((m) => !m.pago)].sort((a, b) => (a.vencimento ?? "9999").localeCompare(b.vencimento ?? "9999"));
+  const aPagar = [...movs.filter((m) => m.tipo === "saida" && !m.pago)].sort((a, b) => (a.vencimento ?? "9999").localeCompare(b.vencimento ?? "9999"));
+  // a receber: venda fiado e outras entradas combinadas que ainda nao caíram
+  const aReceber = [...movs.filter((m) => m.tipo === "entrada" && !m.pago)].sort((a, b) => (a.vencimento ?? "9999").localeCompare(b.vencimento ?? "9999"));
+  const totalAReceber = aReceber.reduce((s, m) => s + m.valor, 0);
   const totalAPagar = aPagar.reduce((s, m) => s + m.valor, 0);
   const vencidas = aPagar.filter((m) => m.vencimento && diasAte(m.vencimento) < 0);
   const semana = aPagar.filter((m) => m.vencimento && diasAte(m.vencimento) >= 0 && diasAte(m.vencimento) <= 7);
@@ -238,11 +253,12 @@ export function FinanceiroClient() {
           <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold tracking-tight text-[var(--purple-dark)]">
             Financeiro
           </h1>
-          <p className="text-sm text-[var(--ink)]/65">Caixa, contas a pagar e o que se repete todo mês.</p>
+          <p className="text-sm text-[var(--ink)]/65">Caixa, contas a pagar e a receber, e o que se repete todo mês.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Kpi titulo="Saldo de caixa" valor={brl(saldo)} destaque={saldo >= 0} />
           <Kpi titulo="A pagar" valor={brl(totalAPagar)} destaque={vencidas.length === 0} sub={vencidas.length ? `${vencidas.length} vencida${vencidas.length > 1 ? "s" : ""}` : semana.length ? `${semana.length} nesta semana` : undefined} />
+          {aReceber.length > 0 && <Kpi titulo="A receber" valor={brl(totalAReceber)} destaque sub={`${aReceber.length} em aberto`} />}
         </div>
       </div>
 
@@ -306,10 +322,10 @@ export function FinanceiroClient() {
         <Campo label="Documento">
           <input value={documento} onChange={(e) => setDocumento(e.target.value)} placeholder="nota, recibo, pedido" className={`${inp} w-36`} />
         </Campo>
-        <Campo label="Pago?">
+        <Campo label={tipo === "entrada" ? "Recebido?" : "Pago?"}>
           <select value={pago ? "s" : "n"} onChange={(e) => setPago(e.target.value === "s")} className={inp}>
-            <option value="s">Pago</option>
-            <option value="n">A pagar</option>
+            <option value="s">{tipo === "entrada" ? "Recebido" : "Pago"}</option>
+            <option value="n">{tipo === "entrada" ? "A receber" : "A pagar"}</option>
           </select>
         </Campo>
         {!pago && (
@@ -328,6 +344,37 @@ export function FinanceiroClient() {
       {erro && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
 
       {mostrarRecs && <Recorrencias recs={recs} onMudou={carregar} />}
+
+      {/* a receber: fiado e entradas combinadas */}
+      {aReceber.length > 0 && (
+        <div className="card mt-5 border-2 border-emerald-200 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">A receber</h2>
+            <span className="num text-sm font-bold text-[var(--ink)]/70">{brl(totalAReceber)}</span>
+          </div>
+          <div className="cascata space-y-1.5">
+            {aReceber.map((m) => {
+              const d = m.vencimento ? diasAte(m.vencimento) : null;
+              return (
+                <div key={m.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm ${d !== null && d < 0 ? "bg-red-50" : "bg-emerald-50/70"}`}>
+                  <span>
+                    <strong className="num">{brl(m.valor)}</strong> · {m.descricao || catLabel(m.categoria)}
+                    <span className="ml-2 text-[11px] text-[var(--ink)]/70">desde {dataBr(m.data)}</span>
+                    {d !== null && (
+                      <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${d < 0 ? "bg-red-100 text-red-600" : "bg-white/70 text-[var(--ink)]/70"}`}>
+                        {d < 0 ? `atrasado ${-d}d` : d === 0 ? "combinado pra hoje" : `combinado em ${d}d`}
+                      </span>
+                    )}
+                  </span>
+                  <button onClick={() => marcarRecebido(m)} className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-extrabold text-white hover:bg-emerald-700">
+                    marcar recebido
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* contas a pagar */}
       {aPagar.length > 0 && (
@@ -403,7 +450,9 @@ export function FinanceiroClient() {
                         {m.recorrencia_id && <span className="flex items-center gap-0.5"><Repeat size={10} weight="bold" /> recorrente</span>}
                         {m.produto_id && <span>ads: {produtos.find((p) => p.id === m.produto_id) ? nomeProd(produtos.find((p) => p.id === m.produto_id)!) : "produto"}</span>}
                         {!m.pago && (
-                          <span className="rounded-full bg-[var(--sun)]/40 px-2 py-0.5 text-[10px] font-extrabold uppercase text-[var(--ink)]">a pagar</span>
+                          <span className="rounded-full bg-[var(--sun)]/40 px-2 py-0.5 text-[10px] font-extrabold uppercase text-[var(--ink)]">
+                            {m.tipo === "entrada" ? "a receber" : "a pagar"}
+                          </span>
                         )}
                       </div>
                     </td>

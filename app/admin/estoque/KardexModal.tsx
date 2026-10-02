@@ -26,6 +26,9 @@ const rotuloOrigem: Record<string, string> = {
   ajuste: "Ajuste",
   devolucao: "Devolução",
   inicial: "Saldo inicial",
+  presente: "Presente",
+  conteudo: "Conteúdo",
+  perda: "Perda",
 };
 
 export function KardexModal({ produtoId, titulo, onClose }: { produtoId: string; titulo: string; onClose: () => void }) {
