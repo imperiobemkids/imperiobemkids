@@ -159,12 +159,14 @@ export type ItemImportado = {
   variacaoNome: string;
   sku: string;
   skuPai: string;
+  idAnuncio?: string; // vem da API; a planilha nao traz
   idVariacao: string;
   qtd: number;
   preco: number;
   precoOriginal: number;
   produtoId: string | null; // resolvido
-  como: "sku" | "id" | "nome" | null;
+  conjuntos?: number; // conjuntos fisicos por unidade vendida (kit 2 = 2); vem do vinculo do anuncio
+  como: "vinculo" | "sku" | "id" | "nome" | null;
 };
 
 export type PedidoImportado = {
@@ -177,6 +179,8 @@ export type PedidoImportado = {
   freteComprador: number;
   taxas: number; // soma das colunas de taxa presentes (por pedido)
   temTaxas: boolean;
+  repasse?: number | null; // o que a plataforma repassa (so pela API)
+  freteLoja?: number; // frete que a loja paga no frete gratis (so pela API do ML)
   itens: ItemImportado[];
 };
 
@@ -234,19 +238,76 @@ const palavras = (s: unknown) =>
     .filter((w) => w && !VAZIAS.has(w) && !/^\d+$/.test(w));
 
 /*
-  Acha o produto de cada item. Ordem: SKU do anuncio (cadastrado na ficha),
-  id da variacao, e por fim nome do produto + nome da variacao (tamanho/cor
-  contidos no texto da variacao). Produto pai com variacoes nunca e escolhido
-  por nome, porque o estoque esta nas variacoes.
+  Produto pelo nome: todas as palavras do nome do produto aparecem no titulo do
+  anuncio (menina = feminino, menino = masculino); depois tamanho e cor pelo
+  texto da variacao. Produto pai com variacoes nunca e escolhido, porque o
+  estoque esta nas variacoes. So devolve quando sobra um candidato.
 */
-export function resolverItens(pedidos: PedidoImportado[], codigos: CodigoCanal[], produtos: ProdutoRef[]) {
+export function acharPorNome(titulo: string, variacaoNome: string, produtos: ProdutoRef[]): string | null {
+  const palavrasAnuncio = new Set(palavras(titulo));
+  const variacao = normalizar(variacaoNome);
+  const candidatos = produtos.filter((pr) => {
+    if (pr.tem_variacoes) return false;
+    const ps = palavras(pr.nome);
+    return ps.length > 0 && ps.every((w) => palavrasAnuncio.has(w));
+  });
+  const bateTam = (pr: ProdutoRef) => {
+    const tam = normalizar(pr.tamanho);
+    if (!tam) return true;
+    const toks = variacao.split(" ");
+    return toks.includes(tam) || toks.includes(`t${tam}`) || variacao.includes(`tam ${tam}`) || variacao.includes(`tamanho ${tam}`);
+  };
+  const bateCor = (pr: ProdutoRef) => {
+    const cor = normalizar(pr.cor);
+    return !cor || variacao.includes(cor);
+  };
+  let lista = candidatos.filter(bateTam);
+  if (lista.length > 1) lista = lista.filter(bateCor);
+  return lista.length === 1 ? lista[0].id : null;
+}
+
+/*
+  Quantos conjuntos fisicos sai em cada unidade do anuncio, lendo "Kit 2",
+  "Kit 3 Unidades", "2 Pares"... na variacao primeiro e depois no titulo.
+  Sem nada disso, 1. E so sugestao: a tela de vinculos deixa corrigir.
+*/
+export function conjuntosDoAnuncio(titulo: string, variacaoNome: string): number {
+  for (const texto of [normalizar(variacaoNome), normalizar(titulo)]) {
+    const m = texto.match(/\bkit (?:com )?(\d{1,2})\b/) ?? texto.match(/\b(\d{1,2}) (?:conjuntos|pares|unidades|un)\b/);
+    if (m) return Math.max(1, Number(m[1]));
+  }
+  return 1;
+}
+
+/* vinculo do anuncio com o estoque (migration 0034): anuncio + variacao -> produto e conjuntos */
+export type VinculoAnuncio = { id_anuncio: string; id_variacao: string; produto_id: string; conjuntos: number };
+
+export const chaveVinculo = (idAnuncio: string, idVariacao: string) => `${idAnuncio}|${idVariacao || ""}`;
+
+/*
+  Acha o produto de cada item. Ordem: vinculo do anuncio (que tambem diz
+  quantos conjuntos cada unidade leva), SKU do anuncio (cadastrado na ficha),
+  id da variacao, e por fim nome do produto + nome da variacao.
+*/
+export function resolverItens(pedidos: PedidoImportado[], codigos: CodigoCanal[], produtos: ProdutoRef[], vinculos: VinculoAnuncio[] = []) {
   const porSku = new Map(codigos.filter((c) => c.sku_canal).map((c) => [normalizar(c.sku_canal), c.produto_id]));
   const porIdVar = new Map(codigos.filter((c) => c.id_variacao).map((c) => [String(c.id_variacao), c.produto_id]));
+  const porVinculo = new Map(vinculos.map((v) => [chaveVinculo(v.id_anuncio, v.id_variacao), v]));
+  // a planilha nao traz o id do anuncio: o id da variacao sozinho ja e unico na Shopee
+  const porVariacao = new Map(vinculos.filter((v) => v.id_variacao).map((v) => [v.id_variacao, v]));
 
   for (const p of pedidos) {
     for (const it of p.itens) {
       it.produtoId = null;
+      it.conjuntos = 1;
       it.como = null;
+      const v = (it.idAnuncio && porVinculo.get(chaveVinculo(it.idAnuncio, it.idVariacao))) || (it.idVariacao && porVariacao.get(it.idVariacao));
+      if (v) {
+        it.produtoId = v.produto_id;
+        it.conjuntos = Math.max(1, v.conjuntos);
+        it.como = "vinculo";
+        continue;
+      }
       if (it.sku && porSku.has(normalizar(it.sku))) {
         it.produtoId = porSku.get(normalizar(it.sku))!;
         it.como = "sku";
@@ -257,29 +318,9 @@ export function resolverItens(pedidos: PedidoImportado[], codigos: CodigoCanal[]
         it.como = "id";
         continue;
       }
-      // por nome: todas as palavras do nome do produto aparecem no nome do anuncio
-      // (menina = feminino, menino = masculino); depois tamanho e cor pela variacao
-      const palavrasAnuncio = new Set(palavras(it.produtoNome));
-      const variacao = normalizar(it.variacaoNome);
-      const candidatos = produtos.filter((pr) => {
-        if (pr.tem_variacoes) return false;
-        const ps = palavras(pr.nome);
-        return ps.length > 0 && ps.every((w) => palavrasAnuncio.has(w));
-      });
-      const bateTam = (pr: ProdutoRef) => {
-        const tam = normalizar(pr.tamanho);
-        if (!tam) return true;
-        const toks = variacao.split(" ");
-        return toks.includes(tam) || toks.includes(`t${tam}`) || variacao.includes(`tam ${tam}`) || variacao.includes(`tamanho ${tam}`);
-      };
-      const bateCor = (pr: ProdutoRef) => {
-        const cor = normalizar(pr.cor);
-        return !cor || variacao.includes(cor);
-      };
-      let lista = candidatos.filter(bateTam);
-      if (lista.length > 1) lista = lista.filter(bateCor);
-      if (lista.length === 1) {
-        it.produtoId = lista[0].id;
+      const porNome = acharPorNome(it.produtoNome, it.variacaoNome, produtos);
+      if (porNome) {
+        it.produtoId = porNome;
         it.como = "nome";
       }
     }

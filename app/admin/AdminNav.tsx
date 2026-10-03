@@ -23,6 +23,7 @@ import {
   List,
   CaretDown,
   Binoculars,
+  Plug,
   type Icon,
 } from "@phosphor-icons/react";
 
@@ -57,6 +58,7 @@ export const GRUPOS: { nome: string; itens: ItemNav[] }[] = [
       { href: "/admin/simulador", label: "Precificação", icone: Calculator },
       { href: "/admin/mercado", label: "Mercado", icone: Binoculars },
       { href: "/admin/canais", label: "Canais", icone: Storefront },
+      { href: "/admin/integracoes", label: "Integrações", icone: Plug },
     ],
   },
   {

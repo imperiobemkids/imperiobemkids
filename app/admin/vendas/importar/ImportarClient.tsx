@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, UploadSimple, Check, Warning, X } from "@phosphor-icons/react";
+import { ArrowLeft, UploadSimple, Check, Warning, X, CloudArrowDown } from "@phosphor-icons/react";
 import { supabase, supabaseConfigured, buscarTodos } from "@/lib/supabase";
 import { SetupCard } from "../../SetupCard";
 import { calcularTaxas } from "@/lib/canais";
@@ -17,15 +17,20 @@ import {
   type CodigoCanal,
   type PedidoImportado,
   type ProdutoRef,
+  type VinculoAnuncio,
 } from "@/lib/importacao";
+import { PLATAFORMAS, canalDaPlataforma, chamarApi, type Plataforma } from "@/lib/integracoes";
 import type { Canal } from "../../canais/CanaisClient";
 import { acharOuCriarCliente } from "@/lib/clientes";
 
 /*
-  Importar pedidos da planilha do marketplace. Tres passos na mesma tela:
-  1) canal + arquivo, 2) conferir colunas (so se algo nao foi reconhecido),
-  3) conferir pedidos e importar. Pedido que ja existe (mesmo numero no
-  mesmo canal) nao entra de novo: so atualiza status, rastreio e NF.
+  Importar pedidos do marketplace, da planilha do Seller Center ou direto da
+  API de uma plataforma conectada em /admin/integracoes (Shopee, Mercado Livre).
+  Tres passos na mesma tela:
+  1) origem, 2) conferir colunas (so planilha, e so se algo nao foi
+  reconhecido), 3) conferir pedidos e importar. Pedido que ja existe (mesmo
+  numero no mesmo canal) nao entra de novo: so atualiza status, rastreio e NF.
+  Item de anuncio vinculado a kit baixa os conjuntos do kit (kit 2 = 2).
 */
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -48,6 +53,14 @@ export function ImportarClient() {
   const [codigos, setCodigos] = useState<CodigoCanal[]>([]);
   const [existentes, setExistentes] = useState<Map<string, Existente>>(new Map());
   const [manuais, setManuais] = useState<Existente[]>([]); // registradas a mao, sem numero de pedido
+  const [vinculos, setVinculos] = useState<VinculoAnuncio[]>([]);
+
+  // origem: planilha exportada ou a API de uma plataforma conectada
+  const [fonte, setFonte] = useState<"planilha" | Plataforma>("planilha");
+  const [dias, setDias] = useState(15);
+  const [doApi, setDoApi] = useState<PedidoImportado[] | null>(null);
+  const [buscando, setBuscando] = useState(false);
+  const [cortado, setCortado] = useState(false);
 
   const [arquivo, setArquivo] = useState<string>("");
   const [cabecalhos, setCabecalhos] = useState<string[]>([]);
@@ -76,21 +89,55 @@ export function ImportarClient() {
 
   useEffect(() => {
     if (supabaseConfigured) carregarBase();
+    // /admin/vendas/importar?fonte=shopee (ou mercadolivre) abre direto na API
+    const f = new URLSearchParams(window.location.search).get("fonte") as Plataforma | null;
+    if (f && PLATAFORMAS[f]?.api) setFonte(f);
   }, [carregarBase]);
 
-  // codigos do canal escolhido e pedidos que ja existem nele
+  // a API e de uma plataforma: o canal acompanha (o da conexao, como na tela de integracoes)
+  useEffect(() => {
+    if (fonte === "planilha") return;
+    let vivo = true;
+    canalDaPlataforma(fonte).then((id) => {
+      if (vivo && id) setCanalId(id);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [fonte]);
+
+  // codigos e vinculos do canal escolhido e pedidos que ja existem nele
   useEffect(() => {
     if (!supabase || !canalId) return;
     (async () => {
-      const [cod, todas] = await Promise.all([
+      const [cod, vin, todas] = await Promise.all([
         supabase!.from("ibk_produto_canais").select("produto_id, id_anuncio, id_variacao, sku_canal").eq("canal_id", canalId),
+        // sem a migration 0034 a tabela nao existe: segue sem vinculos
+        supabase!.from("ibk_anuncio_vinculos").select("id_anuncio, id_variacao, produto_id, conjuntos").eq("canal_id", canalId),
         existentesDoCanal(canalId),
       ]);
       setCodigos((cod.data as CodigoCanal[]) ?? []);
+      setVinculos(vin.error ? [] : ((vin.data as VinculoAnuncio[]) ?? []));
       setExistentes(new Map(todas.filter((v) => v.pedido_externo).map((v) => [String(v.pedido_externo), v])));
       setManuais(todas.filter((v) => !v.pedido_externo));
     })();
   }, [canalId]);
+
+  const buscarNaPlataforma = async () => {
+    if (fonte === "planilha") return;
+    setErro("");
+    setResultado(null);
+    setBuscando(true);
+    try {
+      const r = await chamarApi<{ pedidos: PedidoImportado[]; cortado: boolean }>(fonte, "pedidos", { dias, canalId });
+      setDoApi(r.pedidos);
+      setCortado(r.cortado);
+      setEscolhas({});
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "nao consegui buscar os pedidos");
+    }
+    setBuscando(false);
+  };
 
   const aoEscolherArquivo = async (file: File | undefined) => {
     if (!file) return;
@@ -118,19 +165,27 @@ export function ImportarClient() {
   const faltando = CAMPOS.filter((c) => c.obrigatorio && !mapa[c.campo]);
 
   const pedidos = useMemo<PedidoImportado[]>(() => {
-    if (!linhas.length || faltando.length) return [];
-    const ps = resolverItens(agruparPedidos(linhas, mapa), codigos, produtos);
+    let base: PedidoImportado[];
+    if (fonte !== "planilha") {
+      // copia: a resolucao escreve nos itens e o retorno da API fica intacto
+      base = (doApi ?? []).map((p) => ({ ...p, itens: p.itens.map((it) => ({ ...it })) }));
+    } else {
+      if (!linhas.length || faltando.length) return [];
+      base = agruparPedidos(linhas, mapa);
+    }
+    const ps = resolverItens(base, codigos, produtos, vinculos);
     for (const p of ps) {
       p.itens.forEach((it, i) => {
         const manual = escolhas[`${p.pedido}|${i}`];
         if (manual) {
           it.produtoId = manual;
+          it.conjuntos = 1;
           it.como = "nome";
         }
       });
     }
     return ps;
-  }, [linhas, mapa, codigos, produtos, escolhas, faltando.length]);
+  }, [fonte, doApi, linhas, mapa, codigos, produtos, vinculos, escolhas, faltando.length]);
 
   const nomeProduto = (id: string | null) => {
     const p = produtos.find((x) => x.id === id);
@@ -204,19 +259,23 @@ export function ImportarClient() {
         const itens = p.itens.map((it) => ({ precoUnit: it.preco, qtd: it.qtd }));
         const total = itens.reduce((s, i) => s + i.precoUnit * i.qtd, 0);
         const desconto = p.itens.reduce((s, it) => s + Math.max(0, it.precoOriginal - it.preco) * it.qtd, 0);
-        // taxa real da planilha quando existe; senao a tabela do canal
+        // taxa real (planilha ou extrato da API) quando existe; senao a tabela do canal.
+        // A tabela cobra por unidade do anuncio, entao usa o kit inteiro, nao os conjuntos
         const calc = calcularTaxas(canal, itens, 0);
         const r = await registrarVenda({
           data: p.data,
           canalNome: canal.nome,
           canalId: canal.id,
-          itens: p.itens.map((it) => ({ produtoId: it.produtoId!, qtd: it.qtd, precoUnit: it.preco })),
+          // kit 2 vendido 1 vez = 2 conjuntos no estoque, cada um pela metade do preco
+          itens: p.itens.flatMap((it) => dividirKit(it.produtoId!, it.qtd, it.preco, Math.max(1, it.conjuntos ?? 1))),
           total,
           desconto,
           comissao: p.temTaxas ? p.taxas : calc.comissao,
           taxaFixa: p.temTaxas ? 0 : calc.fixa,
           insumo: canal.insumo_custo ?? 0,
           freteCobrado: p.freteComprador,
+          // frete gratis pago pela loja (vem da API do ML); a planilha nao traz
+          frete: p.freteLoja ?? 0,
           cliente: p.comprador || null,
           clienteId: p.comprador ? await acharOuCriarCliente(p.comprador, canal.nome.toLowerCase()) : null,
           pedidoExterno: p.pedido,
@@ -226,7 +285,7 @@ export function ImportarClient() {
           enviadoEm: p.status === "enviado" || p.status === "entregue" ? p.data : null,
           entregueEm: p.status === "entregue" ? p.data : null,
           nfNumero: p.nf || null,
-          obs: `importado de ${arquivo}`,
+          obs: fonte !== "planilha" ? `importado da API ${PLATAFORMAS[fonte].rotulo}` : `importado de ${arquivo}`,
           descricaoCaixa: `Venda ${canal.nome} #${p.pedido}`,
         });
         if ("erro" in r) { setErro(`pedido ${p.pedido}: ${r.erro}`); break; }
@@ -255,38 +314,80 @@ export function ImportarClient() {
         Importar pedidos
       </h1>
       <p className="text-sm text-[var(--ink)]/65">
-        Planilha exportada do Seller Center (Meus pedidos, Exportar). Cada pedido novo entra com itens, baixa de estoque e caixa.
+        Da planilha exportada do Seller Center (Meus pedidos, Exportar) ou direto da loja pela integração. Cada pedido novo entra com itens, baixa de estoque e caixa.
       </p>
 
-      {/* passo 1: canal e arquivo */}
-      <div className="card mt-5 flex flex-wrap items-end gap-3 p-4">
+      {/* passo 1: origem */}
+      <div className="mt-5 inline-flex rounded-xl bg-white p-1 shadow-sm" role="tablist" aria-label="Origem dos pedidos">
+        {(["planilha", ...(Object.keys(PLATAFORMAS) as Plataforma[]).filter((k) => PLATAFORMAS[k].api)] as ("planilha" | Plataforma)[]).map((f) => (
+          <button
+            key={f}
+            role="tab"
+            aria-selected={fonte === f}
+            onClick={() => { setFonte(f); setDoApi(null); setCortado(false); setErro(""); setResultado(null); setEscolhas({}); }}
+            className={`rounded-lg px-4 py-1.5 text-sm font-bold transition-colors ${fonte === f ? "bg-[var(--purple)] text-white" : "text-[var(--ink)]/70 hover:text-[var(--purple-dark)]"}`}
+          >
+            {f === "planilha" ? "Planilha" : `${PLATAFORMAS[f].rotulo} (direto da loja)`}
+          </button>
+        ))}
+      </div>
+
+      <div className="card mt-3 flex flex-wrap items-end gap-3 p-4">
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Canal</span>
-          <select value={canalId} onChange={(e) => setCanalId(e.target.value)} className={inp}>
+          <select value={canalId} onChange={(e) => setCanalId(e.target.value)} disabled={fonte !== "planilha"} className={`${inp} disabled:opacity-70`}>
             {canais.map((c) => (
               <option key={c.id} value={c.id}>{c.nome}</option>
             ))}
           </select>
         </label>
-        <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-dashed border-[var(--purple)]/30 px-4 py-2 text-sm font-bold text-[var(--purple)] hover:border-[var(--purple)]">
-          <UploadSimple size={18} weight="bold" />
-          {lendo ? "lendo..." : arquivo || "escolher planilha (.xlsx ou .csv)"}
-          <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => aoEscolherArquivo(e.target.files?.[0])} />
-        </label>
-        {linhas.length > 0 && (
-          <span className="text-xs text-[var(--ink)]/75">
-            {linhas.length} linhas · {pedidos.length} pedidos ·{" "}
-            <button onClick={() => setMostrarMapa((v) => !v)} className="font-bold text-[var(--purple)] underline">
-              {mostrarMapa ? "esconder colunas" : "conferir colunas"}
+        {fonte === "planilha" ? (
+          <>
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-dashed border-[var(--purple)]/30 px-4 py-2 text-sm font-bold text-[var(--purple)] hover:border-[var(--purple)]">
+              <UploadSimple size={18} weight="bold" />
+              {lendo ? "lendo..." : arquivo || "escolher planilha (.xlsx ou .csv)"}
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => aoEscolherArquivo(e.target.files?.[0])} />
+            </label>
+            {linhas.length > 0 && (
+              <span className="text-xs text-[var(--ink)]/75">
+                {linhas.length} linhas · {pedidos.length} pedidos ·{" "}
+                <button onClick={() => setMostrarMapa((v) => !v)} className="font-bold text-[var(--purple)] underline">
+                  {mostrarMapa ? "esconder colunas" : "conferir colunas"}
+                </button>
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase text-[var(--ink)]/70">Pedidos mexidos nos últimos</span>
+              <select value={dias} onChange={(e) => setDias(Number(e.target.value))} className={inp}>
+                {[3, 7, 15, 30, 60].map((d) => (
+                  <option key={d} value={d}>{d} dias</option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={buscarNaPlataforma}
+              disabled={buscando}
+              className="flex items-center gap-2 rounded-xl bg-[var(--purple)] px-4 py-2 text-sm font-extrabold text-white hover:bg-[var(--purple-dark)] disabled:opacity-50"
+            >
+              <CloudArrowDown size={18} weight="bold" /> {buscando ? "buscando..." : "buscar pedidos"}
             </button>
-          </span>
+            {doApi && (
+              <span className="text-xs text-[var(--ink)]/75">
+                {doApi.length} pedidos{cortado && " (parei nos 150 mais recentes: busque um período menor para ver o resto)"}
+              </span>
+            )}
+            <Link href="/admin/integracoes" className="text-xs font-bold text-[var(--purple)] underline">integração e vínculos</Link>
+          </>
         )}
       </div>
 
       {erro && <p className="mt-3 text-sm font-semibold text-red-500">{erro}</p>}
 
       {/* passo 2: mapa de colunas */}
-      {mostrarMapa && cabecalhos.length > 0 && (
+      {fonte === "planilha" && mostrarMapa && cabecalhos.length > 0 && (
         <div className="card mt-4 p-4">
           <div className="flex items-center gap-2">
             <h2 className="font-[family-name:var(--font-baloo)] text-lg font-extrabold text-[var(--purple-dark)]">Colunas</h2>
@@ -379,9 +480,12 @@ export function ImportarClient() {
                               {it.variacaoNome && <span className="text-[var(--ink)]/75"> · {it.variacaoNome}</span>}
                             </div>
                             {it.produtoId ? (
-                              <div className="flex items-center gap-1 text-[11px] text-emerald-700">
+                              <div className="flex flex-wrap items-center gap-1 text-[11px] text-emerald-700">
                                 <Check size={12} weight="bold" /> {nomeProduto(it.produtoId)}
                                 <span className="text-[var(--ink)]/65">(por {it.como})</span>
+                                {(it.conjuntos ?? 1) > 1 && (
+                                  <span className="font-bold text-[var(--purple-dark)]">· baixa {it.qtd * (it.conjuntos ?? 1)} conjuntos</span>
+                                )}
                               </div>
                             ) : (
                               <div className="flex flex-wrap items-center gap-1 text-[11px] text-red-600">
@@ -404,6 +508,7 @@ export function ImportarClient() {
                       <td className="num whitespace-nowrap p-3 text-right font-semibold">{brl(total)}</td>
                       <td className="num whitespace-nowrap p-3 text-right text-[var(--ink)]/60">
                         {p.temTaxas ? brl(p.taxas) : <span className="text-[11px]">pela tabela</span>}
+                        {p.repasse != null && <div className="text-[11px]">repasse {brl(p.repasse)}</div>}
                       </td>
                       <td className="p-3 text-xs">
                         {c.tipo === "novo" && <span className="font-bold text-emerald-700">criar venda</span>}
@@ -425,6 +530,20 @@ export function ImportarClient() {
       )}
     </div>
   );
+}
+
+/*
+  Divide o preco de um kit pelos conjuntos em centavos inteiros: R$ 49,99 em
+  kit 2 vira 24,99 + 25,00, e a soma dos itens fecha com o total da venda.
+*/
+function dividirKit(produtoId: string, qtd: number, preco: number, k: number) {
+  const n = qtd * k;
+  const total = Math.round(preco * 100) * qtd;
+  const base = Math.floor(total / n);
+  const resto = total - base * n;
+  const linhas = [{ produtoId, qtd: n - resto, precoUnit: base / 100 }];
+  if (resto > 0) linhas.push({ produtoId, qtd: resto, precoUnit: (base + 1) / 100 });
+  return linhas.filter((l) => l.qtd > 0);
 }
 
 const inp =

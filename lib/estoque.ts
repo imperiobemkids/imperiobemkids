@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { hojeIso } from "./formato";
+import { aposSaidaDeEstoque } from "./integracoes";
 
 /*
   Motor de estoque do ERP. Toda entrada e saida passa por aqui para que:
@@ -141,6 +142,8 @@ export async function saidaEstoque(
     qtd: -qtd, custoUnit: p.custo_unit,
     saldoDepois: saldo, custoMedioDepois: p.custo_unit, ref,
   });
+  // os anuncios do produto (avulso, kit 2, kit 3) baixam nas lojas conectadas
+  aposSaidaDeEstoque([produtoId]);
 }
 
 /*
@@ -170,6 +173,7 @@ export async function saidaSemVenda(produtoId: string, qtd: number, motivo: Moti
   }
   const { error: e2 } = await supabase.from("ibk_produtos").update({ qtd_atual: saldo }).eq("id", produtoId);
   if (e2) throw new Error(e2.message);
+  aposSaidaDeEstoque([produtoId]);
 }
 
 /*
@@ -207,4 +211,6 @@ export async function ajusteEstoque(produtoId: string, novaQtd: number, obs?: st
     saldoDepois: novaQtd, custoMedioDepois: p.custo_unit,
     ref: { obs: obs ?? "ajuste manual de contagem" },
   });
+  // ajuste para menos (contagem achou menos peca) baixa os anuncios; para mais, sobe so no envio manual
+  if (delta < 0) aposSaidaDeEstoque([produtoId]);
 }
