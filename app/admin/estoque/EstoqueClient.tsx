@@ -39,7 +39,7 @@ type Produto = {
 
 type Fornecedor = { id: string; nome: string };
 
-const INSUMO = 0.4; // etiqueta + saco por pedido
+const INSUMO = 0.52; // saco + 3 etiquetas por pedido (envio, nota e romaneio)
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);

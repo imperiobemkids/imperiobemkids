@@ -204,7 +204,13 @@ export async function enviarEstoque(tk: string, itens: EstoqueEnviar[]): Promise
       });
       const variacoes = atual.variations ?? [];
       if (!variacoes.length) {
-        const alvo = lista.find((l) => !l.idVariacao);
+        /*
+          O ML converte anuncio de variacao unica em anuncio sem variacao (poe o
+          valor no titulo; aconteceu com o squishy em 03/10). O vinculo antigo
+          ainda aponta para a variacao: com um vinculo so para o anuncio, e o
+          mesmo produto, entao o estoque vai para o anuncio inteiro.
+        */
+        const alvo = lista.find((l) => !l.idVariacao) ?? (lista.length === 1 ? lista[0] : undefined);
         if (!alvo) {
           for (const l of lista) out.push({ ...l, ok: false, motivo: "o anúncio não tem mais variações; leia os anúncios e refaça o vínculo" });
           continue;

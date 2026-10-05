@@ -128,14 +128,14 @@ export function MercadoClient() {
   const lucro = (preco: number | null, custoUnit: number | null, formato: number) => {
     if (preco == null || custoUnit == null || !canal) return null;
     const t = calcularTaxas(canal, [{ precoUnit: preco, qtd: 1 }]);
-    return preco - t.total - (canal.insumo_custo ?? 0.4) - custoUnit * Math.max(1, formato);
+    return preco - t.total - (canal.insumo_custo ?? 0.52) - custoUnit * Math.max(1, formato);
   };
 
   /* custo maximo por unidade para ter a margem alvo vendendo pelo preco do mercado (formato 0 = o anuncio inteiro) */
   const custoMaximo = (preco: number | null, formato: number) => {
     if (preco == null || !canal) return null;
     const t = calcularTaxas(canal, [{ precoUnit: preco, qtd: 1 }]);
-    return (preco - t.total - (canal.insumo_custo ?? 0.4) - MARGEM_ALVO * preco) / Math.max(1, formato);
+    return (preco - t.total - (canal.insumo_custo ?? 0.52) - MARGEM_ALVO * preco) / Math.max(1, formato);
   };
 
   const mudarStatus = async (termo: string, status: StatusPlano) => {

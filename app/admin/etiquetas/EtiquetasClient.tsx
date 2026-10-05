@@ -6,14 +6,26 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows, Vazio, btnPrimario } from "../ui";
 import { STATUS, type StatusPedido } from "@/lib/pedidos";
-import { imprimirRomaneios, imprimirEtiquetasProduto } from "@/lib/etiquetas";
+import { imprimirRomaneios, imprimirEtiquetasProduto, type EscritoRomaneio, type QrRomaneio } from "@/lib/etiquetas";
 import { EMPRESA } from "@/lib/empresa";
 
 /*
   Impressao em 100x150 na termica. Duas coisas: o romaneio do pedido (vai no
-  pacote: itens pra conferir e o QR do grupo) e a etiqueta de produto (nome,
+  pacote: itens pra conferir e os QRs da loja) e a etiqueta de produto (nome,
   tamanho, SKU e codigo de barras, pra organizar o estoque).
 */
+
+// rodape do romaneio, em todo pedido (decisao da loja em 03/10/2026):
+// TikTok e grupo de achadinhos com QR; WhatsApp e blog por escrito
+const QRS_ROMANEIO: QrRomaneio[] = [
+  { rotulo: "Siga no TikTok", detalhe: "@imperiobemkids", url: EMPRESA.tiktok },
+  { rotulo: "Entre nos Achadinhos", detalhe: "ofertas primeiro", url: EMPRESA.grupoAchadinhos },
+];
+const ESCRITOS_ROMANEIO: EscritoRomaneio[] = [
+  // "+55 11 94795-6479" vira "(11) 94795-6479"
+  { rotulo: "Fale com a gente", texto: `WhatsApp ${EMPRESA.whatsapp.replace(/^\+55\s*(\d{2})\s*/, "($1) ")}` },
+  { rotulo: "Acompanhe nosso blog", texto: EMPRESA.blog.replace(/^https?:\/\/(www\.)?/, "") },
+];
 
 type Venda = {
   id: string;
@@ -103,18 +115,19 @@ export function EtiquetasClient() {
     if (!lista.length) return setErro("marque ao menos um pedido");
     try {
       await imprimirRomaneios(
-        lista.map((v) => ({
-          pedido: v.pedido_externo ? `#${v.pedido_externo}` : dataBr(v.data),
-          canal: v.canal,
-          cliente: v.cliente ?? "",
-          data: dataBr(v.data),
-          itens: v.ibk_venda_itens.map((i) => ({ qtd: i.qtd, nome: nomeItem(i.produto) })),
-        })),
-        {
-          ...opts(),
-          qrUrl: EMPRESA.grupoAchadinhos,
-          qrTexto: `Escaneia e entra no grupo de achadinhos: as promoções caem lá primeiro. Dúvida ou troca? WhatsApp ${EMPRESA.whatsapp}.`,
-        },
+        lista.map((v) => {
+          const pedido = v.pedido_externo ? `#${v.pedido_externo}` : dataBr(v.data);
+          return {
+            pedido,
+            canal: v.canal,
+            cliente: v.cliente ?? "",
+            data: dataBr(v.data),
+            itens: v.ibk_venda_itens.map((i) => ({ qtd: i.qtd, nome: nomeItem(i.produto) })),
+            qrs: QRS_ROMANEIO,
+            escritos: ESCRITOS_ROMANEIO,
+          };
+        }),
+        opts(),
       );
     } catch (e) {
       setErro(e instanceof Error ? e.message : "erro ao imprimir");

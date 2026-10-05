@@ -8,12 +8,16 @@ import JsBarcode from "jsbarcode";
 */
 
 export type ItemRomaneio = { qtd: number; nome: string };
+export type QrRomaneio = { rotulo: string; detalhe: string; url: string }; // rotulo e o convite ("Siga no TikTok"); detalhe, a linha pequena
+export type EscritoRomaneio = { rotulo: string; texto: string }; // contato sem QR ("Fale com a gente" / "WhatsApp (11) ...")
 export type Romaneio = {
   pedido: string; // numero do pedido ou data
   canal: string;
   cliente: string;
   data: string;
   itens: ItemRomaneio[];
+  qrs: QrRomaneio[]; // QRs do rodape, lado a lado (2)
+  escritos: EscritoRomaneio[]; // contatos por escrito, abaixo dos QRs
 };
 
 export type EtiquetaProduto = {
@@ -52,18 +56,30 @@ const CSS = `
   .topo img { width: 12mm; height: 12mm; object-fit: contain; }
   .marca { font-weight: 900; font-size: 15pt; letter-spacing: -0.2pt; line-height: 1; }
   .sub { font-size: 8pt; color: #444; margin-top: 1mm; }
-  .pedido { font-size: 9pt; color: #444; margin-top: 3mm; }
-  .pedido b { font-size: 14pt; color: #111; display: block; letter-spacing: 0.3pt; }
-  .cliente { font-size: 12pt; font-weight: 800; margin-top: 1mm; }
-  table { width: 100%; border-collapse: collapse; margin-top: 3mm; font-size: 10pt; }
-  td { padding: 1.6mm 0; border-bottom: 0.25mm solid #999; vertical-align: top; }
-  td.q { width: 9mm; font-weight: 900; font-size: 12pt; }
-  td.c { width: 7mm; text-align: right; }
-  .box { display: inline-block; width: 4.5mm; height: 4.5mm; border: 0.4mm solid #111; border-radius: 0.8mm; }
-  .rodape { margin-top: auto; display: flex; align-items: center; gap: 3mm; border-top: 0.5mm solid #111; padding-top: 3mm; }
-  .rodape img { width: 22mm; height: 22mm; }
-  .obrigado { font-size: 9.5pt; line-height: 1.35; }
-  .obrigado b { font-size: 11pt; display: block; margin-bottom: 1mm; }
+  .rom { padding: 6mm 6mm 5mm; }
+  .rom .cabeca { display: flex; justify-content: space-between; align-items: flex-end; gap: 3mm; margin-top: 3mm; }
+  .rom .rotulo { display: block; font-size: 6.5pt; font-weight: 800; letter-spacing: 1pt; color: #555; margin-bottom: 0.6mm; }
+  .rom .pedido b { font-size: 15pt; font-weight: 900; letter-spacing: 0.2pt; line-height: 1; }
+  .rom .cliente { text-align: right; font-size: 11pt; font-weight: 800; line-height: 1.1; max-width: 42mm; overflow-wrap: anywhere; }
+  .rom table { width: 100%; border-collapse: collapse; margin-top: 3mm; font-size: 10pt; }
+  .rom td { padding: 1.6mm 0; border-bottom: 0.25mm solid #999; vertical-align: top; }
+  .rom td.q { width: 9mm; font-weight: 900; font-size: 12pt; }
+  .rom td.c { width: 7mm; text-align: right; }
+  .rom .box { display: inline-block; width: 4.5mm; height: 4.5mm; border: 0.4mm solid #111; border-radius: 0.8mm; }
+  .rom .rodape { margin-top: auto; border-top: 0.45mm dashed #111; padding-top: 3mm; }
+  .rom .obrigado { text-align: center; font-size: 13pt; font-weight: 900; line-height: 1.1; }
+  .rom .sub { text-transform: capitalize; }
+  .rom .qrs { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin-top: 2.5mm; }
+  .rom .qr { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.3mm; border: 0.35mm solid #111; border-radius: 2.5mm; padding: 2.2mm 2mm 2mm; }
+  .rom .qr img { width: 24mm; height: 24mm; image-rendering: pixelated; }
+  .rom .qr .txt { display: flex; flex-direction: column; gap: 0.5mm; }
+  .rom .qr b { font-size: 10pt; font-weight: 900; line-height: 1.12; text-wrap: balance; }
+  .rom .qr span { font-size: 7pt; line-height: 1.15; color: #444; }
+  .rom .escritos { margin-top: 3mm; display: flex; flex-direction: column; gap: 1.4mm; }
+  .rom .escrito { display: flex; justify-content: space-between; align-items: baseline; gap: 2mm; font-size: 9pt; border-bottom: 0.25mm dotted #888; padding-bottom: 1.2mm; }
+  .rom .escrito:last-child { border-bottom: none; padding-bottom: 0; }
+  .rom .escrito b { font-weight: 900; white-space: nowrap; }
+  .rom .escrito span { font-weight: 700; text-align: right; overflow-wrap: anywhere; }
   .prod .nome { font-size: 18pt; font-weight: 900; line-height: 1.1; margin-top: 4mm; }
   .prod .tam { font-size: 40pt; font-weight: 900; line-height: 1; margin-top: 3mm; }
   .prod .tam small { font-size: 12pt; font-weight: 700; color: #444; display: block; margin-bottom: 1mm; }
@@ -85,24 +101,35 @@ function abrirEImprimir(corpo: string, titulo: string) {
   }, 400);
 }
 
-export async function imprimirRomaneios(lista: Romaneio[], opts: { logoUrl: string; qrUrl: string; qrTexto: string; marca: string }) {
-  const qr = opts.qrUrl ? await QRCode.toDataURL(opts.qrUrl, { margin: 0, width: 220 }) : "";
+export async function imprimirRomaneios(lista: Romaneio[], opts: { logoUrl: string; marca: string }) {
+  // cada link vira imagem uma vez so (o do WhatsApp muda por pedido, os outros se repetem)
+  const imagens = new Map<string, string>();
+  for (const url of new Set(lista.flatMap((r) => r.qrs.map((q) => q.url)))) {
+    imagens.set(url, await QRCode.toDataURL(url, { margin: 1, width: 300, errorCorrectionLevel: "M" }));
+  }
   const corpo = lista
     .map(
       (r) => `
-    <div class="et">
+    <div class="et rom">
       <div class="topo">
         <img src="${esc(opts.logoUrl)}" alt="">
         <div><div class="marca">${esc(opts.marca)}</div><div class="sub">${esc(r.canal)} · ${esc(r.data)}</div></div>
       </div>
-      <div class="pedido">pedido<b>${esc(r.pedido)}</b></div>
-      ${r.cliente ? `<div class="cliente">${esc(r.cliente)}</div>` : ""}
+      <div class="cabeca">
+        <div class="pedido"><span class="rotulo">PEDIDO</span><b>${esc(r.pedido)}</b></div>
+        ${r.cliente ? `<div class="cliente"><span class="rotulo">PARA</span>${esc(r.cliente)}</div>` : ""}
+      </div>
       <table>${r.itens
         .map((i) => `<tr><td class="q">${i.qtd}x</td><td>${esc(i.nome)}</td><td class="c"><span class="box"></span></td></tr>`)
         .join("")}</table>
       <div class="rodape">
-        ${qr ? `<img src="${qr}" alt="">` : ""}
-        <div class="obrigado"><b>Obrigada pela compra! ♥</b>${esc(opts.qrTexto)}</div>
+        <div class="obrigado">Obrigada pela compra! ♥</div>
+        ${r.qrs.length ? `<div class="qrs">${r.qrs
+          .map((q) => `<div class="qr"><img src="${imagens.get(q.url)}" alt=""><div class="txt"><b>${esc(q.rotulo)}</b><span>${esc(q.detalhe)}</span></div></div>`)
+          .join("")}</div>` : ""}
+        ${r.escritos.length ? `<div class="escritos">${r.escritos
+          .map((e) => `<div class="escrito"><b>${esc(e.rotulo)}</b><span>${esc(e.texto)}</span></div>`)
+          .join("")}</div>` : ""}
       </div>
     </div>`,
     )

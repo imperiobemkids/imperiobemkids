@@ -79,7 +79,7 @@ export function NovaVenda({
   }, [canais, canalId]);
 
   const canal = canais.find((c) => c.id === canalId);
-  const insumo = canal?.insumo_custo ?? 0.4;
+  const insumo = canal?.insumo_custo ?? 0.52;
 
   // cada clique cria uma linha nova, mesmo se o produto ja estiver na venda
   const adicionar = () => {

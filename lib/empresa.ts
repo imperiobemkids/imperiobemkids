@@ -16,6 +16,10 @@ export const EMPRESA = {
   whatsapp: "+55 11 94795-6479",
   whatsappLink: "https://wa.me/5511947956479",
   grupoAchadinhos: "https://chat.whatsapp.com/GKQ58djmnyGHG2HMrPUxYb",
+  // redes e conteudo (romaneio do pacote, rodape)
+  tiktok: "https://www.tiktok.com/@imperiobemkids",
+  instagram: "https://www.instagram.com/imperiobemkids/",
+  blog: "https://www.imperiobemkids.com.br/blog",
   // perfil da loja em cada marketplace (secao "Nossas lojas" do /pedido)
   lojas: {
     shopee: "https://s.shopee.com.br/2qUrOrWHk8",

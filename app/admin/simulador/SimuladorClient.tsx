@@ -133,7 +133,7 @@ export function SimuladorClient() {
   const freteN = num(frete);
   const cpaN = num(cpa);
   const orcN = num(orcAds);
-  const insumoN = canal?.insumo_custo ?? 0.4;
+  const insumoN = canal?.insumo_custo ?? 0.52;
 
   const t = taxaDoPreco(canal, precoN);
   const fixaN = porItem ? t.fixo * qtd : t.fixo;

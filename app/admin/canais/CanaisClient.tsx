@@ -66,7 +66,7 @@ const vazio: Form = {
   programaNome: "",
   programaPct: "",
   programaAtivo: false,
-  insumo: "0,40",
+  insumo: "0,52",
   limiteTitulo: "0",
   conferidasEm: hojeIso(),
   fonte: "",
