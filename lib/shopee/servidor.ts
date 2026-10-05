@@ -14,14 +14,15 @@ import { ErroIntegracao, acessoValido, guardarTokens, type Ambiente, type Tokens
     SHOPEE_PARTNER_KEY  chave secreta do app
     SHOPEE_AMBIENTE     "teste" (sandbox, padrao) ou "producao"
 
-  Enderecos conferidos na documentacao em 03/10/2026: producao do Brasil em
-  openplatform.shopee.com.br; o sandbox da API e o global (.sg), mas o link de
-  autorizacao do sandbox e o do Brasil.
+  Enderecos: producao do Brasil em openplatform.shopee.com.br. O sandbox da API
+  e o global (.sg) e o link de autorizacao do sandbox fica em
+  open.sandbox.test-stable.shopee.com (sem .br; conferido em 05/10/2026, o
+  dominio .com.br nao existe).
 */
 
 const HOSTS: Record<Ambiente, { api: string; auth: string }> = {
   producao: { api: "https://openplatform.shopee.com.br", auth: "https://open.shopee.com.br/auth" },
-  teste: { api: "https://openplatform.sandbox.test-stable.shopee.sg", auth: "https://open.sandbox.test-stable.shopee.com.br/auth" },
+  teste: { api: "https://openplatform.sandbox.test-stable.shopee.sg", auth: "https://open.sandbox.test-stable.shopee.com/auth" },
 };
 
 export function configShopee() {
