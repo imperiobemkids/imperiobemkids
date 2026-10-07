@@ -238,11 +238,11 @@ export function FichaClient({ id }: { id: string }) {
               </select>
             </Campo>
             {/*
-              Tamanho e cor so aparecem quando o item E uma variacao: e o que
-              define ela. No produto principal eles nao existem, porque o que
-              varia fica nas variacoes.
+              Tamanho e cor somem so no produto principal com variacoes, porque
+              o que varia fica nas variacoes. Variacao e produto simples (como os
+              que nascem numa compra) mostram e editam os dois.
             */}
-            {produto.produto_pai_id && (
+            {!produto.tem_variacoes && (
               <>
                 <Campo label="Tamanho"><input value={form.tamanho ?? ""} onChange={(e) => set("tamanho", e.target.value)} className={inp} /></Campo>
                 <Campo label="Cor"><input value={form.cor ?? ""} onChange={(e) => set("cor", e.target.value)} className={inp} /></Campo>

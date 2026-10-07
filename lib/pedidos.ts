@@ -343,6 +343,8 @@ export async function registrarVenda(v: NovaVendaDados): Promise<{ id: string } 
   ];
   if (v.comissao > 0) movs.push({ data: v.data, tipo: "saida", categoria: "taxa_shopee", valor: v.comissao, descricao: `Comissão ${v.canalNome}`, ref_venda_id: venda.id });
   if (v.taxaFixa > 0) movs.push({ data: v.data, tipo: "saida", categoria: "taxa_shopee", valor: v.taxaFixa, descricao: `Tarifa fixa ${v.canalNome}`, ref_venda_id: venda.id });
+  // frete pago pela loja sai do caixa: motoboy pago na hora ou frete retido no repasse do marketplace
+  if ((v.frete ?? 0) > 0) movs.push({ data: v.data, tipo: "saida", categoria: "frete", valor: v.frete, descricao: `Frete pago pela loja (${v.canalNome})`, ref_venda_id: venda.id });
   const { error: e3 } = await supabase.from("ibk_movimentos").insert(movs);
   if (e3) return { erro: e3.message };
   return { id: venda.id };

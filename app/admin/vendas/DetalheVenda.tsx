@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { calcularTaxas } from "@/lib/canais";
+import { calcularTaxas, itensDoPedido } from "@/lib/canais";
 import { num, txt, brl, pct, dataBr } from "@/lib/formato";
 import { STATUS, estornarVenda, hojeIso, estornada, lucroDaVenda, FIADO, fiadoAberto, receberFiado, trocarItemVenda, type StatusPedido } from "@/lib/pedidos";
 import type { Canal } from "../canais/CanaisClient";
@@ -206,7 +206,7 @@ export function DetalheVenda({
     const taxas = mudouTotal
       ? calcularTaxas(
           canal,
-          venda.ibk_venda_itens.map((i) => ({ precoUnit: i.preco_unit, qtd: i.qtd })),
+          itensDoPedido(venda.ibk_venda_itens.map((i) => ({ precoUnit: i.preco_unit, qtd: i.qtd }))),
           Math.max(0, venda.ibk_venda_itens.reduce((s, i) => s + i.preco_unit * i.qtd, 0) - novoTotal),
         )
       : null;
@@ -255,6 +255,8 @@ export function DetalheVenda({
       ];
       if (taxas.comissao > 0) movs.push({ data, tipo: "saida", categoria: "taxa_shopee", valor: taxas.comissao, descricao: `Comissão ${nomeCanal}`, ref_venda_id: venda.id });
       if (taxas.fixa > 0) movs.push({ data, tipo: "saida", categoria: "taxa_shopee", valor: taxas.fixa, descricao: `Tarifa fixa ${nomeCanal}`, ref_venda_id: venda.id });
+      // o frete pago pela loja tambem e da venda: sem isto, editar o total apagava o motoboy do caixa
+      if ((venda.frete ?? 0) > 0) movs.push({ data, tipo: "saida", categoria: "frete", valor: venda.frete, descricao: `Frete pago pela loja (${nomeCanal})`, ref_venda_id: venda.id });
       await supabase.from("ibk_movimentos").insert(movs);
     } else if (data !== venda.data) {
       // so a data mudou: os lancamentos da venda vao junto, pro caixa do mes bater

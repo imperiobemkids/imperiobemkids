@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Canal } from "../canais/CanaisClient";
-import { calcularTaxas, descreverFaixas } from "@/lib/canais";
+import { calcularTaxas, descreverFaixas, itensDoPedido } from "@/lib/canais";
 import { acharOuCriarCliente } from "@/lib/clientes";
 import { registrarVenda, FIADO } from "@/lib/pedidos";
 import { num, txt, brl, hojeIso, pct } from "@/lib/formato";
@@ -121,7 +121,7 @@ export function NovaVenda({
   */
   const taxas = calcularTaxas(
     canal,
-    linhas.map((l) => ({ precoUnit: num(l.precoTexto), qtd: l.qtd })),
+    itensDoPedido(linhas.map((l) => ({ precoUnit: num(l.precoTexto), qtd: l.qtd }))),
     descontoN,
   );
   const comissao = taxas.comissao;
@@ -401,7 +401,7 @@ export function NovaVenda({
             )}
             {taxaFixa > 0 && (
               <Linha2
-                rotulo={`Tarifa fixa (${taxas.unidades} ${taxas.unidades === 1 ? "item" : "itens"})`}
+                rotulo={`Tarifa fixa (${taxas.unidades} ${taxas.unidades === 1 ? "item do pedido" : "itens do pedido"})`}
                 valor={`− ${brl(taxaFixa)}`}
                 sutil
               />

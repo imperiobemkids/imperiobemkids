@@ -51,6 +51,15 @@ export function taxaDoPreco(canal: CanalTaxas | undefined, preco: number) {
 export type ItemVenda = { precoUnit: number; qtd: number };
 
 /*
+  Venda digitada a mao (Nova venda, edicao da venda): cada linha e um item do
+  pedido no marketplace. A qtd da linha e de pecas do estoque, entao a bomba
+  "2 Unidades" ou o kit 2 entram como 1 item, pelo preco da linha. Duas unidades
+  do mesmo anuncio no carrinho viram duas linhas.
+*/
+export const itensDoPedido = (linhas: ItemVenda[]): ItemVenda[] =>
+  linhas.map((l) => ({ precoUnit: l.precoUnit * l.qtd, qtd: 1 }));
+
+/*
   Taxa total do pedido.
 
   A tarifa fixa e cobrada POR ITEM do pedido ("Taxa por item vendido" no extrato
