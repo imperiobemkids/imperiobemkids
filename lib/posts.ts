@@ -226,6 +226,89 @@ export const POSTS: Post[] = [
       },
     ],
   },
+  {
+    // leva para a calculadora de moedas (pagina fora do nicho de roupa, precisa de link interno)
+    slug: "quanto-vale-presente-live-tiktok",
+    titulo: "Quanto vale um presente na live do TikTok? A conta em reais",
+    resumo:
+      "Moeda, presente e diamante: como funciona o dinheiro das lives do TikTok e quanto vale cada moeda em reais, com tabela.",
+    data: "2026-10-08",
+    emoji: "🪙",
+    leitura: "3 min",
+    blocos: [
+      {
+        tipo: "p",
+        texto:
+          "Quem já assistiu uma live no TikTok viu os presentes voando na tela: rosa, leão, foguete. Cada um custa moedas, e as moedas custam dinheiro de verdade. Mas quanto isso vale em reais, e quanto chega para quem está fazendo a live?",
+      },
+      {
+        tipo: "destaque",
+        texto:
+          "1 moeda do TikTok vale cerca de US$ 0,013, perto de R$ 0,07. Quem faz a live fica com mais ou menos metade desse valor.",
+      },
+      { tipo: "h2", texto: "Como funcionam as moedas e os presentes" },
+      {
+        tipo: "lista",
+        itens: [
+          "Quem assiste compra moedas com dinheiro, pelo app ou pelo site do TikTok.",
+          "Com as moedas, manda presentes na live ou nos vídeos. Cada presente custa um número de moedas: a rosa custa 1, e os maiores custam milhares.",
+          "Quem recebe o presente ganha diamantes, que podem ser sacados em dinheiro.",
+          "O TikTok fica com cerca de metade do valor do presente.",
+        ],
+      },
+      { tipo: "h2", texto: "Quanto vale em reais" },
+      {
+        tipo: "p",
+        texto:
+          "A tabela usa a referência mais citada, US$ 0,013 por moeda, e o dólar perto de R$ 5,00 (outubro de 2026):",
+      },
+      {
+        tipo: "tabela",
+        cabecalho: ["Moedas", "Quem manda paga", "Quem faz a live recebe"],
+        linhas: [
+          ["100", "R$ 6,50", "R$ 3,25"],
+          ["1.000", "R$ 65,00", "R$ 32,50"],
+          ["10.000", "R$ 650,00", "R$ 325,00"],
+          ["50.000", "R$ 3.250,00", "R$ 1.625,00"],
+        ],
+      },
+      {
+        tipo: "p",
+        texto:
+          "No Brasil, o pacote de moedas costuma sair entre R$ 0,05 e R$ 0,10 por moeda, conforme o tamanho do pacote e o lugar da compra. Por isso a tabela é uma estimativa.",
+      },
+      {
+        tipo: "p-link",
+        antes: "Para fazer a conta com o número exato de moedas e o dólar de hoje, use a nossa ",
+        ancora: "calculadora de moedas do TikTok em reais",
+        href: "/calculadora-moedas-tiktok",
+        depois: ". É grátis e funciona no celular.",
+      },
+      { tipo: "h2", texto: "Por que o valor de verdade pode mudar" },
+      {
+        tipo: "lista",
+        itens: [
+          "O TikTok não publica uma tabela oficial de valores.",
+          "O preço das moedas muda com o país, a loja de aplicativo e as promoções.",
+          "O saque dos diamantes pode ter taxas e impostos.",
+          "A cotação do dólar no dia do saque é outra.",
+        ],
+      },
+      { tipo: "h2", texto: "Dá para apoiar uma live sem gastar moeda" },
+      {
+        tipo: "p",
+        texto:
+          "Numa live de loja pequena, como a nossa, comentar, curtir e compartilhar já ajuda muito: live com conversa costuma aparecer para mais gente. E se gostar de alguma peça, comprar pela sacolinha da live ajuda de verdade.",
+      },
+      {
+        tipo: "p-link",
+        antes: "A gente faz live mostrando roupinha infantil e achadinhos. Enquanto isso, ",
+        ancora: "veja os achadinhos da Império",
+        href: "/pedido",
+        depois: " e siga @imperiobemkids no TikTok. 💜",
+      },
+    ],
+  },
 ];
 
 export const getPost = (slug: string) => POSTS.find((p) => p.slug === slug);

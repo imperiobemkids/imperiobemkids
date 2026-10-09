@@ -16,6 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...(publicados.length ? [{ url: "/produtos", priority: 0.9 }] : []),
     { url: "/sobre", priority: 0.7 },
     { url: "/blog", priority: 0.8 },
+    { url: "/calculadora-moedas-tiktok", priority: 0.7 },
     { url: "/trocas", priority: 0.4 },
     { url: "/privacidade", priority: 0.3 },
   ].map((p) => ({
