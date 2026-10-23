@@ -2,7 +2,13 @@
   Conteudo do blog. Fica em arquivo mesmo (sem banco) porque sao poucos textos
   e assim a pagina e estatica e rapida. Para publicar um post novo, acrescente
   um item aqui: a listagem, a rota e o sitemap se atualizam sozinhos.
+
+  Os posts de enxoval vem de lib/posts-enxoval.ts, GERADO a partir da tabela do
+  Calendario de Tamanhos (lowticket/ofertas/ibk-enxoval/blog/gerar_posts.py), para os
+  numeros do blog baterem com os da planilha. Nao edite aquele arquivo a mao.
 */
+
+import { POSTS_ENXOVAL } from "./posts-enxoval";
 
 export type Bloco =
   | { tipo: "p"; texto: string }
@@ -21,9 +27,15 @@ export type Post = {
   emoji: string;
   leitura: string;
   blocos: Bloco[];
+  atualizado?: string; // ISO, quando o conteudo mudou de verdade (vai para o dateModified e o sitemap)
+  // perguntas frequentes: aparecem como ultima secao e viram FAQPage para a busca e as IAs
+  faq?: { pergunta: string; resposta: string }[];
+  // chamada do fim do post; sem ela, a chamada padrao leva aos achadinhos
+  chamada?: { titulo: string; texto: string; href: string; rotulo: string };
+  relacionados?: string[]; // slugs para o "Leia tambem"
 };
 
-export const POSTS: Post[] = [
+const POSTS_DA_LOJA: Post[] = [
   {
     slug: "tabela-de-tamanhos-roupa-infantil",
     titulo: "Tabela de tamanhos de roupa infantil por idade e altura",
@@ -91,6 +103,13 @@ export const POSTS: Post[] = [
           "Se a criança está numa fase de estirão, subir um tamanho é quase sempre a escolha certa.",
           "Para presente, quando você não sabe a altura, prefira um tamanho acima. Guardar até servir é fácil; devolver dá trabalho.",
         ],
+      },
+      {
+        tipo: "p-link",
+        antes: "Montando o enxoval de um bebê que ainda vai nascer? A ",
+        ancora: "lista de enxoval de bebê com quantidade",
+        href: "/blog/lista-de-enxoval-de-bebe-com-quantidade",
+        depois: " mostra quantas peças de cada tamanho comprar pelo mês do parto.",
       },
       {
         tipo: "p-link",
@@ -310,6 +329,8 @@ export const POSTS: Post[] = [
     ],
   },
 ];
+
+export const POSTS: Post[] = [...POSTS_DA_LOJA, ...POSTS_ENXOVAL];
 
 export const getPost = (slug: string) => POSTS.find((p) => p.slug === slug);
 

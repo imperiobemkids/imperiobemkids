@@ -30,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const posts = POSTS.map((p) => ({
     url: `${SITE}/blog/${p.slug}`,
-    lastModified: new Date(p.data + "T12:00:00"),
+    lastModified: new Date((p.atualizado ?? p.data) + "T12:00:00"),
     priority: 0.6,
   }));
 

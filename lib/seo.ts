@@ -65,13 +65,15 @@ export const artigo = (p: {
   resumo: string;
   data: string;
   slug: string;
+  atualizado?: string;
 }) => ({
   "@context": "https://schema.org",
   "@type": "Article",
   headline: p.titulo,
   description: p.resumo,
+  inLanguage: "pt-BR",
   datePublished: p.data,
-  dateModified: p.data,
+  dateModified: p.atualizado ?? p.data,
   author: { "@type": "Organization", name: "Império Bem Kids", url: SITE },
   publisher: {
     "@type": "Organization",

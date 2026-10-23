@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "../../SiteHeader";
 import { SiteFooter } from "../../SiteFooter";
 import { POSTS, getPost, formatarData, type Bloco } from "@/lib/posts";
-import { jsonLdScript, artigo, migalhas } from "@/lib/seo";
+import { jsonLdScript, artigo, migalhas, perguntas } from "@/lib/seo";
 
 // gera as rotas dos posts no build
 export function generateStaticParams() {
@@ -110,7 +110,10 @@ export default async function PostPage({
   const post = getPost(slug);
   if (!post) notFound();
 
-  const outros = POSTS.filter((p) => p.slug !== post.slug).slice(0, 2);
+  // relacionados escolhidos no post; sem eles, os dois primeiros da lista
+  const outros = post.relacionados
+    ? post.relacionados.map((s) => getPost(s)).filter((p): p is NonNullable<typeof p> => Boolean(p))
+    : POSTS.filter((p) => p.slug !== post.slug).slice(0, 2);
 
   return (
     <>
@@ -135,9 +138,43 @@ export default async function PostPage({
               <RenderBloco key={i} bloco={b} />
             ))}
           </div>
+
+          {/* FAQ como ultima secao do artigo: responde direto e vira FAQPage */}
+          {post.faq && post.faq.length > 0 && (
+            <section className="mt-10">
+              <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
+                Perguntas frequentes
+              </h2>
+              <div className="mt-3 space-y-3">
+                {post.faq.map((q) => (
+                  <details key={q.pergunta} className="group rounded-2xl bg-white p-4 shadow-[0_3px_0_rgba(109,40,184,0.08)]">
+                    <summary className="cursor-pointer list-none font-bold text-[var(--purple-dark)]">
+                      <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>
+                      {q.pergunta}
+                    </summary>
+                    <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]/75">{q.resposta}</p>
+                  </details>
+                ))}
+              </div>
+            </section>
+          )}
         </article>
 
         {/* chamada */}
+        {post.chamada ? (
+          <div className="mt-10 rounded-3xl bg-gradient-to-br from-[var(--purple)]/10 to-[var(--mint)]/15 p-6 text-center">
+            <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
+              {post.chamada.titulo}
+            </h2>
+            <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-[var(--ink)]/70">{post.chamada.texto}</p>
+            <Link
+              href={post.chamada.href}
+              className="mt-4 inline-block rounded-full bg-[var(--purple)] px-5 py-2.5 text-sm font-extrabold text-white transition-transform hover:scale-105"
+            >
+              {post.chamada.rotulo}
+            </Link>
+          </div>
+        ) : (
         <div className="mt-10 rounded-3xl bg-gradient-to-br from-[var(--purple)]/10 to-[var(--mint)]/15 p-6 text-center">
           <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
             Precisa de ajuda para escolher?
@@ -162,6 +199,7 @@ export default async function PostPage({
             </a>
           </div>
         </div>
+        )}
 
         {/* outros posts */}
         {outros.length > 0 && (
@@ -190,6 +228,12 @@ export default async function PostPage({
 
       {/* dados estruturados do artigo e da trilha de navegacao */}
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(artigo(post))} />
+      {post.faq && post.faq.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={jsonLdScript(perguntas(post.faq))}
+        />
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={jsonLdScript(
