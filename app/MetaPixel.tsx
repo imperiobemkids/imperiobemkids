@@ -3,6 +3,7 @@
 import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { PIXEL_ID } from "@/lib/pixel";
 
 /*
   Pixel da Meta. Carrega apenas nas paginas publicas: o /admin e o /portal ficam
@@ -12,8 +13,6 @@ import { useEffect } from "react";
   O Pixel tambem precisa registrar PageView a cada troca de pagina: como o Next
   navega sem recarregar, o disparo automatico do script so contaria a primeira.
 */
-
-const PIXEL_ID = "1626260525596547";
 
 const PRIVADO = ["/admin", "/portal"];
 

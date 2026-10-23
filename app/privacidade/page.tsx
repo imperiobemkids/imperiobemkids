@@ -12,8 +12,9 @@ export const metadata: Metadata = {
 
 /*
   Escrita para ser lida, nao para assustar. Diz o que de fato acontece no
-  site: Pixel da Meta, conversa no WhatsApp e mais nada. Se entrar cadastro,
-  newsletter ou checkout proprio, esta pagina precisa mudar junto.
+  site: Pixel da Meta, conversa no WhatsApp e a compra de produto digital
+  pelo checkout da AbacatePay. Se entrar cadastro ou newsletter, esta pagina
+  precisa mudar junto.
 */
 export default function PrivacidadePage() {
   return (
@@ -54,12 +55,20 @@ export default function PrivacidadePage() {
           Pela <strong>Shopee</strong> ou outro marketplace: a plataforma é quem coleta e guarda seus dados. A gente
           só recebe o necessário para enviar o pedido, e segue a política de privacidade da plataforma.
         </p>
+        <p>
+          Nos <strong>produtos digitais</strong> vendidos aqui no site, como o Enxoval na Medida: o pagamento
+          acontece na página da <strong>AbacatePay</strong>, que coleta nome, e-mail, CPF, celular e os dados do Pix
+          ou do cartão. A gente não vê nem guarda o número do cartão. A AbacatePay nos avisa que o pagamento foi
+          aprovado, com seu nome e e-mail, e usamos isso para liberar os arquivos, atender e medir os anúncios.
+        </p>
       </Secao>
 
       <Secao titulo="Com quem a gente compartilha">
         <p>
-          Com a transportadora ou os Correios, para entregar. Com a Meta, pelo Pixel. Com o emissor de nota fiscal,
-          quando a lei exige. Não vendemos nem alugamos sua lista de contato para ninguém.
+          Com a transportadora ou os Correios, para entregar. Com a AbacatePay, para processar o pagamento dos
+          produtos digitais. Com a Meta, pelo Pixel e, quando você compra um produto digital, pela confirmação da
+          compra que o nosso servidor envia, com o e-mail embaralhado (em código, sem o texto original). Com o emissor
+          de nota fiscal, quando a lei exige. Não vendemos nem alugamos sua lista de contato para ninguém.
         </p>
       </Secao>
 

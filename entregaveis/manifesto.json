@@ -1,0 +1,16 @@
+{
+  "ibk-enxoval": [
+    {
+      "id": "guia",
+      "nome": "Enxoval na Medida - Guia.pdf",
+      "tipo": "application/pdf",
+      "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/saida/Enxoval na Medida - Guia.pdf"
+    },
+    {
+      "id": "planilha",
+      "nome": "Enxoval na Medida - Planilha.xlsx",
+      "tipo": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/saida/Enxoval na Medida - Planilha.xlsx"
+    }
+  ]
+}

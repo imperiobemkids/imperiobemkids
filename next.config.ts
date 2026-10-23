@@ -21,8 +21,9 @@ const csp = [
   "frame-src https://www.facebook.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  // o Pixel manda o evento como form para facebook.com/tr
-  "form-action 'self' https://www.facebook.com",
+  // o Pixel manda o evento como form para facebook.com/tr; o botao de comprar
+  // (form para /comprar) termina redirecionado para o checkout da AbacatePay
+  "form-action 'self' https://www.facebook.com https://app.abacatepay.com",
   "object-src 'none'",
   ...(dev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
@@ -39,6 +40,8 @@ const headers = [
 const nextConfig: NextConfig = {
   // foto de produto pode vir do Storage do Supabase, alem de /public
   images: { remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }] },
+  // os arquivos pagos (cifrados) sao lidos do disco pela rota de entrega
+  outputFileTracingIncludes: { "/api/entrega/**": ["./entregaveis/**/*.enc"] },
   async headers() {
     return [{ source: "/(.*)", headers }];
   },

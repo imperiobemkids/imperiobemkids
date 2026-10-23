@@ -4,24 +4,38 @@
   em comprar, e da para medir custo por clique de saida.
 
   Eventos padrao da Meta (nomes fixos, ela entende):
-  - InitiateCheckout: clicou para comprar (Shopee, produto)
+  - InitiateCheckout: clicou para comprar (Shopee, produto, checkout proprio)
+  - Purchase: compra aprovada no checkout proprio (pagina de obrigado)
   - Contact: abriu o WhatsApp
   - Lead: entrou no grupo de achadinhos
   - ViewContent: abriu um produto
 */
-export type EventoPixel = "InitiateCheckout" | "Contact" | "Lead" | "ViewContent";
+export const PIXEL_ID = "1626260525596547";
 
-type Fbq = (acao: "track" | "trackCustom", evento: string, params?: Record<string, unknown>) => void;
+export type EventoPixel = "InitiateCheckout" | "Purchase" | "Contact" | "Lead" | "ViewContent";
 
-export function pixel(evento: EventoPixel, params?: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
+type Fbq = (
+  acao: "track" | "trackCustom",
+  evento: string,
+  params?: Record<string, unknown>,
+  opcoes?: { eventID: string },
+) => void;
+
+/*
+  eventoId: o mesmo id que o servidor manda pela API de Conversoes, para a
+  Meta juntar os dois disparos da mesma compra. Devolve false se o Pixel
+  ainda nao carregou.
+*/
+export function pixel(evento: EventoPixel, params?: Record<string, unknown>, eventoId?: string): boolean {
+  if (typeof window === "undefined") return false;
   const fbq = (window as unknown as { fbq?: Fbq }).fbq;
-  if (!fbq) return;
+  if (!fbq) return false;
   try {
-    fbq("track", evento, { currency: "BRL", ...params });
+    fbq("track", evento, { currency: "BRL", ...params }, eventoId ? { eventID: eventoId } : undefined);
   } catch {
     // o Pixel nunca pode derrubar o clique
   }
+  return true;
 }
 
 /* preco "R$ 49,90" -> 49.9 */

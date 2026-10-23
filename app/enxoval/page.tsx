@@ -8,13 +8,15 @@ import { Saida } from "../Saida";
 import { EMPRESA } from "@/lib/empresa";
 import { SITE, jsonLdScript } from "@/lib/seo";
 import { OFERTA_ENXOVAL as O } from "@/lib/ofertas/enxoval";
-import { CHECKOUT_ENXOVAL, ENXOVAL_NO_AR } from "@/lib/ofertas/checkout";
+import { ENXOVAL_NO_AR } from "@/lib/ofertas/checkout";
 import { AVALIACOES } from "@/lib/ofertas/enxoval-avaliacoes";
+import { BotaoCheckout } from "../BotaoCheckout";
 
 /*
   Pagina de vendas do Enxoval na Medida (planilha + guia), a primeira oferta low ticket da IBK.
   A copy vem de lib/ofertas/enxoval.ts, gerado a partir da oferta; aqui fica so a montagem.
-  Sem checkout configurado, o botao chama no WhatsApp e a pagina fica fora do Google.
+  Com a venda ligada, o botao vai para o checkout proprio (app/comprar); sem ela, chama
+  no WhatsApp e a pagina fica fora do Google.
 */
 
 const TITULO = "Lista de enxoval de bebê pelo mês do parto";
@@ -41,8 +43,6 @@ export const metadata: Metadata = {
 const WHATSAPP_COMPRA = `${EMPRESA.whatsappLink}?text=${encodeURIComponent(
   `Oi! Quero o ${O.nomeCurto}, a planilha e o guia do enxoval, por ${O.precoTexto} 💜`,
 )}`;
-const COMPRA = ENXOVAL_NO_AR ? CHECKOUT_ENXOVAL : WHATSAPP_COMPRA;
-const EVENTO = ENXOVAL_NO_AR ? "InitiateCheckout" : "Contact";
 
 const titulo = "font-[family-name:var(--font-baloo)] font-extrabold text-[var(--purple-dark)]";
 const texto = "text-[16px] leading-relaxed text-[var(--ink)]/80";
@@ -55,13 +55,15 @@ function corEstacao(estacao: string) {
 }
 
 function BotaoComprar({ local, rotulo = O.cta }: { local: string; rotulo?: string }) {
-  return (
-    <Saida
-      href={COMPRA}
-      evento={EVENTO}
-      params={{ content_name: O.nomeCurto, content_ids: [O.id], value: O.preco, num_items: 1, local }}
-      className="press inline-flex items-center justify-center rounded-full bg-[var(--purple)] px-7 py-3.5 text-base font-extrabold text-white shadow-[0_4px_0_var(--purple-dark)]"
-    >
+  const params = { content_name: O.nomeCurto, content_ids: [O.id], value: O.preco, num_items: 1, local };
+  const classe =
+    "press inline-flex items-center justify-center rounded-full bg-[var(--purple)] px-7 py-3.5 text-base font-extrabold text-white shadow-[0_4px_0_var(--purple-dark)]";
+  return ENXOVAL_NO_AR ? (
+    <BotaoCheckout oferta={O.id} params={params} className={classe}>
+      {rotulo}
+    </BotaoCheckout>
+  ) : (
+    <Saida href={WHATSAPP_COMPRA} evento="Contact" params={params} className={classe}>
       {rotulo}
     </Saida>
   );
@@ -99,7 +101,7 @@ export default function EnxovalPage() {
     {
       p: "Como eu recebo?",
       r: ENXOVAL_NO_AR
-        ? "Logo depois do pagamento aprovado, a planilha e o guia chegam no seu e-mail."
+        ? "Assim que o pagamento por Pix ou cartão é aprovado, a página de confirmação libera o download da planilha e do guia. Guarde o link dessa página: é por ele que você baixa de novo quando quiser."
         : "Pelo WhatsApp: você chama a gente, paga por Pix e recebe a planilha e o guia ali mesmo.",
     },
     {

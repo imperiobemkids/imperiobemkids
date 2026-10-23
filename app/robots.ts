@@ -6,8 +6,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      // area interna dos socios fica fora da busca
-      disallow: ["/admin", "/portal"],
+      // area interna dos socios fica fora da busca, e o caminho da compra tambem
+      disallow: ["/admin", "/portal", "/comprar", "/obrigado", "/api"],
     },
     sitemap: `${SITE}/sitemap.xml`,
   };
