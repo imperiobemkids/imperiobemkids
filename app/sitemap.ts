@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { POSTS } from "@/lib/posts";
 import { listarProdutosPublicos } from "@/lib/produtosPublicos";
 import { SITE } from "@/lib/seo";
+import { ENXOVAL_NO_AR } from "@/lib/ofertas/checkout";
 
 /*
   Sitemap das paginas publicas. O /admin e o /portal ficam de fora
@@ -17,6 +18,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: "/sobre", priority: 0.7 },
     { url: "/blog", priority: 0.8 },
     { url: "/calculadora-moedas-tiktok", priority: 0.7 },
+    // pagina de vendas so entra quando o checkout estiver configurado na Vercel
+    ...(ENXOVAL_NO_AR ? [{ url: "/enxoval", priority: 0.8 }] : []),
     { url: "/trocas", priority: 0.4 },
     { url: "/privacidade", priority: 0.3 },
   ].map((p) => ({
