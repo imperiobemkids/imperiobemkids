@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, CalendarBlank, CheckCircle, Gift, Ruler, ShieldCheck, Table, XCircle } from "@phosphor-icons/react/ssr";
+import { BookOpen, CalendarBlank, CheckCircle, Gift, Ruler, ShieldCheck, Star, Table, XCircle } from "@phosphor-icons/react/ssr";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { Saida } from "../Saida";
@@ -9,6 +9,7 @@ import { EMPRESA } from "@/lib/empresa";
 import { SITE, jsonLdScript } from "@/lib/seo";
 import { OFERTA_ENXOVAL as O } from "@/lib/ofertas/enxoval";
 import { CHECKOUT_ENXOVAL, ENXOVAL_NO_AR } from "@/lib/ofertas/checkout";
+import { AVALIACOES } from "@/lib/ofertas/enxoval-avaliacoes";
 
 /*
   Pagina de vendas do Enxoval na Medida (planilha + guia), a primeira oferta low ticket da IBK.
@@ -164,21 +165,29 @@ export default function EnxovalPage() {
                 </p>
               </div>
             </div>
-            <div className="relative mx-auto w-full max-w-sm">
+            <div className="relative mx-auto w-full max-w-sm pb-6">
+              {/* foto do Unsplash (Kelly Sikkema), creditos em lowticket/ofertas/ibk-enxoval/criativos/fotos/CREDITOS.md */}
+              <Image
+                src="/enxoval/foto-mae-rn.webp"
+                alt="Mãe abraçando o bebê recém-nascido"
+                width={900}
+                height={1200}
+                preload
+                className="aspect-[4/5] w-full rounded-3xl object-cover shadow-[0_6px_0_rgba(109,40,184,0.12)]"
+              />
               <Image
                 src="/enxoval/planilha-lista.webp"
                 alt="Aba Meu enxoval da planilha, com a quantidade de cada peça do tamanho P"
                 width={1352}
                 height={800}
-                preload
-                className="rounded-2xl border border-[var(--purple)]/10 shadow-[0_6px_0_rgba(109,40,184,0.12)]"
+                className="absolute -left-4 bottom-0 w-60 rounded-xl border border-[var(--purple)]/10 shadow-[0_6px_0_rgba(109,40,184,0.18)] sm:-left-8"
               />
               <Image
                 src="/enxoval/guia-capa.webp"
                 alt="Capa do guia Enxoval na Medida"
                 width={720}
                 height={1020}
-                className="absolute -bottom-8 -right-3 w-28 rotate-3 rounded-xl shadow-[0_6px_0_rgba(76,29,128,0.25)] sm:w-32"
+                className="absolute -right-3 bottom-2 w-24 rotate-3 rounded-xl shadow-[0_6px_0_rgba(76,29,128,0.25)] sm:w-28"
               />
             </div>
           </div>
@@ -186,6 +195,13 @@ export default function EnxovalPage() {
 
         {/* a dor */}
         <section className="mx-auto mt-6 max-w-2xl px-6">
+          <Image
+            src="/enxoval/foto-dobrando.webp"
+            alt="Mãos dobrando roupinhas de bebê"
+            width={1200}
+            height={800}
+            className="mb-6 aspect-[3/2] w-full rounded-3xl object-cover"
+          />
           <h2 className={`${titulo} text-2xl`}>Cinco listas de enxoval salvas e nenhuma igual à outra?</h2>
           <p className={`${texto} mt-2`}>A culpa não é sua, é da lista. O caminho de sempre costuma ser este:</p>
           <ul className="mt-4 space-y-2">
@@ -314,6 +330,13 @@ export default function EnxovalPage() {
 
         {/* como funciona */}
         <section className="mx-auto mt-12 max-w-2xl px-6">
+          <Image
+            src="/enxoval/foto-gestante.webp"
+            alt="Gestante com as mãos na barriga"
+            width={1200}
+            height={800}
+            className="mb-6 aspect-[3/2] w-full rounded-3xl object-cover"
+          />
           <h2 className={`${titulo} text-2xl`}>Como funciona</h2>
           <ol className="mt-4 space-y-4">
             {[
@@ -354,6 +377,31 @@ export default function EnxovalPage() {
             enxoval pedem para os três primeiros meses. A diferença é que a manga curta e a manga longa seguem a estação de cada tamanho.
           </p>
         </section>
+
+        {/* avaliacoes reais: so aparece quando houver alguma em lib/ofertas/enxoval-avaliacoes.ts */}
+        {AVALIACOES.length > 0 && (
+          <section className="mx-auto mt-12 max-w-5xl px-6">
+            <h2 className={`${titulo} text-center text-2xl`}>Quem já usou</h2>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {AVALIACOES.map((a) => (
+                <figure key={`${a.nome}-${a.data}`} className={`${cartao} p-5`}>
+                  <div className="flex gap-0.5 text-[var(--yellow)]" aria-label={`Nota ${a.nota} de 5`}>
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star key={i} size={18} weight={i < a.nota ? "fill" : "regular"} />
+                    ))}
+                  </div>
+                  <blockquote className="mt-3 text-[15px] leading-relaxed text-[var(--ink)]/85">{a.texto}</blockquote>
+                  <figcaption className="mt-3 text-sm font-bold text-[var(--purple-dark)]">
+                    {a.nome}, {a.cidade}
+                    {a.ganhouParaTestar && (
+                      <span className="block text-xs font-semibold text-[var(--ink)]/55">Recebeu o material para testar</span>
+                    )}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* oferta */}
         <section className="mx-auto mt-12 max-w-2xl px-6">
