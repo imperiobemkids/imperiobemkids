@@ -11,6 +11,7 @@
 
 import { supabase } from "./supabase";
 import { hojeIso } from "./formato";
+import { abrirImpressao } from "./impressao";
 
 export type LinhaContagem = {
   grupo: string;
@@ -87,7 +88,7 @@ export function porGrupo<L extends { grupo: string }>(linhas: L[]) {
 const CSS = `
   @page { size: A4; margin: 12mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Nunito", "Segoe UI", Arial, sans-serif; color: #111; font-size: 10.5pt; }
+  body { margin: 0; font-family: var(--font-nunito, "Nunito"), "Segoe UI", Arial, sans-serif; color: #111; font-size: 10.5pt; }
   .topo { display: flex; align-items: center; gap: 4mm; border-bottom: 0.6mm solid #111; padding-bottom: 3mm; }
   .topo img { width: 14mm; height: 14mm; object-fit: contain; }
   .topo h1 { margin: 0; font-size: 16pt; font-weight: 900; }
@@ -113,7 +114,7 @@ const CSS = `
 
 export function imprimirContagem(
   linhas: LinhaFolha[],
-  o: { mostrarSistema: boolean; logoUrl: string; marca: string; recorte: string; codigo: string | null; janela?: Window },
+  o: { mostrarSistema: boolean; logoUrl: string; marca: string; recorte: string; codigo: string | null },
 ) {
   const grupos = porGrupo(linhas);
   // coluna de cor so quando alguma peca tem cor: vazia ela so rouba espaco da linha
@@ -151,15 +152,12 @@ export function imprimirContagem(
     ${corpo}
     <p class="total">${linhas.length} linhas para contar${o.mostrarSistema ? ` · ${totalSistema} unidades no sistema` : ""}.</p>`;
 
-  const w = o.janela ?? window.open("", "_blank", "width=820,height=900");
-  if (!w) throw new Error("o navegador bloqueou a janela de impressão");
-  w.document.write(
-    `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Contagem de estoque ${hoje()}</title><style>${CSS}</style></head><body>${html}</body></html>`,
-  );
-  w.document.close();
-  w.focus();
-  // espera a fonte e o logo
-  setTimeout(() => w.print(), 400);
+  abrirImpressao({
+    titulo: `Contagem de estoque${o.codigo ? ` #${o.codigo}` : ""} · ${hoje()}`,
+    css: CSS,
+    html,
+    papel: { larguraMm: 210, margemMm: 12 },
+  });
 }
 
 /* CSV com ponto e virgula e BOM: e o formato que o Excel em portugues abre direto */

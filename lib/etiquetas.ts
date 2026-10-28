@@ -1,10 +1,11 @@
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
+import { abrirImpressao } from "./impressao";
 
 /*
-  Etiquetas 100x150 mm para a impressora termica. Gera um HTML proprio,
-  abre numa janela nova e manda imprimir: assim o CSS do painel nao entra
-  no meio e cada etiqueta vira uma pagina do tamanho da bobina.
+  Etiquetas 100x150 mm para a impressora termica. Gera um HTML proprio e abre
+  por cima do painel (lib/impressao.ts), com o CSS isolado: o do painel nao
+  entra no meio e cada etiqueta vira uma pagina do tamanho da bobina.
 */
 
 export type ItemRomaneio = { qtd: number; nome: string };
@@ -49,7 +50,7 @@ const CSS = `
   @page { size: 100mm 150mm; margin: 0; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: "Nunito", "Segoe UI", Arial, sans-serif; color: #111; }
+  body { font-family: var(--font-nunito, "Nunito"), "Segoe UI", Arial, sans-serif; color: #111; }
   .et { width: 100mm; height: 150mm; padding: 7mm 7mm 6mm; page-break-after: always; display: flex; flex-direction: column; overflow: hidden; }
   .et:last-child { page-break-after: auto; }
   .topo { display: flex; align-items: center; gap: 3mm; border-bottom: 0.5mm solid #111; padding-bottom: 2.5mm; }
@@ -87,18 +88,12 @@ const CSS = `
   .prod .sku { margin-top: auto; font-family: Consolas, monospace; font-size: 12pt; font-weight: 700; text-align: center; letter-spacing: 1pt; }
   .prod svg { width: 100%; height: 22mm; margin-top: 2mm; }
   .prod .qtd { font-size: 9pt; color: #444; text-align: right; margin-top: 1mm; }
+  /* na previa da tela cada etiqueta aparece separada, como sai da bobina */
+  @media screen { .et { background: #fff; margin-bottom: 4mm; box-shadow: 0 2px 10px rgba(60, 40, 80, 0.15); } }
 `;
 
 function abrirEImprimir(corpo: string, titulo: string) {
-  const w = window.open("", "_blank", "width=480,height=720");
-  if (!w) throw new Error("o navegador bloqueou a janela de impressão");
-  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(titulo)}</title><style>${CSS}</style></head><body>${corpo}</body></html>`);
-  w.document.close();
-  w.focus();
-  // espera a fonte e as imagens
-  setTimeout(() => {
-    w.print();
-  }, 400);
+  abrirImpressao({ titulo, css: CSS, html: corpo, papel: { larguraMm: 100, margemMm: 0, solto: true } });
 }
 
 export async function imprimirRomaneios(lista: Romaneio[], opts: { logoUrl: string; marca: string }) {

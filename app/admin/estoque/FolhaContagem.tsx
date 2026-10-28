@@ -104,9 +104,6 @@ export function FolhaContagem({ produtos, onFechar }: { produtos: Item[]; onFech
 
   const imprimir = async () => {
     setErro("");
-    // a janela abre antes do await: depois dele o navegador bloqueia o pop-up
-    const janela = window.open("", "_blank", "width=820,height=900");
-    if (!janela) return setErro("o navegador bloqueou a janela de impressão");
     setSalvando(true);
     try {
       const f = await garantirFolha();
@@ -116,10 +113,8 @@ export function FolhaContagem({ produtos, onFechar }: { produtos: Item[]; onFech
         marca: EMPRESA.nomeFantasia,
         recorte,
         codigo: f.codigo,
-        janela,
       });
     } catch (e) {
-      janela.close();
       setErro(e instanceof Error ? e.message : "erro ao imprimir");
     }
     setSalvando(false);

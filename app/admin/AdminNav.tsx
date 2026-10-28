@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { LogoutButton } from "./LogoutButton";
 import { useReposicao } from "./useReposicao";
@@ -27,6 +27,8 @@ import {
   Plug,
   ArrowsDownUp,
   ClipboardText,
+  ArrowLeft,
+  DeviceMobile,
   type Icon,
 } from "@phosphor-icons/react";
 
@@ -80,6 +82,23 @@ export const GRUPOS: { nome: string; itens: ItemNav[] }[] = [
 const TODOS = GRUPOS.flatMap((g) => g.itens);
 function hrefAtivo(pathname: string) {
   return TODOS.filter((i) => pathname === i.href || pathname.startsWith(i.href + "/")).sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
+}
+
+/* "acima" de cada tela: a subpagina volta para o item do menu; o item, para o Painel */
+function paiDe(pathname: string) {
+  const ativo = hrefAtivo(pathname);
+  if (ativo && ativo !== pathname) return ativo;
+  const acima = TODOS.filter((i) => i.href !== pathname && pathname.startsWith(i.href + "/")).sort((a, b) => b.href.length - a.href.length)[0];
+  return acima?.href ?? "/admin";
+}
+
+/* o gesto de puxar o menu nao vale em cima de tabela que rola de lado nem de campo de texto */
+function rolaDeLado(alvo: EventTarget | null) {
+  for (let el = alvo instanceof HTMLElement ? alvo : null; el && el !== document.body; el = el.parentElement) {
+    if (el.matches("input, textarea, select, [contenteditable]")) return true;
+    if (el.scrollWidth > el.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(el).overflowX)) return true;
+  }
+  return false;
 }
 
 type Repor = { itens: number; zerados: number } | null;
@@ -175,6 +194,14 @@ function Conteudo({ aoNavegar, repor }: { aoNavegar?: () => void; repor: Repor }
       </nav>
 
       <div className="border-t border-[var(--purple)]/10 p-3">
+        {/* so no computador: mostra as telas do ERP no tamanho de iPhone e Android */}
+        <Link
+          href="/admin/celular"
+          onClick={aoNavegar}
+          className="mb-1 hidden items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--ink)]/60 hover:bg-[var(--purple)]/8 hover:text-[var(--purple-dark)] lg:flex"
+        >
+          <DeviceMobile size={20} weight="duotone" /> Ver no celular
+        </Link>
         <Link
           href="/"
           onClick={aoNavegar}
@@ -191,10 +218,56 @@ function Conteudo({ aoNavegar, repor }: { aoNavegar?: () => void; repor: Repor }
 export function AdminNav() {
   const [drawer, setDrawer] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const repor = useReposicao();
 
   // fecha o menu do celular ao trocar de pagina
   useEffect(() => setDrawer(false), [pathname]);
+
+  // telas visitadas nesta sessao: o voltar da barra refaz o caminho; sem caminho, sobe um nivel
+  const caminho = useRef<string[]>([]);
+  useEffect(() => {
+    const c = caminho.current;
+    if (c.length > 1 && c[c.length - 2] === pathname) c.pop();
+    else if (c[c.length - 1] !== pathname) c.push(pathname);
+  }, [pathname]);
+  const voltar = () => (caminho.current.length > 1 ? router.back() : router.push(paiDe(pathname)));
+
+  /*
+    Puxar para o lado abre e fecha o menu no celular. Fechado, o gesto comeca
+    no terco esquerdo da tela, longe da beirada (que e do voltar do sistema).
+  */
+  const drawerAberto = useRef(false);
+  useEffect(() => {
+    drawerAberto.current = drawer;
+  }, [drawer]);
+  useEffect(() => {
+    let inicio: { x: number; y: number } | null = null;
+    const comeca = (e: TouchEvent) => {
+      inicio = null;
+      if (e.touches.length !== 1 || window.innerWidth >= 1024 || document.getElementById("impressao")) return;
+      const t = e.touches[0];
+      if (!drawerAberto.current && (t.clientX < 16 || t.clientX > window.innerWidth / 3)) return;
+      if (rolaDeLado(e.target)) return;
+      inicio = { x: t.clientX, y: t.clientY };
+    };
+    const termina = (e: TouchEvent) => {
+      if (!inicio) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - inicio.x;
+      const dy = t.clientY - inicio.y;
+      inicio = null;
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+      if (dx > 0 && !drawerAberto.current) setDrawer(true);
+      else if (dx < 0 && drawerAberto.current) setDrawer(false);
+    };
+    window.addEventListener("touchstart", comeca, { passive: true });
+    window.addEventListener("touchend", termina, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", comeca);
+      window.removeEventListener("touchend", termina);
+    };
+  }, []);
 
   return (
     <>
@@ -204,23 +277,32 @@ export function AdminNav() {
       </aside>
 
       {/* barra do celular */}
-      <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--purple)]/12 bg-white/90 px-4 py-2.5 backdrop-blur lg:hidden">
+      <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-[var(--purple)]/12 bg-white/90 px-4 py-2.5 backdrop-blur lg:hidden">
         <button
           onClick={() => setDrawer(true)}
           aria-label="Abrir menu"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--purple)]/8 text-[var(--purple)]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--purple)]/8 text-[var(--purple)]"
         >
           <List size={20} weight="bold" />
         </button>
-        <Link href="/admin" className="font-[family-name:var(--font-baloo)] text-base font-extrabold text-[var(--purple-dark)]">
-          Império <span className="text-[var(--purple)]">Admin</span>
+        {pathname !== "/admin" && (
+          <button
+            onClick={voltar}
+            aria-label="Voltar"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--purple)]/8 text-[var(--purple)]"
+          >
+            <ArrowLeft size={20} weight="bold" />
+          </button>
+        )}
+        <Link href="/admin" className="min-w-0 truncate font-[family-name:var(--font-baloo)] text-base font-extrabold text-[var(--purple-dark)]">
+          Império <span className="hidden text-[var(--purple)] min-[400px]:inline">Admin</span>
         </Link>
         {/* no celular o aviso de reposicao e o atalho de movimentar ficam sempre a um toque */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {repor && repor.itens > 0 && (
             <Link
               href="/admin/estoque"
-              className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${repor.zerados ? "bg-red-100 text-red-700" : "bg-[var(--sun)]/40 text-[var(--ink)]"}`}
+              className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-extrabold ${repor.zerados ? "bg-red-100 text-red-700" : "bg-[var(--sun)]/40 text-[var(--ink)]"}`}
             >
               {repor.itens} p/ repor
             </Link>

@@ -18,8 +18,9 @@ const csp = [
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https://www.facebook.com https://*.supabase.co",
   `connect-src 'self' ${supabase} ${supabaseWs} https://www.facebook.com https://connect.facebook.net`,
-  "frame-src https://www.facebook.com",
-  "frame-ancestors 'none'",
+  // 'self': a tela Ver no celular (/admin/celular) mostra o proprio ERP em quadros do tamanho do celular
+  "frame-src 'self' https://www.facebook.com",
+  "frame-ancestors 'self'",
   "base-uri 'self'",
   // o Pixel manda o evento como form para facebook.com/tr; o botao de comprar
   // (form para /comprar) termina redirecionado para o checkout da AbacatePay
@@ -30,7 +31,7 @@ const csp = [
 
 const headers = [
   { key: "Content-Security-Policy", value: csp },
-  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
@@ -38,6 +39,8 @@ const headers = [
 ];
 
 const nextConfig: NextConfig = {
+  // o celular na mesma rede Wi-Fi abre o servidor local pelo IP do PC (ex.: 192.168.15.4)
+  allowedDevOrigins: ["192.168.*.*", "10.*.*.*"],
   // foto de produto pode vir do Storage do Supabase, alem de /public
   images: { remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }] },
   // os arquivos pagos (cifrados) sao lidos do disco pela rota de entrega

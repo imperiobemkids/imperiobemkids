@@ -41,8 +41,23 @@ body {
   Forcar 16px nos controles em tela pequena evita o zoom sem bloquear o
   gesto de pinca do usuario (nao usar maximum-scale, que quebra acessibilidade).
 */
+/*
+  No celular, os textos de 10 e 11px do painel ficam pequenos demais e a
+  pessoa precisa dar zoom para ler. Sobem um pouco so em tela pequena; no
+  computador ficam como estao.
+*/
 @media (max-width: 767px) {
-  input,
+  .admin-shell .text-\[10px\] {
+    font-size: 11.5px;
+  }
+  .admin-shell .text-\[11px\] {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  /* campo que ja e maior que 16px (quantidade, contagem) fica com o tamanho dele */
+  input:not([class*="text-lg"]):not([class*="text-xl"]):not([class*="text-2xl"]):not([class*="text-3xl"]),
   select,
   textarea {
     font-size: 16px;
