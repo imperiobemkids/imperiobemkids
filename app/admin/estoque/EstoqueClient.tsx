@@ -12,6 +12,7 @@ import { SkeletonRows } from "../ui";
 import { CaretRight } from "@phosphor-icons/react";
 import { GradeVariacoes } from "./GradeVariacoes";
 import { SaidaSemVenda } from "./SaidaSemVenda";
+import { FolhaContagem } from "./FolhaContagem";
 
 type Produto = {
   id: string;
@@ -75,6 +76,7 @@ export function EstoqueClient() {
   const [ultimaVenda, setUltimaVenda] = useState<Map<string, string>>(new Map()); // produto pai (ou simples) -> data da ultima venda
   const [reposicaoAberta, setReposicaoAberta] = useState(false);
   const [saidaAberta, setSaidaAberta] = useState(false);
+  const [contagemAberta, setContagemAberta] = useState(false);
   const [abertos, setAbertos] = useState<Set<string>>(new Set()); // grades abertas
   // filtros da tabela, no mesmo formato da tela de Vendas
   const [filtroSit, setFiltroSit] = useState<"todos" | Situacao>("todos");
@@ -253,6 +255,12 @@ export function EstoqueClient() {
         <div className="flex flex-wrap items-center gap-2">
           <Kpi titulo="Unidades" valor={String(unidades)} />
           <Kpi titulo="Valor em estoque" valor={brl(valorEstoque)} />
+          <Link href="/admin/estoque/movimentar" className="rounded-xl bg-[var(--purple)]/8 px-4 py-2.5 text-sm font-bold text-[var(--purple-dark)] transition-colors hover:bg-[var(--purple)]/15">
+            Movimentar
+          </Link>
+          <button onClick={() => setContagemAberta((v) => !v)} className="rounded-xl bg-[var(--purple)]/8 px-4 py-2.5 text-sm font-bold text-[var(--purple-dark)] transition-colors hover:bg-[var(--purple)]/15">
+            Folha de contagem
+          </button>
           <button onClick={() => setSaidaAberta((v) => !v)} className="rounded-xl bg-[var(--purple)]/8 px-4 py-2.5 text-sm font-bold text-[var(--purple-dark)] transition-colors hover:bg-[var(--purple)]/15">
             Saída sem venda
           </button>
@@ -266,6 +274,9 @@ export function EstoqueClient() {
 
       {/* presente, uso em video, perda: sai do estoque pelo custo, sem venda; o historico abre junto */}
       {saidaAberta && <SaidaSemVenda produtos={rows} onFeito={carregar} onFechar={() => setSaidaAberta(false)} />}
+
+      {/* folha A4 ou planilha para contar o estoque fisico e conferir com o ERP */}
+      {contagemAberta && <FolhaContagem produtos={rows} onFechar={() => setContagemAberta(false)} />}
 
       {/* reposicao */}
       {!loading && reposicao.length > 0 && (

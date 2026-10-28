@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { LogoutButton } from "./LogoutButton";
+import { useReposicao } from "./useReposicao";
 import {
   House,
   CalendarCheck,
@@ -24,6 +25,8 @@ import {
   CaretDown,
   Binoculars,
   Plug,
+  ArrowsDownUp,
+  ClipboardText,
   type Icon,
 } from "@phosphor-icons/react";
 
@@ -46,6 +49,8 @@ export const GRUPOS: { nome: string; itens: ItemNav[] }[] = [
     nome: "Suprimentos",
     itens: [
       { href: "/admin/estoque", label: "Estoque", icone: Package },
+      { href: "/admin/estoque/movimentar", label: "Movimentar", icone: ArrowsDownUp },
+      { href: "/admin/estoque/contagem", label: "Contagem", icone: ClipboardText },
       { href: "/admin/compras", label: "Compras", icone: ShoppingBag },
       { href: "/admin/fornecedores", label: "Fornecedores", icone: Factory },
     ],
@@ -71,9 +76,18 @@ export const GRUPOS: { nome: string; itens: ItemNav[] }[] = [
   },
 ];
 
-function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
+/* o item ativo e o de caminho mais longo que casa: em /admin/estoque/movimentar acende Movimentar, nao Estoque */
+const TODOS = GRUPOS.flatMap((g) => g.itens);
+function hrefAtivo(pathname: string) {
+  return TODOS.filter((i) => pathname === i.href || pathname.startsWith(i.href + "/")).sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
+}
+
+type Repor = { itens: number; zerados: number } | null;
+
+function Conteudo({ aoNavegar, repor }: { aoNavegar?: () => void; repor: Repor }) {
   const pathname = usePathname();
-  const grupoDoCaminho = GRUPOS.find((g) => g.itens.some((i) => pathname.startsWith(i.href)));
+  const ativoHref = hrefAtivo(pathname);
+  const grupoDoCaminho = GRUPOS.find((g) => g.itens.some((i) => i.href === ativoHref));
   // tudo aberto por padrao: o menu e curto e ver as opcoes ajuda mais do que esconder
   const [abertos, setAbertos] = useState<string[]>(GRUPOS.map((g) => g.nome));
 
@@ -112,7 +126,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
         <div className="mt-3 flex flex-col gap-1">
           {GRUPOS.map((g) => {
             const aberto = abertos.includes(g.nome);
-            const temAtivo = g.itens.some((i) => pathname.startsWith(i.href));
+            const temAtivo = g.itens.some((i) => i.href === ativoHref);
             return (
               <div key={g.nome}>
                 <button
@@ -134,10 +148,21 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
                 {aberto && (
                   <div className="mt-0.5 ml-4 flex flex-col gap-0.5 border-l-2 border-[var(--purple)]/12 pl-2">
                     {g.itens.map((i) => {
-                      const ativo = pathname.startsWith(i.href);
+                      const ativo = i.href === ativoHref;
+                      const aviso = i.href === "/admin/estoque" && repor && repor.itens > 0;
                       return (
                         <Link key={i.href} href={i.href} onClick={aoNavegar} className={itemCls(ativo)}>
                           <i.icone size={20} weight={ativo ? "fill" : "duotone"} /> {i.label}
+                          {aviso && (
+                            <span
+                              title={`${repor.itens} para repor${repor.zerados ? `, ${repor.zerados} zerados` : ""}`}
+                              className={`num ml-auto rounded-full px-2 py-0.5 text-[11px] font-extrabold ${
+                                ativo ? "bg-white text-[var(--purple-dark)]" : repor.zerados ? "bg-red-100 text-red-700" : "bg-[var(--sun)]/40 text-[var(--ink)]"
+                              }`}
+                            >
+                              {repor.itens}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}
@@ -166,6 +191,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
 export function AdminNav() {
   const [drawer, setDrawer] = useState(false);
   const pathname = usePathname();
+  const repor = useReposicao();
 
   // fecha o menu do celular ao trocar de pagina
   useEffect(() => setDrawer(false), [pathname]);
@@ -174,7 +200,7 @@ export function AdminNav() {
     <>
       {/* lateral fixa no desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-[var(--purple)]/12 bg-white lg:block">
-        <Conteudo />
+        <Conteudo repor={repor} />
       </aside>
 
       {/* barra do celular */}
@@ -189,6 +215,24 @@ export function AdminNav() {
         <Link href="/admin" className="font-[family-name:var(--font-baloo)] text-base font-extrabold text-[var(--purple-dark)]">
           Império <span className="text-[var(--purple)]">Admin</span>
         </Link>
+        {/* no celular o aviso de reposicao e o atalho de movimentar ficam sempre a um toque */}
+        <div className="ml-auto flex items-center gap-2">
+          {repor && repor.itens > 0 && (
+            <Link
+              href="/admin/estoque"
+              className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${repor.zerados ? "bg-red-100 text-red-700" : "bg-[var(--sun)]/40 text-[var(--ink)]"}`}
+            >
+              {repor.itens} p/ repor
+            </Link>
+          )}
+          <Link
+            href="/admin/estoque/movimentar"
+            aria-label="Movimentar estoque"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--purple)] text-white"
+          >
+            <ArrowsDownUp size={20} weight="bold" />
+          </Link>
+        </div>
       </div>
 
       {/* gaveta do celular */}
@@ -196,7 +240,7 @@ export function AdminNav() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="fade-in absolute inset-0 bg-[rgba(60,40,80,0.45)]" onClick={() => setDrawer(false)} />
           <aside className="drawer-in absolute inset-y-0 left-0 w-64 bg-white shadow-2xl">
-            <Conteudo aoNavegar={() => setDrawer(false)} />
+            <Conteudo aoNavegar={() => setDrawer(false)} repor={repor} />
           </aside>
         </div>
       )}

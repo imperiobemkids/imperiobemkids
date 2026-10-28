@@ -196,6 +196,31 @@ export async function devolucaoEstoque(produtoId: string, qtd: number, ref?: Ref
   });
 }
 
+/*
+  Compra rapida de um produto que ja existe (tela Movimentar, pelo celular):
+  cria a compra (lote e item), entra no estoque recalculando o custo medio e
+  lanca a saida no caixa, a mesma sequencia da tela Compras.
+*/
+export async function compraRapida(produtoId: string, descricao: string, qtd: number, custoUnit: number, data = hojeIso()) {
+  if (!supabase) return;
+  if (!(qtd > 0)) throw new Error("informe a quantidade");
+  if (!(custoUnit > 0)) throw new Error("informe o custo por peça");
+  const total = Math.round(qtd * custoUnit * 100) / 100;
+  const { data: lote, error: e1 } = await supabase
+    .from("ibk_lotes")
+    .insert({ data, descricao: `Compra rápida: ${descricao}` })
+    .select("id")
+    .single();
+  if (e1 || !lote) throw new Error(e1?.message ?? "erro ao criar a compra");
+  const { error: e2 } = await supabase.from("ibk_lote_itens").insert({ lote_id: lote.id, tipo: "mercadoria", descricao, qtd, custo_total: total });
+  if (e2) throw new Error(e2.message);
+  await entradaEstoque(produtoId, qtd, custoUnit, "compra", { loteId: lote.id, data });
+  const { error: e3 } = await supabase
+    .from("ibk_movimentos")
+    .insert({ data, tipo: "saida", categoria: "mercadoria", valor: total, descricao: "Compra de estoque (mercadoria)", ref_lote_id: lote.id });
+  if (e3) throw new Error(e3.message);
+}
+
 /** Ajuste manual (correcao de contagem). Registra a diferenca no kardex. */
 export async function ajusteEstoque(produtoId: string, novaQtd: number, obs?: string) {
   if (!supabase) return;
@@ -213,4 +238,27 @@ export async function ajusteEstoque(produtoId: string, novaQtd: number, obs?: st
   });
   // ajuste para menos (contagem achou menos peca) baixa os anuncios; para mais, sobe so no envio manual
   if (delta < 0) aposSaidaDeEstoque([produtoId]);
+}
+
+/*
+  Acerto da folha de contagem: aplica so a DIFERENCA entre o contado e o que o
+  sistema tinha quando a folha foi impressa. Venda feita entre imprimir e
+  lancar ja baixou o saldo e nao e desfeita. Nunca deixa o saldo negativo.
+*/
+export async function acertoDeContagem(produtoId: string, diferenca: number, obs: string) {
+  if (!supabase || diferenca === 0) return;
+  const p = await lerProduto(produtoId);
+  await ajusteEstoque(produtoId, Math.max(0, p.qtd_atual + diferenca), obs);
+}
+
+/* o mesmo acerto para insumo (saco, etiqueta), que nao tem kardex */
+export async function acertoDeInsumo(insumoId: string, diferenca: number) {
+  if (!supabase || diferenca === 0) return;
+  const { data, error } = await supabase.from("ibk_insumos").select("qtd_atual").eq("id", insumoId).single();
+  if (error || !data) throw new Error(error?.message ?? "insumo nao encontrado");
+  const { error: e2 } = await supabase
+    .from("ibk_insumos")
+    .update({ qtd_atual: Math.max(0, Number(data.qtd_atual) + diferenca) })
+    .eq("id", insumoId);
+  if (e2) throw new Error(e2.message);
 }
