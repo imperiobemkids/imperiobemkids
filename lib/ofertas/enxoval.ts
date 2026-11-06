@@ -1,16 +1,22 @@
 /*
   GERADO, nao edite a mao. Fonte: lowticket/ofertas/ibk-enxoval/oferta.json
-  (versao 1) e a tabela do Calendario de Tamanhos.
+  (versao 2) e a tabela do Calendario de Tamanhos.
   Para mudar a copy, mude a oferta e rode pagina/exportar_pagina.py.
 */
 
 export const OFERTA_ENXOVAL = {
   "id": "ibk-enxoval",
-  "versao": 1,
+  "versao": 2,
   "nome": "Enxoval na Medida: o enxoval pelo mês do parto",
   "nomeCurto": "Enxoval na Medida",
   "preco": 19.9,
   "precoTexto": "R$ 19,90",
+  "promocao": {
+    "nome": "Promo 11.11",
+    "preco": 7.9,
+    "precoTexto": "R$ 7,90",
+    "ate": "2026-11-11"
+  },
   "headline": "Feche o enxoval em uma tarde, com a quantidade certa de cada tamanho",
   "subheadline": "O Calendário de Tamanhos liga o mês previsto do parto à estação de cada tamanho e monta sua lista com as quantidades, peça por peça.",
   "bullets": [
@@ -18,7 +24,7 @@ export const OFERTA_ENXOVAL = {
     "Quantas peças de cada tipo comprar em RN, P, M, G e GG, com o porquê de cada número",
     "O que não comprar agora e o que deixar para o chá de bebê",
     "Onde dá para economizar e onde vale comprar novo",
-    "Lista final para imprimir e riscar o que já tem",
+    "Lista para imprimir em A4: marque o que já tem, anote o valor médio de cada peça e veja quanto vai gastar",
     "Garantia de 7 dias: se não ajudar, o dinheiro volta"
   ],
   "cta": "Quero meu enxoval na medida",
@@ -36,7 +42,7 @@ export const OFERTA_ENXOVAL = {
     "Conselhos de parentes que se contradizem"
   ],
   "produto": {
-    "descricao": "Planilha Calendário de Tamanhos (Google Sheets e Excel) com guia em PDF de cerca de 25 páginas. A planilha monta a lista pelo mês do parto; o guia explica cada número e o que não comprar.",
+    "descricao": "Planilha Calendário de Tamanhos (Google Sheets e Excel) com guia em PDF de cerca de 25 páginas e lista para imprimir em A4. A planilha monta a lista pelo mês do parto e soma quanto falta gastar pelo valor médio de cada peça; o guia explica cada número e o que não comprar; a lista impressa, com o timbrado da IBK, vai para as compras. Quem compra também acessa a página Minha lista, no navegador do celular, sem app e sem login, com a mesma conta da planilha.",
     "quickWin": "Logo depois da compra, a gestante coloca o mês previsto do parto na planilha e vê quantas peças de cada tamanho precisa, já riscando o que ganhou ou já tem.",
     "paginas": 25,
     "capitulos": [
@@ -73,7 +79,7 @@ export const OFERTA_ENXOVAL = {
     },
     {
       "nome": "Etiquetas de tamanho para as gavetas",
-      "descricao": "Etiquetas RN, P, M e G para separar o guarda-roupa e achar cada peça na hora certa."
+      "descricao": "Etiquetas RN, P, M, G e GG, mais etiquetas por tipo de peça, para separar o guarda-roupa e achar cada coisa na hora certa."
     }
   ],
   "garantia": {

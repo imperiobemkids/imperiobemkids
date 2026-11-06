@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 /*
   Escrita para ser lida, nao para assustar. Diz o que de fato acontece no
   site: Pixel da Meta, conversa no WhatsApp e a compra de produto digital
-  pelo checkout da AbacatePay. Se entrar cadastro ou newsletter, esta pagina
+  pela Kiwify. Se entrar cadastro ou newsletter, esta pagina
   precisa mudar junto.
 */
 export default function PrivacidadePage() {
@@ -57,17 +57,16 @@ export default function PrivacidadePage() {
         </p>
         <p>
           Nos <strong>produtos digitais</strong> vendidos aqui no site, como o Enxoval na Medida: o pagamento
-          acontece na página da <strong>AbacatePay</strong>, que coleta nome, e-mail, CPF, celular e os dados do Pix
-          ou do cartão. A gente não vê nem guarda o número do cartão. A AbacatePay nos avisa que o pagamento foi
-          aprovado, com seu nome e e-mail, e usamos isso para liberar os arquivos, atender e medir os anúncios.
+          acontece na página da <strong>Kiwify</strong>, que coleta nome, e-mail, CPF, celular e os dados do Pix
+          ou do cartão, e guarda o seu acesso à área de membros. A gente não vê nem guarda o número do cartão.
+          A Kiwify nos mostra a compra, com seu nome e e-mail, e usamos isso para atender e medir os anúncios.
         </p>
       </Secao>
 
       <Secao titulo="Com quem a gente compartilha">
         <p>
-          Com a transportadora ou os Correios, para entregar. Com a AbacatePay, para processar o pagamento dos
-          produtos digitais. Com a Meta, pelo Pixel e, quando você compra um produto digital, pela confirmação da
-          compra que o nosso servidor envia, com o e-mail embaralhado (em código, sem o texto original). Com o emissor
+          Com a transportadora ou os Correios, para entregar. Com a Kiwify, para processar o pagamento e entregar os
+          produtos digitais. Com a Meta, pelo Pixel, também na página de pagamento da Kiwify. Com o emissor
           de nota fiscal, quando a lei exige. Não vendemos nem alugamos sua lista de contato para ninguém.
         </p>
       </Secao>

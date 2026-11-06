@@ -49,9 +49,9 @@ export default function TrocasPage() {
       <Secao titulo="Comprou um produto digital?">
         <p>
           Vale para o Enxoval na Medida e os outros arquivos vendidos aqui no site. Você tem 7 dias corridos, contados
-          da compra, para pedir o dinheiro de volta, sem precisar dizer o motivo. Chama no WhatsApp com o número do
-          pedido, que aparece na página de confirmação, e a gente devolve o valor inteiro pelo mesmo meio de pagamento.
-          Depois do reembolso, o link de download deixa de funcionar.
+          da compra, para pedir o dinheiro de volta, sem precisar dizer o motivo. Chama no WhatsApp com o e-mail da
+          compra e a gente devolve o valor inteiro pelo mesmo meio de pagamento. Depois do reembolso, o acesso à área
+          de membros é encerrado.
         </p>
       </Secao>
 

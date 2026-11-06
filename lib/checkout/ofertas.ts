@@ -1,94 +1,55 @@
-import { OFERTA_ENXOVAL } from "@/lib/ofertas/enxoval";
-import { SITE } from "@/lib/seo";
 import manifesto from "@/entregaveis/manifesto.json";
-import { abacatepayConfigurado, buscarCheckout, type Checkout } from "./abacatepay";
 
 /*
-  O que cada oferta low ticket vende pelo checkout proprio (AbacatePay).
-  Oferta nova entra aqui, com os arquivos dela em entregaveis/manifesto.json.
+  O que cada oferta low ticket entrega pelo site. A venda, o pagamento, o order
+  bump e o login da compradora ficam na Kiwify; as aulas da area de membros
+  trazem os links para a Minha lista e os arquivos, e a pagina de obrigado da
+  Kiwify cai direto em /obrigado/<oferta>.
 
-  O externalId do produto leva o preco em centavos: mudou o preco, nasce um
-  produto novo na AbacatePay, porque a API dela nao edita produto.
-
-  A venda so liga com a oferta listada em VENDA_ATIVA (separada por virgula)
-  e a chave da AbacatePay configurada. Com a conta em modo de teste, VENDA_ATIVA
-  fica so no .env.local e no ambiente Preview da Vercel, nunca em Production.
+  Cada oferta tem um codigo de acesso numa variavel de ambiente: o link so
+  funciona com ele. Trocar a variavel (e os links das aulas) derruba os links
+  antigos. Oferta nova entra aqui, com os arquivos em entregaveis/manifesto.json.
 */
 
-export type Arquivo = { id: string; nome: string; tipo: string };
+export type Arquivo = { id: string; nome: string; rotulo: string; tipo: string };
 
-export type ProdutoVenda = {
-  externalId: string;
-  nome: string;
-  descricao: string;
-  preco: number; // centavos
-  imagem: string;
-  arquivos: Arquivo[];
-};
-
-export type OfertaVenda = {
+export type OfertaEntrega = {
   slug: string;
+  nome: string;
   pagina: string;
-  principal: ProdutoVenda;
+  variavelAcesso: string;
+  arquivos: Arquivo[];
+  temLista?: boolean; // a oferta tem a pagina Minha lista (/obrigado/<oferta>/lista)
 };
 
-const centavos = (reais: number) => Math.round(reais * 100);
+// o que e interno (dados.json) nao aparece nem baixa: so o servidor le
+const arquivosDe = (slug: string): Arquivo[] =>
+  (manifesto as Record<string, (Arquivo & { interno?: boolean })[]>)[slug].filter((a) => !a.interno);
 
-export const OFERTAS_VENDA: Record<string, OfertaVenda> = {
-  [OFERTA_ENXOVAL.id]: {
-    slug: OFERTA_ENXOVAL.id,
+export const OFERTAS_ENTREGA: Record<string, OfertaEntrega> = {
+  "ibk-enxoval": {
+    slug: "ibk-enxoval",
+    nome: "Enxoval na Medida",
     pagina: "/enxoval",
-    principal: {
-      externalId: `${OFERTA_ENXOVAL.id}-${centavos(OFERTA_ENXOVAL.preco)}`,
-      nome: OFERTA_ENXOVAL.nomeCurto,
-      descricao: "Planilha e guia para montar o enxoval do bebê pelo mês do parto, do RN ao GG.",
-      preco: centavos(OFERTA_ENXOVAL.preco),
-      imagem: `${SITE}/enxoval/guia-capa.webp`,
-      arquivos: manifesto[OFERTA_ENXOVAL.id as keyof typeof manifesto],
-    },
+    variavelAcesso: "ACESSO_ENXOVAL",
+    arquivos: arquivosDe("ibk-enxoval"),
+    temLista: true,
+  },
+  "ibk-mala": {
+    slug: "ibk-mala",
+    nome: "Mala da maternidade",
+    pagina: "/enxoval",
+    variavelAcesso: "ACESSO_MALA",
+    arquivos: arquivosDe("ibk-mala"),
   },
 };
 
-export function vendaAtiva(slug: string): boolean {
-  const ativas = (process.env.VENDA_ATIVA ?? "").split(",").map((s) => s.trim());
-  return abacatepayConfigurado && slug in OFERTAS_VENDA && ativas.includes(slug);
-}
-
-/* ---------- pedido ---------- */
-
 /*
-  O numero do pedido e "<oferta>-<uuid>". Ele vai como externalId do checkout
-  e volta na pagina de obrigado, e e o que da acesso aos arquivos: quem tem o
-  link baixa, desde que a AbacatePay diga que aquele checkout esta pago.
+  So no `next dev`: ?acesso=demo abre o enxoval, para conferir as telas. O build
+  de producao troca NODE_ENV por "production" e esse caminho some.
 */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-export const novoPedido = (slug: string) => `${slug}-${crypto.randomUUID()}`;
-
-export function ofertaDoPedido(pedido: string): OfertaVenda | null {
-  if (pedido.length < 38 || !UUID.test(pedido.slice(-36))) return null;
-  return OFERTAS_VENDA[pedido.slice(0, -37)] ?? null;
-}
-
-export type Situacao = "pago" | "aguardando" | "reembolsado" | "expirado" | "nao-encontrado";
-
-export async function situacaoDoPedido(
-  oferta: OfertaVenda,
-  pedido: string,
-): Promise<{ situacao: Situacao; checkout?: Checkout }> {
-  if (ofertaDoPedido(pedido)?.slug !== oferta.slug) return { situacao: "nao-encontrado" };
-  // so este servidor cria checkout com a chave da conta, e o pedido ja diz a
-  // oferta; nao confere o produto, para um preco novo nao tirar o acesso de
-  // quem comprou antes
-  const checkout = await buscarCheckout(pedido);
-  if (!checkout || checkout.externalId !== pedido) return { situacao: "nao-encontrado" };
-  const situacao: Situacao =
-    checkout.status === "PAID" || checkout.status === "REDEEMED"
-      ? "pago"
-      : checkout.status === "PENDING"
-        ? "aguardando"
-        : checkout.status === "REFUNDED"
-          ? "reembolsado"
-          : "expirado";
-  return { situacao, checkout };
+export function ofertaDoAcesso(acesso: unknown): OfertaEntrega | null {
+  if (typeof acesso !== "string" || !acesso) return null;
+  if (process.env.NODE_ENV === "development" && acesso === "demo") return OFERTAS_ENTREGA["ibk-enxoval"];
+  return Object.values(OFERTAS_ENTREGA).find((o) => process.env[o.variavelAcesso] === acesso) ?? null;
 }

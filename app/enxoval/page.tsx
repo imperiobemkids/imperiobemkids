@@ -1,48 +1,56 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, CalendarBlank, CheckCircle, Gift, Ruler, ShieldCheck, Star, Table, XCircle } from "@phosphor-icons/react/ssr";
+import { BookOpen, CalendarBlank, CheckCircle, Gift, Printer, Ruler, ShieldCheck, Star, Table, XCircle } from "@phosphor-icons/react/ssr";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { Saida } from "../Saida";
 import { EMPRESA } from "@/lib/empresa";
 import { SITE, jsonLdScript } from "@/lib/seo";
 import { OFERTA_ENXOVAL as O } from "@/lib/ofertas/enxoval";
-import { ENXOVAL_NO_AR } from "@/lib/ofertas/checkout";
+import { precoVigente, type PrecoVigente } from "@/lib/ofertas/promocao";
+import { ENXOVAL_NO_AR, linkDeCompra } from "@/lib/ofertas/checkout";
 import { AVALIACOES } from "@/lib/ofertas/enxoval-avaliacoes";
-import { BotaoCheckout } from "../BotaoCheckout";
 
 /*
   Pagina de vendas do Enxoval na Medida (planilha + guia), a primeira oferta low ticket da IBK.
   A copy vem de lib/ofertas/enxoval.ts, gerado a partir da oferta; aqui fica so a montagem.
-  Com a venda ligada, o botao vai para o checkout proprio (app/comprar); sem ela, chama
-  no WhatsApp e a pagina fica fora do Google.
+  Com o link da Kiwify configurado, o botao vai para o checkout; sem ele, chama no WhatsApp
+  e a pagina fica fora do Google.
 */
 
 const TITULO = "Lista de enxoval de bebê pelo mês do parto";
-const DESCRICAO =
-  "Planilha e guia que montam a lista de enxoval do bebê pelo mês do parto, com a quantidade certa de cada tamanho do RN ao GG. R$ 19,90, com garantia de 7 dias.";
+const descricao = (v: PrecoVigente) =>
+  `Planilha e guia que montam a lista de enxoval do bebê pelo mês do parto, com a quantidade certa de cada tamanho do RN ao GG. ${
+    v.promo ? `${v.promo.nome}: de ${v.de} por ${v.precoTexto} até ${v.promo.ateCurto}` : v.precoTexto
+  }, com garantia de ${O.garantia.dias} dias.`;
 
-export const metadata: Metadata = {
-  title: TITULO,
-  description: DESCRICAO,
-  alternates: { canonical: "/enxoval" },
-  // so entra no Google quando o checkout estiver configurado
-  robots: ENXOVAL_NO_AR ? undefined : { index: false, follow: true },
-  openGraph: {
-    title: `${O.nomeCurto}: o enxoval pelo mês do parto`,
-    description: "A quantidade certa de cada tamanho, do RN ao GG, para a estação em que o bebê vai usar.",
-    url: "/enxoval",
-    type: "website",
-    siteName: "Império Bem Kids",
-    locale: "pt_BR",
-    images: ["/enxoval/guia-capa.webp"],
-  },
-};
+// a promo tem dia para acabar: a pagina se refaz a cada 5 minutos para voltar ao preco normal sozinha
+export const revalidate = 300;
 
-const WHATSAPP_COMPRA = `${EMPRESA.whatsappLink}?text=${encodeURIComponent(
-  `Oi! Quero o ${O.nomeCurto}, a planilha e o guia do enxoval, por ${O.precoTexto} 💜`,
-)}`;
+export function generateMetadata(): Metadata {
+  return {
+    title: TITULO,
+    description: descricao(precoVigente(O)),
+    alternates: { canonical: "/enxoval" },
+    // so entra no Google quando o checkout estiver configurado
+    robots: ENXOVAL_NO_AR ? undefined : { index: false, follow: true },
+    openGraph: {
+      title: `${O.nomeCurto}: o enxoval pelo mês do parto`,
+      description: "A quantidade certa de cada tamanho, do RN ao GG, para a estação em que o bebê vai usar.",
+      url: "/enxoval",
+      type: "website",
+      siteName: "Império Bem Kids",
+      locale: "pt_BR",
+      images: ["/enxoval/guia-capa.webp"],
+    },
+  };
+}
+
+const whatsappCompra = (v: PrecoVigente) =>
+  `${EMPRESA.whatsappLink}?text=${encodeURIComponent(
+    `Oi! Quero o ${O.nomeCurto}, a planilha e o guia do enxoval, por ${v.precoTexto}${v.promo ? ` (${v.promo.nome})` : ""} 💜`,
+  )}`;
 
 const titulo = "font-[family-name:var(--font-baloo)] font-extrabold text-[var(--purple-dark)]";
 const texto = "text-[16px] leading-relaxed text-[var(--ink)]/80";
@@ -55,28 +63,36 @@ function corEstacao(estacao: string) {
 }
 
 function BotaoComprar({ local, rotulo = O.cta }: { local: string; rotulo?: string }) {
-  const params = { content_name: O.nomeCurto, content_ids: [O.id], value: O.preco, num_items: 1, local };
+  const v = precoVigente(O);
+  const params = { content_name: O.nomeCurto, content_ids: [O.id], value: v.preco, num_items: 1, local };
   const classe =
     "press inline-flex items-center justify-center rounded-full bg-[var(--purple)] px-7 py-3.5 text-base font-extrabold text-white shadow-[0_4px_0_var(--purple-dark)]";
   return ENXOVAL_NO_AR ? (
-    <BotaoCheckout oferta={O.id} params={params} className={classe}>
+    <Saida href={linkDeCompra(!!v.promo)} evento="InitiateCheckout" params={params} className={classe}>
       {rotulo}
-    </BotaoCheckout>
+    </Saida>
   ) : (
-    <Saida href={WHATSAPP_COMPRA} evento="Contact" params={params} className={classe}>
+    <Saida href={whatsappCompra(v)} evento="Contact" params={params} className={classe}>
       {rotulo}
     </Saida>
   );
 }
 
 export default function EnxovalPage() {
+  const v = precoVigente(O);
   const ex = O.exemplo;
   const tamanhoM = ex.tamanhos.find((t) => t.tamanho === "M");
 
   const perguntas = [
     {
       p: "Funciona no celular?",
-      r: "Sim. A planilha abre no Google Planilhas, no celular ou no computador, e também no Excel. O guia é um PDF que abre em qualquer celular.",
+      r: ENXOVAL_NO_AR
+        ? "Sim. Depois da compra, a página Minha lista abre no navegador do celular, sem instalar nada: você escolhe o mês do parto, vê as quantidades, anota os valores e imprime ou salva em PDF. O guia também abre direto no celular. A planilha é para Excel ou Google Planilhas, e no celular precisa do app."
+        : "Sim. A planilha abre no app do Google Planilhas ou no computador, e também no Excel. O guia é um PDF que abre em qualquer celular.",
+    },
+    {
+      p: "Dá para imprimir a lista?",
+      r: "Dá. Vem uma lista para imprimir em A4, com espaço para marcar o que já tem, anotar o valor médio de cada peça e somar quanto vai gastar em cada tamanho. A aba Meu enxoval da planilha também imprime, já com as quantidades do seu mês.",
     },
     {
       p: "Preciso entender de planilha?",
@@ -101,7 +117,7 @@ export default function EnxovalPage() {
     {
       p: "Como eu recebo?",
       r: ENXOVAL_NO_AR
-        ? "Assim que o pagamento por Pix ou cartão é aprovado, a página de confirmação libera o download da planilha e do guia. Guarde o link dessa página: é por ele que você baixa de novo quando quiser."
+        ? "Assim que o pagamento por Pix ou cartão é aprovado, você cai na página com a Minha lista, o guia, a lista para imprimir, a planilha e os bônus. O acesso também chega no seu e-mail, pela área de membros, para voltar quando quiser."
         : "Pelo WhatsApp: você chama a gente, paga por Pix e recebe a planilha e o guia ali mesmo.",
     },
     {
@@ -115,13 +131,14 @@ export default function EnxovalPage() {
       "@context": "https://schema.org",
       "@type": "Product",
       name: O.nomeCurto,
-      description: DESCRICAO,
+      description: descricao(v),
       image: `${SITE}/enxoval/guia-capa.webp`,
       brand: { "@type": "Brand", name: "Império Bem Kids" },
       offers: {
         "@type": "Offer",
-        price: O.preco.toFixed(2),
+        price: v.preco.toFixed(2),
         priceCurrency: "BRL",
+        ...(v.promo ? { priceValidUntil: v.promo.ate } : {}),
         availability: "https://schema.org/InStock",
         url: `${SITE}/enxoval`,
       },
@@ -155,15 +172,28 @@ export default function EnxovalPage() {
           <div className="pointer-events-none absolute -right-16 top-24 h-52 w-52 rounded-full bg-[var(--mint)]/30 blur-3xl" />
           <div className="relative z-10 mx-auto grid max-w-5xl items-center gap-8 md:grid-cols-[1.15fr_1fr]">
             <div className="text-center md:text-left">
-              <span className="inline-block rounded-full bg-[var(--yellow)] px-3 py-1 text-xs font-extrabold text-[var(--purple-dark)]">
-                Planilha e guia em PDF
-              </span>
+              <div className="flex flex-wrap justify-center gap-2 md:justify-start">
+                <span className="inline-block rounded-full bg-[var(--yellow)] px-3 py-1 text-xs font-extrabold text-[var(--purple-dark)]">
+                  Planilha e guia em PDF
+                </span>
+                {v.promo && (
+                  <span className="inline-block rounded-full bg-[var(--purple)] px-3 py-1 text-xs font-extrabold text-white">
+                    {v.promo.nome}: {v.precoTexto} até {v.promo.ateCurto}
+                  </span>
+                )}
+              </div>
               <h1 className={`${titulo} mt-3 text-3xl leading-tight sm:text-4xl`}>{O.headline}</h1>
               <p className={`${texto} mx-auto mt-3 max-w-lg md:mx-0`}>{O.subheadline}</p>
               <div className="mt-6 flex flex-col items-center gap-2 md:items-start">
                 <BotaoComprar local="topo" />
                 <p className="text-sm text-[var(--ink)]/65">
-                  <b className="text-[var(--purple-dark)]">{O.precoTexto}</b>, pagamento único. Garantia de {O.garantia.dias} dias.
+                  {v.de && (
+                    <>
+                      de <s>{v.de}</s> por{" "}
+                    </>
+                  )}
+                  <b className="text-[var(--purple-dark)]">{v.precoTexto}</b>
+                  {v.promo && ` até ${v.promo.ateCurto}`}, pagamento único. Garantia de {O.garantia.dias} dias.
                 </p>
               </div>
             </div>
@@ -180,7 +210,7 @@ export default function EnxovalPage() {
               <Image
                 src="/enxoval/planilha-lista.webp"
                 alt="Aba Meu enxoval da planilha, com a quantidade de cada peça do tamanho P"
-                width={1352}
+                width={1592}
                 height={800}
                 className="absolute -left-4 bottom-0 w-60 rounded-xl border border-[var(--purple)]/10 shadow-[0_6px_0_rgba(109,40,184,0.18)] sm:-left-8"
               />
@@ -269,13 +299,13 @@ export default function EnxovalPage() {
                 <h3 className={`${titulo} text-lg`}>Planilha Calendário de Tamanhos</h3>
               </div>
               <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]/80">
-                Para Excel e Google Planilhas, no computador ou no celular. Você preenche três células e recebe a lista com a quantidade
-                de cada peça, do RN ao GG, e o que falta comprar.
+                Para Excel e Google Planilhas. Você preenche três células e recebe a lista com a quantidade de cada peça, do RN ao GG, e
+                o que falta comprar.{ENXOVAL_NO_AR && " No celular, a página Minha lista faz a mesma conta, sem instalar nada."}
               </p>
               <Image
                 src="/enxoval/planilha-lista.webp"
                 alt="Lista de peças do tamanho P na planilha"
-                width={1352}
+                width={1592}
                 height={800}
                 className="mt-4 rounded-xl border border-[var(--purple)]/10"
               />
@@ -299,6 +329,31 @@ export default function EnxovalPage() {
                 <Image src="/enxoval/guia-exemplo.webp" alt="Página do guia com o exemplo completo de quantidades" width={720} height={1020} className="rounded-lg border border-[var(--purple)]/10" />
               </div>
             </div>
+          </div>
+
+          <div className={`${cartao} mt-5 grid items-center gap-5 p-5 md:grid-cols-[1fr_15rem]`}>
+            <div>
+              <div className="flex items-center gap-2 text-[var(--purple)]">
+                <Printer size={26} weight="duotone" />
+                <h3 className={`${titulo} text-lg`}>Lista para imprimir, em A4</h3>
+              </div>
+              <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]/80">
+                Duas folhas para levar nas compras ou deixar na porta da geladeira. Tem quadradinho para marcar o que já
+                comprou, espaço para o valor médio de cada peça e o total de cada tamanho, até chegar a quanto vai custar o
+                enxoval inteiro.
+              </p>
+              <p className="mt-2 text-[15px] leading-relaxed text-[var(--ink)]/80">
+                Prefere a lista já preenchida? A aba Meu enxoval da planilha também imprime, com as quantidades do seu mês e
+                a soma do que falta gastar.
+              </p>
+            </div>
+            <Image
+              src="/enxoval/lista-impressa.webp"
+              alt="Primeira folha da lista para imprimir, com os tamanhos RN, P e M e as colunas de valor médio e total"
+              width={900}
+              height={1273}
+              className="mx-auto w-48 rotate-2 rounded-lg border border-[var(--purple)]/10 shadow-[0_6px_0_rgba(109,40,184,0.15)] md:w-full"
+            />
           </div>
 
           <div className={`${cartao} mt-5 p-5`}>
@@ -409,9 +464,21 @@ export default function EnxovalPage() {
         <section className="mx-auto mt-12 max-w-2xl px-6">
           <div className={`${cartao} p-6 text-center`}>
             <h2 className={`${titulo} text-2xl`}>{O.nomeCurto}</h2>
-            <p className="mt-1 text-[15px] text-[var(--ink)]/75">Planilha, guia de {O.produto.paginas} páginas e {O.bonus.length} bônus</p>
-            <p className="mt-4 font-[family-name:var(--font-baloo)] text-5xl font-extrabold text-[var(--purple)]">{O.precoTexto}</p>
-            <p className="text-sm text-[var(--ink)]/60">pagamento único</p>
+            <p className="mt-1 text-[15px] text-[var(--ink)]/75">Planilha, guia de {O.produto.paginas} páginas, lista para imprimir e {O.bonus.length} bônus</p>
+            {v.promo && (
+              <span className="mt-4 inline-block rounded-full bg-[var(--purple)] px-3 py-1 text-xs font-extrabold text-white">
+                {v.promo.nome}: só até {v.promo.ateLongo}
+              </span>
+            )}
+            {v.de && (
+              <p className="mt-3 text-lg font-bold text-[var(--ink)]/50">
+                de <s>{v.de}</s> por
+              </p>
+            )}
+            <p className={`${v.de ? "" : "mt-4 "}font-[family-name:var(--font-baloo)] text-5xl font-extrabold text-[var(--purple)]`}>{v.precoTexto}</p>
+            <p className="text-sm text-[var(--ink)]/60">
+              pagamento único{v.promo && `. Depois do dia ${v.promo.ateCurto}, volta para ${v.de}`}
+            </p>
             <div className="mt-5">
               <BotaoComprar local="oferta" />
             </div>

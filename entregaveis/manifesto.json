@@ -3,14 +3,54 @@
     {
       "id": "guia",
       "nome": "Enxoval na Medida - Guia.pdf",
+      "rotulo": "Abrir o guia",
       "tipo": "application/pdf",
       "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/saida/Enxoval na Medida - Guia.pdf"
     },
     {
+      "id": "lista",
+      "nome": "Enxoval na Medida - Lista para imprimir.pdf",
+      "rotulo": "Abrir a lista em branco",
+      "tipo": "application/pdf",
+      "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/saida/Enxoval na Medida - Lista para imprimir.pdf"
+    },
+    {
+      "id": "cha",
+      "nome": "Enxoval na Medida - Lista do Chá.pdf",
+      "rotulo": "Bônus: lista do chá de bebê",
+      "tipo": "application/pdf",
+      "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/saida/Enxoval na Medida - Lista do Chá.pdf"
+    },
+    {
+      "id": "etiquetas",
+      "nome": "Enxoval na Medida - Etiquetas.pdf",
+      "rotulo": "Bônus: etiquetas das gavetas",
+      "tipo": "application/pdf",
+      "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/saida/Enxoval na Medida - Etiquetas.pdf"
+    },
+    {
       "id": "planilha",
       "nome": "Enxoval na Medida - Planilha.xlsx",
+      "rotulo": "Baixar a planilha",
       "tipo": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/saida/Enxoval na Medida - Planilha.xlsx"
+    },
+    {
+      "id": "dados",
+      "nome": "dados.json",
+      "rotulo": "",
+      "tipo": "application/json",
+      "interno": true,
+      "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/dados.json"
+    }
+  ],
+  "ibk-mala": [
+    {
+      "id": "mala",
+      "nome": "Mala da Maternidade - Checklist.pdf",
+      "rotulo": "Abrir o checklist da mala",
+      "tipo": "application/pdf",
+      "origem": "../lowticket/ofertas/ibk-enxoval/entregavel/saida/Mala da Maternidade - Checklist.pdf"
     }
   ]
 }

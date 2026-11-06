@@ -22,9 +22,8 @@ const csp = [
   "frame-src 'self' https://www.facebook.com",
   "frame-ancestors 'self'",
   "base-uri 'self'",
-  // o Pixel manda o evento como form para facebook.com/tr; o botao de comprar
-  // (form para /comprar) termina redirecionado para o checkout da AbacatePay
-  "form-action 'self' https://www.facebook.com https://app.abacatepay.com",
+  // o Pixel manda o evento como form para facebook.com/tr
+  "form-action 'self' https://www.facebook.com",
   "object-src 'none'",
   ...(dev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
@@ -43,10 +42,21 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.*.*", "10.*.*.*"],
   // foto de produto pode vir do Storage do Supabase, alem de /public
   images: { remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }] },
-  // os arquivos pagos (cifrados) sao lidos do disco pela rota de entrega
-  outputFileTracingIncludes: { "/api/entrega/**": ["./entregaveis/**/*.enc"] },
+  // os arquivos pagos e os dados da lista (cifrados) sao lidos do disco pelo servidor
+  outputFileTracingIncludes: {
+    "/api/entrega/**": ["./entregaveis/**/*.enc"],
+    "/api/lista/**": ["./entregaveis/**/*.enc"],
+    "/obrigado/**": ["./entregaveis/**/*.enc"],
+  },
   async headers() {
-    return [{ source: "/(.*)", headers }];
+    return [
+      { source: "/((?!api/entrega/).*)", headers },
+      // o PDF abre no leitor do navegador, que a CSP do site (object-src 'none') pode barrar
+      {
+        source: "/api/entrega/:path*",
+        headers: headers.filter((h) => h.key !== "Content-Security-Policy" && h.key !== "X-Frame-Options"),
+      },
+    ];
   },
 };
 
