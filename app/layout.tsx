@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Baloo_2, Nunito } from "next/font/google";
 import "./globals.css";
 import { MetaPixel } from "./MetaPixel";
+import { GoogleTags } from "./GoogleTags";
 import { AvisoCookies } from "./AvisoCookies";
 import { SITE } from "@/lib/seo";
 
@@ -42,6 +43,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <MetaPixel />
+        <GoogleTags />
         <AvisoCookies />
       </body>
     </html>

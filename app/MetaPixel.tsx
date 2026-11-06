@@ -8,13 +8,14 @@ import { PIXEL_ID } from "@/lib/pixel";
 /*
   Pixel da Meta. Carrega apenas nas paginas publicas: o /admin e o /portal ficam
   de fora porque rastrear a operacao interna nao serve para anuncio e ainda
-  mandaria para a Meta a navegacao do dono da loja.
+  mandaria para a Meta a navegacao do dono da loja. O /obrigado tambem: a URL de
+  la leva o codigo de acesso aos arquivos pagos, e a compra a Kiwify ja mede.
 
   O Pixel tambem precisa registrar PageView a cada troca de pagina: como o Next
   navega sem recarregar, o disparo automatico do script so contaria a primeira.
 */
 
-const PRIVADO = ["/admin", "/portal"];
+const PRIVADO = ["/admin", "/portal", "/obrigado"];
 
 export function MetaPixel() {
   const pathname = usePathname();

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 /*
   Escrita para ser lida, nao para assustar. Diz o que de fato acontece no
-  site: Pixel da Meta, conversa no WhatsApp e a compra de produto digital
+  site: Pixel da Meta, Google Analytics, conversa no WhatsApp e a compra de produto digital
   pela Kiwify. Se entrar cadastro ou newsletter, esta pagina
   precisa mudar junto.
 */
@@ -38,6 +38,12 @@ export default function PrivacidadePage() {
           registra que você visitou nossas páginas. A gente usa isso para saber se os anúncios estão trazendo gente
           e para mostrar nossos produtos para quem já passou por aqui. A Meta também recebe esses dados, conforme a
           política dela.
+        </p>
+        <p>
+          O site também usa o <strong>Google Analytics</strong> e o <strong>Google Tag Manager</strong>. O Analytics grava
+          cookies no seu navegador e mostra para a gente, em números gerais, quantas pessoas visitam o site, de onde
+          vieram e o que leram. A gente usa isso para saber o que funciona e o que melhorar. O Google também recebe
+          esses dados, conforme a política dele.
         </p>
         <p>
           Não pedimos cadastro, e-mail ou senha para navegar. As páginas de acesso restrito servem só para a equipe da
@@ -66,15 +72,16 @@ export default function PrivacidadePage() {
       <Secao titulo="Com quem a gente compartilha">
         <p>
           Com a transportadora ou os Correios, para entregar. Com a Kiwify, para processar o pagamento e entregar os
-          produtos digitais. Com a Meta, pelo Pixel, também na página de pagamento da Kiwify. Com o emissor
-          de nota fiscal, quando a lei exige. Não vendemos nem alugamos sua lista de contato para ninguém.
+          produtos digitais. Com a Meta, pelo Pixel, também na página de pagamento da Kiwify. Com o Google, pelo
+          Analytics. Com o emissor de nota fiscal, quando a lei exige. Não vendemos nem alugamos sua lista de contato para ninguém.
         </p>
       </Secao>
 
       <Secao titulo="Por quanto tempo">
         <p>
           Dados de pedido ficam guardados pelo prazo que a lei fiscal manda (cinco anos). Conversas de WhatsApp sem
-          compra a gente apaga quando deixam de ser úteis. Os cookies do Pixel duram até 90 dias.
+          compra a gente apaga quando deixam de ser úteis. Os cookies do Pixel duram até 90 dias, e os do
+          Google Analytics, até dois anos.
         </p>
       </Secao>
 
@@ -85,7 +92,8 @@ export default function PrivacidadePage() {
         </p>
         <p>
           Para bloquear o Pixel, use a opção de anúncios do seu navegador ou as configurações de privacidade da sua
-          conta Meta.
+          conta Meta. Para bloquear o Google Analytics, use o complemento de desativação do próprio Google ou o bloqueio
+          de cookies do navegador.
         </p>
       </Secao>
 

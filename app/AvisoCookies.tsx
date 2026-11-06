@@ -41,7 +41,7 @@ export function AvisoCookies() {
     >
       <span className="text-xl">🍪</span>
       <p className="min-w-0 flex-1 leading-snug">
-        Usamos cookies do Pixel da Meta pra medir o site.{" "}
+        Usamos cookies do Pixel da Meta e do Google Analytics pra medir o site.{" "}
         <Link href="/privacidade" className="font-bold text-[var(--purple)] underline">
           Saiba mais
         </Link>

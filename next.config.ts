@@ -2,9 +2,10 @@ import type { NextConfig } from "next";
 
 /*
   Cabecalhos de seguranca. A CSP libera so o que o site usa de fato:
-  scripts e imagens da Meta (Pixel), fontes do Google, e o Supabase do
-  Imperio nas conexoes. 'unsafe-inline' em script fica por causa do JSON-LD
-  e do snippet do Pixel; quando houver nonce, apertar.
+  scripts e imagens da Meta (Pixel), Google Tag Manager e Analytics, fontes do
+  Google, e o Supabase do Imperio nas conexoes. 'unsafe-inline' em script fica
+  por causa do JSON-LD e dos snippets do Pixel e do Google; quando houver
+  nonce, apertar. Tag nova no GTM que chame outro dominio precisa entrar aqui.
 */
 const dev = process.env.NODE_ENV !== "production";
 const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://*.supabase.co";
@@ -13,13 +14,13 @@ const supabaseWs = supabase.replace(/^http/, "ws");
 const csp = [
   "default-src 'self'",
   // o hot reload do Next em dev precisa de eval; em producao nao entra
-  `script-src 'self' 'unsafe-inline' ${dev ? "'unsafe-eval'" : ""} https://connect.facebook.net`,
+  `script-src 'self' 'unsafe-inline' ${dev ? "'unsafe-eval'" : ""} https://connect.facebook.net https://*.googletagmanager.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob: https://www.facebook.com https://*.supabase.co",
-  `connect-src 'self' ${supabase} ${supabaseWs} https://www.facebook.com https://connect.facebook.net`,
+  "img-src 'self' data: blob: https://www.facebook.com https://*.supabase.co https://*.google-analytics.com https://*.googletagmanager.com",
+  `connect-src 'self' ${supabase} ${supabaseWs} https://www.facebook.com https://connect.facebook.net https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com`,
   // 'self': a tela Ver no celular (/admin/celular) mostra o proprio ERP em quadros do tamanho do celular
-  "frame-src 'self' https://www.facebook.com",
+  "frame-src 'self' https://www.facebook.com https://www.googletagmanager.com",
   "frame-ancestors 'self'",
   "base-uri 'self'",
   // o Pixel manda o evento como form para facebook.com/tr
