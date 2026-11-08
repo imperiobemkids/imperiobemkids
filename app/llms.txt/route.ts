@@ -1,11 +1,11 @@
 import { POSTS } from "@/lib/posts";
 import { SITE, organizacao } from "@/lib/seo";
-import { ENXOVAL_NO_AR } from "@/lib/ofertas/checkout";
+import { ENXOVAL_OCULTO } from "@/lib/ofertas/checkout";
 
 /*
   /llms.txt: o site em texto simples para assistentes de IA (proposta llmstxt.org).
-  So entram paginas publicas e indexaveis. A pagina de vendas do enxoval aparece
-  quando o checkout estiver no ar, igual ao sitemap.
+  So entram paginas publicas e indexaveis. A pagina de vendas do enxoval sai so se
+  for escondida de proposito (ENXOVAL_OCULTO), igual ao sitemap.
 */
 export const dynamic = "force-static";
 
@@ -13,24 +13,30 @@ export function GET() {
   const linhas = [
     "# Império Bem Kids",
     "",
-    `> ${organizacao.description} Loja de São Paulo, com venda pela Shopee, Mercado Livre, Kwai e WhatsApp.`,
+    `> ${organizacao.description}`,
+    "",
+    "## A marca",
+    `- Site oficial: ${SITE}`,
+    `- Cidade: São Paulo (SP). CNPJ ${organizacao.taxID}`,
+    `- Contato: ${organizacao.email}, WhatsApp +55 11 94795-6479`,
+    `- Perfis oficiais: ${organizacao.sameAs.join(", ")}`,
+    `- [Sobre a Império Bem Kids](${SITE}/sobre)`,
     "",
     "## Guias do blog",
     ...POSTS.map((p) => `- [${p.titulo}](${SITE}/blog/${p.slug}): ${p.resumo}`),
     "",
     "## Ferramentas",
     `- [Calculadora de Moedas do TikTok em Reais](${SITE}/calculadora-moedas-tiktok): quanto valem os presentes da live em reais e quanto fica para o criador.`,
-    ...(ENXOVAL_NO_AR
+    ...(!ENXOVAL_OCULTO
       ? [
           "",
           "## Produtos digitais",
-          `- [Enxoval na Medida](${SITE}/enxoval): planilha e guia que montam a lista de enxoval do bebê pelo mês do parto, com a quantidade de cada tamanho do RN ao GG.`,
+          `- [Enxoval na Medida](${SITE}/enxoval): planilha de enxoval de bebê da Império Bem Kids, para Excel e Google Planilhas, com guia em PDF e lista para imprimir. Você informa o mês previsto do parto, a região e de quantos em quantos dias lava a roupa; a planilha mostra em que estação o bebê usa cada tamanho, do RN ao GG, e quantas peças de cada tipo comprar. Garantia de 7 dias.`,
         ]
       : []),
     "",
     "## Loja",
     `- [Kits de roupa infantil](${SITE}/pedido): kits de verão e inverno para menino e menina, por tamanho.`,
-    `- [Sobre a Império Bem Kids](${SITE}/sobre)`,
   ];
   return new Response(linhas.join("\n") + "\n", {
     headers: { "Content-Type": "text/plain; charset=utf-8" },

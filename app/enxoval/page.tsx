@@ -6,24 +6,40 @@ import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { Saida } from "../Saida";
 import { EMPRESA } from "@/lib/empresa";
-import { SITE, jsonLdScript } from "@/lib/seo";
+import { ORGANIZACAO_ID, SITE, jsonLdScript, organizacao } from "@/lib/seo";
+import { POSTS_ENXOVAL } from "@/lib/posts-enxoval";
 import { OFERTA_ENXOVAL as O } from "@/lib/ofertas/enxoval";
 import { precoVigente, type PrecoVigente } from "@/lib/ofertas/promocao";
-import { ENXOVAL_NO_AR, linkDeCompra } from "@/lib/ofertas/checkout";
+import { ENXOVAL_NO_AR, ENXOVAL_OCULTO, linkDeCompra } from "@/lib/ofertas/checkout";
 import { AVALIACOES } from "@/lib/ofertas/enxoval-avaliacoes";
 
 /*
   Pagina de vendas do Enxoval na Medida (planilha + guia), a primeira oferta low ticket da IBK.
   A copy vem de lib/ofertas/enxoval.ts, gerado a partir da oferta; aqui fica so a montagem.
-  Com o link da Kiwify configurado, o botao vai para o checkout; sem ele, chama no WhatsApp
-  e a pagina fica fora do Google.
+  Com o link da Kiwify configurado, o botao vai para o checkout; sem ele, chama no WhatsApp.
+  A pagina so sai do Google com ENXOVAL_OCULTO (lib/ofertas/checkout.ts).
+
+  SEO (plano em lowticket/ofertas/ibk-enxoval/seo/plano-consolidado.md): esta pagina
+  disputa "planilha de enxoval de bebe". "Lista de enxoval de bebe" e do post pilar, que
+  esta pagina linka; nenhuma ancora com "lista de enxoval" aponta para ca. Titulo e
+  descricao nao citam preco nem promo: o Google guarda o trecho por semanas.
 */
 
-const TITULO = "Lista de enxoval de bebê pelo mês do parto";
-const descricao = (v: PrecoVigente) =>
-  `Planilha e guia que montam a lista de enxoval do bebê pelo mês do parto, com a quantidade certa de cada tamanho do RN ao GG. ${
-    v.promo ? `${v.promo.nome}: de ${v.de} por ${v.precoTexto} até ${v.promo.ateCurto}` : v.precoTexto
-  }, com garantia de ${O.garantia.dias} dias.`;
+const TITULO = "Planilha de enxoval de bebê pelo mês do parto";
+const DESCRICAO = `Planilha de enxoval de bebê que monta a lista pelo mês do parto, com a quantidade de cada peça do RN ao GG e o que falta comprar. Garantia de ${O.garantia.dias} dias.`;
+// muda so quando o conteudo da pagina mudar de verdade (aparece na pagina e no schema)
+const REVISADO_EM = "2026-11-08";
+
+// a frase que as IAs repetem ao descrever ferramentas: o que voce informa, o que ela calcula
+const DEFINICAO =
+  "O Enxoval na Medida, da Império Bem Kids, é uma planilha de enxoval de bebê para Excel e Google Planilhas, com guia em PDF e lista para imprimir. Você informa o mês previsto do parto, a região e de quantos em quantos dias lava a roupa. A planilha mostra em que estação o bebê usa cada tamanho, do RN ao GG, e quantas peças de cada tipo comprar.";
+
+const MESES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const NOME_MES: Record<string, string> = { marco: "março" };
+// posts "que nasce em" ja publicados, na ordem do calendario
+const POSTS_DE_MES = POSTS_ENXOVAL.filter((p) => p.slug.startsWith("enxoval-para-bebe-que-nasce-em-"))
+  .map((p) => ({ slug: p.slug, mes: p.slug.replace("enxoval-para-bebe-que-nasce-em-", "") }))
+  .sort((a, b) => MESES.indexOf(a.mes) - MESES.indexOf(b.mes));
 
 // a promo tem dia para acabar: a pagina se refaz a cada 5 minutos para voltar ao preco normal sozinha
 export const revalidate = 300;
@@ -31,12 +47,12 @@ export const revalidate = 300;
 export function generateMetadata(): Metadata {
   return {
     title: TITULO,
-    description: descricao(precoVigente(O)),
+    description: DESCRICAO,
     alternates: { canonical: "/enxoval" },
-    // so entra no Google quando o checkout estiver configurado
-    robots: ENXOVAL_NO_AR ? undefined : { index: false, follow: true },
+    // sai do Google so se for escondida de proposito
+    robots: ENXOVAL_OCULTO ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: `${O.nomeCurto}: o enxoval pelo mês do parto`,
+      title: `${TITULO} | ${O.nomeCurto}`,
       description: "A quantidade certa de cada tamanho, do RN ao GG, para a estação em que o bebê vai usar.",
       url: "/enxoval",
       type: "website",
@@ -85,6 +101,22 @@ export default function EnxovalPage() {
 
   const perguntas = [
     {
+      p: "Quantas roupas preciso comprar para o enxoval do bebê?",
+      r: `Depende do mês do parto e de quantas vezes você lava a roupa. Como referência, um bebê que nasce em ${ex.mes} no ${ex.regiao}, lavando a cada ${ex.dias} dias, precisa de ${ex.totalPecas} peças do RN ao GG, com o G e o GG em quantidade menor, para completar depois. A planilha refaz a conta para o seu mês.`,
+    },
+    {
+      p: "Quantos bodies um recém-nascido precisa?",
+      r: "Somando os tamanhos RN e P, de 14 a 16 bodies, conforme o mês do parto e a região, lavando a cada 3 dias. Se são de manga curta ou longa depende da estação em que cada tamanho vai ser usado.",
+    },
+    {
+      p: "Qual a diferença entre a planilha e uma lista de enxoval pronta?",
+      r: "A lista pronta dá a mesma quantidade para todo bebê. A planilha liga o mês do parto à estação de cada tamanho, então muda a quantidade e o tipo de peça (manga curta ou longa), considera a região e a sua rotina de lavagem e soma quanto falta gastar.",
+    },
+    {
+      p: "A lista serve para menino e para menina?",
+      r: "Serve. A quantidade vem do tipo de peça e do tamanho, não do sexo do bebê. O que muda é a escolha de cor e estampa.",
+    },
+    {
       p: "Funciona no celular?",
       r: ENXOVAL_NO_AR
         ? "Sim. Depois da compra, a página Minha lista abre no navegador do celular, sem instalar nada: você escolhe o mês do parto, vê as quantidades, anota os valores e imprime ou salva em PDF. O guia também abre direto no celular. A planilha é para Excel ou Google Planilhas, e no celular precisa do app."
@@ -127,20 +159,32 @@ export default function EnxovalPage() {
   ];
 
   const dados = [
+    organizacao,
     {
       "@context": "https://schema.org",
       "@type": "Product",
-      name: O.nomeCurto,
-      description: descricao(v),
-      image: `${SITE}/enxoval/guia-capa.webp`,
+      "@id": `${SITE}/enxoval#produto`,
+      name: `${O.nomeCurto}: planilha de enxoval de bebê pelo mês do parto`,
+      description: DEFINICAO,
+      image: [`${SITE}/enxoval/guia-capa.webp`, `${SITE}/enxoval/planilha-lista.webp`, `${SITE}/enxoval/lista-impressa.webp`],
+      sku: O.id,
       brand: { "@type": "Brand", name: "Império Bem Kids" },
       offers: {
         "@type": "Offer",
         price: v.preco.toFixed(2),
         priceCurrency: "BRL",
-        ...(v.promo ? { priceValidUntil: v.promo.ate } : {}),
+        ...(v.promo ? { priceValidUntil: `${v.promo.ate}T23:59:59-03:00` } : {}),
         availability: "https://schema.org/InStock",
+        itemCondition: "https://schema.org/NewCondition",
         url: `${SITE}/enxoval`,
+        seller: { "@id": ORGANIZACAO_ID },
+        hasMerchantReturnPolicy: {
+          "@type": "MerchantReturnPolicy",
+          applicableCountry: "BR",
+          returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+          merchantReturnDays: O.garantia.dias,
+          merchantReturnLink: `${SITE}/trocas`,
+        },
       },
     },
     {
@@ -148,7 +192,7 @@ export default function EnxovalPage() {
       "@type": "BreadcrumbList",
       itemListElement: [
         { "@type": "ListItem", position: 1, name: "Início", item: SITE },
-        { "@type": "ListItem", position: 2, name: O.nomeCurto, item: `${SITE}/enxoval` },
+        { "@type": "ListItem", position: 2, name: "Planilha de enxoval de bebê", item: `${SITE}/enxoval` },
       ],
     },
     {
@@ -172,6 +216,9 @@ export default function EnxovalPage() {
           <div className="pointer-events-none absolute -right-16 top-24 h-52 w-52 rounded-full bg-[var(--mint)]/30 blur-3xl" />
           <div className="relative z-10 mx-auto grid max-w-5xl items-center gap-8 md:grid-cols-[1.15fr_1fr]">
             <div className="text-center md:text-left">
+              <nav aria-label="Você está em" className="mb-3 text-xs font-semibold text-[var(--ink)]/60">
+                <Link href="/" className="hover:underline">Início</Link> <span aria-hidden="true">&rsaquo;</span> Planilha de enxoval de bebê
+              </nav>
               <div className="flex flex-wrap justify-center gap-2 md:justify-start">
                 <span className="inline-block rounded-full bg-[var(--yellow)] px-3 py-1 text-xs font-extrabold text-[var(--purple-dark)]">
                   Planilha e guia em PDF
@@ -204,14 +251,16 @@ export default function EnxovalPage() {
                 alt="Mãe abraçando o bebê recém-nascido"
                 width={900}
                 height={1200}
+                sizes="(max-width: 768px) 90vw, 384px"
                 preload
                 className="aspect-[4/5] w-full rounded-3xl object-cover shadow-[0_6px_0_rgba(109,40,184,0.12)]"
               />
               <Image
                 src="/enxoval/planilha-lista.webp"
-                alt="Aba Meu enxoval da planilha, com a quantidade de cada peça do tamanho P"
+                alt="Planilha de enxoval de bebê: aba Meu enxoval com a quantidade de cada peça do tamanho P"
                 width={1592}
                 height={800}
+                sizes="240px"
                 className="absolute -left-4 bottom-0 w-60 rounded-xl border border-[var(--purple)]/10 shadow-[0_6px_0_rgba(109,40,184,0.18)] sm:-left-8"
               />
               <Image
@@ -219,10 +268,21 @@ export default function EnxovalPage() {
                 alt="Capa do guia Enxoval na Medida"
                 width={720}
                 height={1020}
+                sizes="112px"
                 className="absolute -right-3 bottom-2 w-24 rotate-3 rounded-xl shadow-[0_6px_0_rgba(76,29,128,0.25)] sm:w-28"
               />
             </div>
           </div>
+        </section>
+
+        {/* resposta direta: o que o Google e as IAs extraem para "quantas roupas comprar" */}
+        <section className="mx-auto max-w-2xl px-6">
+          <p className={`${cartao} p-5 text-[16px] leading-relaxed text-[var(--ink)]/85`}>
+            <b className="text-[var(--purple-dark)]">Quantas roupas comprar no enxoval de bebê?</b> Depende do mês do parto, que
+            decide a estação em que o bebê usa cada tamanho, e de quantas vezes você lava a roupa. Um bebê que nasce em {ex.mes} no{" "}
+            {ex.regiao}, lavando a cada {ex.dias} dias, precisa de {ex.totalPecas} peças do RN ao GG, sendo {ex.bodiesInicio} bodies
+            entre RN e P. A planilha faz essa conta para o seu mês, a sua região e a sua rotina de lavagem.
+          </p>
         </section>
 
         {/* a dor */}
@@ -251,9 +311,9 @@ export default function EnxovalPage() {
         <section className="mx-auto mt-12 max-w-2xl px-6">
           <div className="flex items-center gap-2 text-[var(--purple)]">
             <CalendarBlank size={24} weight="duotone" />
-            <span className="text-xs font-extrabold uppercase tracking-wide">O jeito novo de montar o enxoval</span>
+            <span className="text-xs font-extrabold uppercase tracking-wide">O {O.mecanismo.nome}</span>
           </div>
-          <h2 className={`${titulo} mt-1 text-2xl`}>O {O.mecanismo.nome}</h2>
+          <h2 className={`${titulo} mt-1 text-2xl`}>Como a planilha monta o enxoval pelo mês do parto</h2>
           <p className={`${texto} mt-2`}>{O.mecanismo.oQueE}</p>
           <div className={`${cartao} mt-5 overflow-hidden`}>
             <div className="bg-[var(--purple)]/8 px-4 py-3 text-sm font-extrabold text-[var(--purple-dark)]">
@@ -282,16 +342,66 @@ export default function EnxovalPage() {
           </div>
           {tamanhoM && (
             <p className="mt-4 rounded-2xl bg-[var(--pink)]/20 px-4 py-3 text-[15px] font-bold text-[var(--purple-dark)]">
-              Repare no tamanho M: ele cai entre {tamanhoM.periodo}, no frio. A lista genérica mandaria body de manga curta. Para esse
+              Repare no tamanho M: ele cai de {tamanhoM.periodo}, no frio. A lista genérica mandaria body de manga curta. Para esse
               bebê, o M pede manga longa, calça e macacão.
             </p>
           )}
           <p className={`${texto} mt-4`}>{O.mecanismo.porQueFunciona}</p>
         </section>
 
+        {/* comparacao: so com lista pronta em PDF ou imagem; calculadora gratis tambem considera regiao, entao nao entra */}
+        <section className="mx-auto mt-12 max-w-2xl px-6">
+          <h2 className={`${titulo} text-2xl`}>Planilha ou lista pronta: qual a diferença?</h2>
+          <div className={`${cartao} mt-4 overflow-x-auto`}>
+            {/* sem largura minima: no celular as tres colunas cabem na tela e a da planilha nao some para a direita */}
+            <table className="w-full text-left text-[14px] sm:text-[15px]">
+              <thead className="text-xs uppercase tracking-wide text-[var(--purple-dark)]">
+                <tr>
+                  <th scope="col" className="px-3 py-2 sm:px-4"><span className="sr-only">O que muda</span></th>
+                  <th scope="col" className="px-3 py-2 sm:px-4">Lista pronta (PDF ou imagem)</th>
+                  <th scope="col" className="px-3 py-2 sm:px-4">{O.nomeCurto}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Quantidade de cada peça", "A mesma para todo bebê", "Muda com o mês do parto"],
+                  ["Manga curta ou longa", "Costuma seguir a estação do nascimento", "Segue a estação de cada tamanho"],
+                  ["Região", "Em geral, não considera", "Três faixas de clima"],
+                  ["Rotina de lavagem", "Não considera", "Você informa os dias entre lavagens"],
+                  ["Quanto vai gastar", "Em geral, não soma", "Soma pelo valor médio de cada peça"],
+                  ["Para imprimir", "Depende da lista", "Folha A4 com espaço para marcar e somar"],
+                ].map(([item, lista, planilha]) => (
+                  <tr key={item} className="border-t border-[var(--purple)]/10">
+                    <th scope="row" className="px-3 py-2.5 font-extrabold text-[var(--purple-dark)] sm:px-4">{item}</th>
+                    <td className="px-3 py-2.5 text-[var(--ink)]/75 sm:px-4">{lista}</td>
+                    <td className="px-3 py-2.5 font-semibold text-[var(--purple-dark)] sm:px-4">{planilha}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         {/* o que recebe */}
         <section className="mx-auto mt-12 max-w-5xl px-6">
-          <h2 className={`${titulo} text-center text-2xl`}>O que você recebe</h2>
+          <h2 className={`${titulo} text-center text-2xl`}>O que você recebe com a planilha de enxoval de bebê</h2>
+          <div className="mx-auto mt-3 max-w-2xl">
+            <p className={texto}>{DEFINICAO}</p>
+            <ul className="mt-3 space-y-1.5 text-[15px] text-[var(--ink)]/85">
+              {[
+                "Quantidade de cada peça por tamanho: RN, P, M, G e GG.",
+                "A estação em que o bebê usa cada tamanho, pelo mês previsto do parto, com ajuste por região.",
+                "Campo para marcar o que você já tem ou ganhou no chá, e a lista mostra só o que falta comprar.",
+                "Valor médio de cada peça e a soma de quanto falta gastar.",
+                "Abre no Excel e no Google Planilhas, e vem também em lista A4 para imprimir.",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <CheckCircle size={20} weight="fill" className="mt-0.5 shrink-0 text-[var(--purple)]" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
           <div className="mt-6 grid gap-5 md:grid-cols-2">
             <div className={`${cartao} p-5`}>
               <div className="flex items-center gap-2 text-[var(--purple)]">
@@ -304,9 +414,10 @@ export default function EnxovalPage() {
               </p>
               <Image
                 src="/enxoval/planilha-lista.webp"
-                alt="Lista de peças do tamanho P na planilha"
+                alt="Planilha de enxoval de bebê: lista de peças do tamanho P com a quantidade de cada uma"
                 width={1592}
                 height={800}
+                sizes="(max-width: 768px) 90vw, 450px"
                 className="mt-4 rounded-xl border border-[var(--purple)]/10"
               />
             </div>
@@ -325,8 +436,8 @@ export default function EnxovalPage() {
                 ))}
               </ol>
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <Image src="/enxoval/guia-regiao.webp" alt="Página do guia com a estação de cada tamanho por mês do parto" width={720} height={1020} className="rounded-lg border border-[var(--purple)]/10" />
-                <Image src="/enxoval/guia-exemplo.webp" alt="Página do guia com o exemplo completo de quantidades" width={720} height={1020} className="rounded-lg border border-[var(--purple)]/10" />
+                <Image src="/enxoval/guia-regiao.webp" alt="Página do guia com a estação de cada tamanho por mês do parto" width={720} height={1020} sizes="(max-width: 768px) 45vw, 220px" className="rounded-lg border border-[var(--purple)]/10" />
+                <Image src="/enxoval/guia-exemplo.webp" alt="Página do guia com o exemplo completo de quantidades" width={720} height={1020} sizes="(max-width: 768px) 45vw, 220px" className="rounded-lg border border-[var(--purple)]/10" />
               </div>
             </div>
           </div>
@@ -352,6 +463,7 @@ export default function EnxovalPage() {
               alt="Primeira folha da lista para imprimir, com os tamanhos RN, P e M e as colunas de valor médio e total"
               width={900}
               height={1273}
+              sizes="(max-width: 768px) 192px, 240px"
               className="mx-auto w-48 rotate-2 rounded-lg border border-[var(--purple)]/10 shadow-[0_6px_0_rgba(109,40,184,0.15)] md:w-full"
             />
           </div>
@@ -394,7 +506,7 @@ export default function EnxovalPage() {
             height={800}
             className="mb-6 aspect-[3/2] w-full rounded-3xl object-cover"
           />
-          <h2 className={`${titulo} text-2xl`}>Como funciona</h2>
+          <h2 className={`${titulo} text-2xl`}>Como usar a planilha de enxoval de bebê em 3 passos</h2>
           <ol className="mt-4 space-y-4">
             {[
               ["Preencha três células", "Mês previsto do parto, região e de quantos em quantos dias você lava a roupinha do bebê."],
@@ -415,6 +527,37 @@ export default function EnxovalPage() {
           <p className="mt-4 rounded-2xl bg-[var(--mint)]/25 px-4 py-3 text-[15px] text-[var(--ink)]/85">{O.produto.quickWin}</p>
         </section>
 
+        {/* para quem e: honesto, e o link da pagina de venda para o guia gratis (o Google ve qual das duas e informativa) */}
+        <section className="mx-auto mt-12 max-w-2xl px-6">
+          <h2 className={`${titulo} text-2xl`}>Para quem é a planilha</h2>
+          <p className={`${texto} mt-2`}>
+            É para quem quer saber quantas peças comprar de cada tamanho e em que estação o bebê vai usar cada um, no seu mês e na
+            sua região. Se você só quer uma referência geral para conferir, a nossa{" "}
+            <Link href="/blog/lista-de-enxoval-de-bebe-com-quantidade" className="font-bold text-[var(--purple)] underline">
+              lista de enxoval de bebê com quantidades e tamanhos
+            </Link>{" "}
+            é grátis e mostra o exemplo de {ex.mes} completo.
+          </p>
+          {POSTS_DE_MES.length > 0 && (
+            <>
+              <h3 className={`${titulo} mt-6 text-lg`}>Meu bebê nasce em...</h3>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {POSTS_DE_MES.map((p) => (
+                  <li key={p.slug}>
+                    <Link
+                      href={`/blog/${p.slug}`}
+                      className="inline-block rounded-full bg-white px-4 py-2 text-[15px] font-bold text-[var(--purple-dark)] shadow-[0_3px_0_rgba(109,40,184,0.08)] hover:bg-[var(--purple)]/8"
+                    >
+                      <span className="sr-only">Enxoval para bebê que nasce em </span>
+                      <span className="capitalize">{NOME_MES[p.mes] ?? p.mes}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+
         {/* por que confiar na conta */}
         <section className="mx-auto mt-12 max-w-2xl px-6">
           <div className="flex items-center gap-2 text-[var(--purple)]">
@@ -430,8 +573,12 @@ export default function EnxovalPage() {
             .
           </p>
           <p className={`${texto} mt-3`}>
-            No exemplo do bebê de {ex.mes} no Sudeste, a lista dá {ex.bodiesInicio} bodies entre RN e P, dentro do que as listas de
-            enxoval pedem para os três primeiros meses. A diferença é que a manga curta e a manga longa seguem a estação de cada tamanho.
+            No exemplo do bebê de {ex.mes} no Sudeste, a lista dá {ex.bodiesInicio} bodies entre RN e P, e a manga curta e a manga
+            longa seguem a estação de cada tamanho.
+          </p>
+          <p className="mt-3 text-sm text-[var(--ink)]/60">
+            Conta e textos da Império Bem Kids, loja de roupa infantil de São Paulo. Revisado em{" "}
+            <time dateTime={REVISADO_EM}>{REVISADO_EM.split("-").reverse().join("/")}</time>.
           </p>
         </section>
 
@@ -493,10 +640,10 @@ export default function EnxovalPage() {
 
         {/* perguntas */}
         <section className="mx-auto mt-12 max-w-2xl px-6">
-          <h2 className={`${titulo} text-2xl`}>Perguntas frequentes</h2>
+          <h2 className={`${titulo} text-2xl`}>Perguntas sobre a planilha de enxoval de bebê</h2>
           <div className="mt-4 space-y-3">
-            {perguntas.map((q) => (
-              <details key={q.p} className="group rounded-2xl bg-white p-4 shadow-[0_3px_0_rgba(109,40,184,0.08)]">
+            {perguntas.map((q, i) => (
+              <details key={q.p} open={i < 2} className="group rounded-2xl bg-white p-4 shadow-[0_3px_0_rgba(109,40,184,0.08)]">
                 <summary className="cursor-pointer list-none font-bold text-[var(--purple-dark)]">
                   <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>
                   {q.p}

@@ -11,6 +11,7 @@ const NAV = [
   // "/produtos" existe mas fica fora do menu ate a vitrine propria virar prioridade
   { href: "/sobre", label: "Sobre" },
   { href: "/blog", label: "Blog" },
+  { href: "/enxoval", label: "Enxoval do bebê" },
   { href: "/pedido", label: "Achadinhos" },
 ];
 
@@ -24,7 +25,8 @@ export function SiteHeader() {
             Império Bem Kids
           </span>
         </Link>
-        <nav className="flex flex-1 justify-end gap-0.5 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden">
+        {/* ml-auto no primeiro item, e nao justify-end: com justify-end, o que transborda pela esquerda no celular nao rola */}
+        <nav className="flex flex-1 gap-0.5 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [&>:first-child]:ml-auto">
           {NAV.map((n) => (
             <Link
               key={n.href}

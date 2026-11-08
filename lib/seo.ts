@@ -15,20 +15,34 @@ export const jsonLdScript = (dados: object) => ({
   __html: JSON.stringify(dados).replace(/</g, "\\u003c"),
 });
 
+/*
+  A loja como entidade, para o Google e as IAs reconhecerem a mesma marca em
+  todas as paginas: OnlineStore (nao ha loja fisica nem endereco publico) com um
+  @id fixo, que o Product do /enxoval aponta como vendedor. So fatos que estao
+  em lib/empresa.ts e perfis confirmados pelo dono (YouTube em 08/11/2026);
+  pessoa e ano de fundacao entram quando ele informar.
+*/
+export const ORGANIZACAO_ID = `${SITE}/#organizacao`;
+
 export const organizacao = {
   "@context": "https://schema.org",
-  "@type": "Store",
+  "@type": "OnlineStore",
+  "@id": ORGANIZACAO_ID,
   name: "Império Bem Kids",
   description:
-    "Loja de moda infantil com curadoria: kits de roupa para menino e menina com preço que cabe no bolso.",
+    "Loja de roupa infantil de São Paulo (SP) que vende kits de roupa para menino e menina pelo site, pela Shopee, pelo Mercado Livre, pelo Kwai e pelo WhatsApp. É a autora do Enxoval na Medida, a planilha de enxoval de bebê pelo mês do parto.",
   url: SITE,
   logo: `${SITE}/logo.png`,
   image: `${SITE}/logo.png`,
   telephone: "+5511947956479",
+  email: "imperiobemkids@gmail.com",
+  taxID: "63.300.740/0001-63",
+  address: { "@type": "PostalAddress", addressLocality: "São Paulo", addressRegion: "SP", addressCountry: "BR" },
   areaServed: "BR",
   sameAs: [
     "https://www.instagram.com/imperiobemkids/",
     "https://www.tiktok.com/@imperiobemkids",
+    "https://www.youtube.com/@imperiobemkids",
   ],
 };
 

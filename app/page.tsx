@@ -45,6 +45,20 @@ export default function Home() {
         Ver achadinhos e promoções 🎁
       </Link>
 
+      {/* a planilha de enxoval a um clique da home: e a pagina que mais precisa de link interno */}
+      <Link
+        href="/enxoval"
+        className="relative z-10 mt-6 block max-w-md rounded-3xl bg-white/80 px-5 py-4 text-left shadow-[0_4px_0_rgba(109,40,184,0.1)] transition-transform hover:-translate-y-0.5"
+      >
+        <span className="block font-[family-name:var(--font-baloo)] text-base font-extrabold text-[var(--purple-dark)]">
+          Vai ter bebê? Monte o enxoval pelo mês do parto
+        </span>
+        <span className="mt-1 block text-sm leading-relaxed text-[var(--ink)]/75">
+          Planilha que mostra quantas peças comprar de cada tamanho, do RN ao GG, para a estação em que o bebê vai usar.
+        </span>
+        <span className="mt-2 block text-sm font-bold text-[var(--purple)]">Ver a planilha de enxoval de bebê →</span>
+      </Link>
+
       <div className="relative z-10 mt-6 flex gap-4 text-sm font-semibold text-[var(--purple)]">
         <a href="https://www.instagram.com/imperiobemkids/" target="_blank" rel="noopener noreferrer" className="hover:underline">
           Instagram

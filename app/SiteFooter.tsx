@@ -11,6 +11,7 @@ const NAV = [
   { href: "/sobre", label: "Sobre" },
   { href: "/blog", label: "Blog" },
   { href: "/pedido", label: "Achadinhos" },
+  { href: "/enxoval", label: "Planilha de enxoval de bebê" },
   { href: "/calculadora-moedas-tiktok", label: "Calculadora de moedas do TikTok" },
 ];
 

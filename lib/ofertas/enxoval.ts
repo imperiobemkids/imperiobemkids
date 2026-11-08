@@ -17,8 +17,8 @@ export const OFERTA_ENXOVAL = {
     "precoTexto": "R$ 7,90",
     "ate": "2026-11-11"
   },
-  "headline": "Feche o enxoval em uma tarde, com a quantidade certa de cada tamanho",
-  "subheadline": "O Calendário de Tamanhos liga o mês previsto do parto à estação de cada tamanho e monta sua lista com as quantidades, peça por peça.",
+  "headline": "Planilha de enxoval de bebê: a quantidade certa de cada tamanho, pelo mês do parto",
+  "subheadline": "Feche o enxoval em uma tarde. O Calendário de Tamanhos liga o mês previsto do parto à estação de cada tamanho e monta sua lista com as quantidades, peça por peça.",
   "bullets": [
     "A planilha que mostra em que estação o bebê vai usar cada tamanho",
     "Quantas peças de cada tipo comprar em RN, P, M, G e GG, com o porquê de cada número",
@@ -32,7 +32,7 @@ export const OFERTA_ENXOVAL = {
   "mecanismo": {
     "nome": "Calendário de Tamanhos",
     "oQueE": "Você coloca o mês previsto do parto na planilha. Ela mostra em que meses o bebê deve usar cada tamanho (RN, P, M, G e GG) e, portanto, em que estação do ano. Com isso diz quantas peças de cada tipo comprar em cada tamanho, e se é manga curta ou longa.",
-    "porQueFunciona": "Quando cada tamanho está ligado a um mês do ano, fica claro quanto e o que comprar: o bebê que nasce em março, por exemplo, deve usar o tamanho M entre junho e setembro, no frio. A quantidade de cada peça passa a seguir o tempo que o bebê fica naquele tamanho.",
+    "porQueFunciona": "Quando cada tamanho está ligado a um mês do ano, fica claro quanto e o que comprar: o bebê que nasce em março, por exemplo, deve usar o tamanho M de junho a agosto, no frio. A quantidade de cada peça passa a seguir o tempo que o bebê fica naquele tamanho.",
     "porQueORestoFalha": "Lista de loja é feita para vender, e lista de internet não sabe quando o seu bebê nasce. As duas tratam todo bebê igual, então a gestante compra de tudo em todos os tamanhos e descobre depois que parte não serviu ou não era da estação. A culpa não é dela, é da lista."
   },
   "tentativas": [

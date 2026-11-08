@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { EMPRESA, enderecoLinha } from "@/lib/empresa";
+import { jsonLdScript, organizacao } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Sobre a loja",
@@ -37,6 +38,8 @@ export default function SobrePage() {
   return (
     <>
       <SiteHeader />
+      {/* identifica a loja para busca e IAs, com o mesmo @id da home e do /enxoval */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdScript(organizacao)} />
 
       <main className="flex-1">
         {/* topo */}
@@ -80,6 +83,32 @@ export default function SobrePage() {
                 Hoje é isso: uma lojinha pequena, com curadoria feita à mão, que
                 atende de verdade quem chama. E que cresce no boca a boca de mãe
                 para mãe.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/*
+          o que fazemos: a mesma definicao da marca e do produto que vai no schema e no
+          llms.txt, para busca e IAs reconhecerem a loja como uma entidade so
+        */}
+        <section className="mx-auto max-w-2xl px-6 pb-4 pt-4">
+          <div className="rounded-3xl bg-white p-6 shadow-[0_4px_0_rgba(109,40,184,0.1)]">
+            <h2 className="font-[family-name:var(--font-baloo)] text-xl font-extrabold text-[var(--purple-dark)]">
+              O que fazemos
+            </h2>
+            <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-[var(--ink)]/75">
+              <p>
+                A Império Bem Kids é uma loja de roupa infantil de São Paulo (SP), CNPJ {EMPRESA.cnpj}, que vende kits de roupa
+                para menino e menina pelo site, pela Shopee, pelo Mercado Livre, pelo Kwai e pelo WhatsApp.
+              </p>
+              <p>
+                Também é a autora do{" "}
+                <Link href="/enxoval" className="font-bold text-[var(--purple)] underline">
+                  Enxoval na Medida, a planilha de enxoval de bebê pelo mês do parto
+                </Link>
+                . Você informa o mês previsto do parto, a região e de quantos em quantos dias lava a roupa, e a planilha mostra em
+                que estação o bebê usa cada tamanho, do RN ao GG, e quantas peças de cada tipo comprar.
               </p>
             </div>
           </div>
