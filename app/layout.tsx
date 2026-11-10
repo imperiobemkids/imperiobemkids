@@ -4,6 +4,7 @@ import "./globals.css";
 import { MetaPixel } from "./MetaPixel";
 import { GoogleTags } from "./GoogleTags";
 import { AvisoCookies } from "./AvisoCookies";
+import { Origem } from "./Origem";
 import { SITE } from "@/lib/seo";
 
 const baloo = Baloo_2({
@@ -44,6 +45,7 @@ export default function RootLayout({
         {children}
         <MetaPixel />
         <GoogleTags />
+        <Origem />
         <AvisoCookies />
       </body>
     </html>

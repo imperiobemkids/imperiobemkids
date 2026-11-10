@@ -84,7 +84,7 @@ function BotaoComprar({ local, rotulo = O.cta }: { local: string; rotulo?: strin
   const classe =
     "press inline-flex items-center justify-center rounded-full bg-[var(--purple)] px-7 py-3.5 text-base font-extrabold text-white shadow-[0_4px_0_var(--purple-dark)]";
   return ENXOVAL_NO_AR ? (
-    <Saida href={linkDeCompra(!!v.promo)} evento="InitiateCheckout" params={params} className={classe}>
+    <Saida href={linkDeCompra(!!v.promo)} origem evento="InitiateCheckout" params={params} className={classe}>
       {rotulo}
     </Saida>
   ) : (

@@ -66,6 +66,8 @@ export default function PrivacidadePage() {
           acontece na página da <strong>Kiwify</strong>, que coleta nome, e-mail, CPF, celular e os dados do Pix
           ou do cartão, e guarda o seu acesso à área de membros. A gente não vê nem guarda o número do cartão.
           A Kiwify nos mostra a compra, com seu nome e e-mail, e usamos isso para atender e medir os anúncios.
+          Quando você clica em comprar, o link leva junto de qual página ou anúncio você veio, para a gente saber
+          quais divulgações funcionam.
         </p>
       </Secao>
 

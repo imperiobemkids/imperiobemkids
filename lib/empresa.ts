@@ -27,7 +27,7 @@ export const EMPRESA = {
     kwai: "https://s.kw.ai/w/Pe5CgyXU",
   },
   // data da ultima revisao das politicas (aparece no rodape de cada uma)
-  politicasRevisadasEm: "2026-11-06",
+  politicasRevisadasEm: "2026-11-10",
 };
 
 // endereco em uma linha, pulando o que estiver vazio
