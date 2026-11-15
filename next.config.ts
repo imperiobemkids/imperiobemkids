@@ -47,6 +47,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/entrega/**": ["./entregaveis/**/*.enc"],
     "/api/lista/**": ["./entregaveis/**/*.enc"],
+    "/api/guarda-roupa/**": ["./entregaveis/**/*.enc"],
     "/obrigado/**": ["./entregaveis/**/*.enc"],
   },
   async headers() {

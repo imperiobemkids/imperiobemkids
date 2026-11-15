@@ -35,7 +35,8 @@ export type Grupo = {
   total: number;
 };
 
-function linha(grupo: string, id: string, nome: string, qtd: number, itens: Itens, obs?: string): Linha {
+// as contas e a folha tambem servem a pagina Meu guarda-roupa (../guarda-roupa/folha.ts)
+export function linha(grupo: string, id: string, nome: string, qtd: number, itens: Itens, obs?: string): Linha {
   const chave = `${grupo}:${id}`;
   const item = itens[chave] ?? {};
   const tenho = item.tenho ?? "";
@@ -45,7 +46,7 @@ function linha(grupo: string, id: string, nome: string, qtd: number, itens: Iten
   return { chave, nome, obs, qtd, tenho, falta, valorTexto: item.valor ?? "", valor, total, comprei: !!item.comprei };
 }
 
-function fechar(g: Omit<Grupo, "pecas" | "total">): Grupo {
+export function fechar(g: Omit<Grupo, "pecas" | "total">): Grupo {
   return {
     ...g,
     pecas: g.linhas.reduce((n, l) => n + (l.comprei ? 0 : l.falta), 0),
@@ -90,10 +91,10 @@ export function somar(grupos: Grupo[]) {
 
 /* ---------- folha A4 ---------- */
 
-const esc = (s: string) =>
+export const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-const CSS = `
+export const CSS = `
 @page { size: A4; margin: 10mm; }
 body { font-family: var(--font-nunito), Arial, sans-serif; color: #3b2b4f; font-size: 9.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 * { box-sizing: border-box; }
@@ -131,10 +132,10 @@ tr.total td { background: #f5f3ff; font-weight: 800; color: #4c1d80; }
 `;
 
 const celulaRs = (v: number | null) => (v === null ? `<td class="rs vazio">R$</td>` : `<td class="rs">${brl(v)}</td>`);
-const caixaRs = (rotulo: string, v: number, temValor: boolean, classe = "") =>
+export const caixaRs = (rotulo: string, v: number, temValor: boolean, classe = "") =>
   `<div class="${classe}"><span>${rotulo}</span>${temValor ? `<b>${brl(v)}</b>` : `<b class="vazio">R$</b>`}</div>`;
 
-function blocoHtml(g: Grupo) {
+export function blocoHtml(g: Grupo) {
   const linhas = g.linhas
     .map(
       (l) =>

@@ -15,13 +15,14 @@ import { imprimirLista, montarGrupos, somar, type Item, type Itens, type Linha }
 type Salvo = { bebe: string; mes: number; regiao: string; dias: number; itens: Itens };
 type Opcoes = { meses: string[]; regioes: { nome: string; descricao: string }[]; dias: number[]; diasPadrao: number };
 
-const rotulo = "mb-1 block text-xs font-bold text-[var(--ink)]/70";
+// estes estilos e a LinhaLista tambem servem a pagina Meu guarda-roupa
+export const rotulo = "mb-1 block text-xs font-bold text-[var(--ink)]/70";
 // letra de 16px: abaixo disso o iPhone da zoom na tela ao tocar no campo
-const campo =
+export const campo =
   "w-full rounded-xl border border-[var(--purple)]/20 bg-white text-base font-bold text-[var(--purple-dark)] outline-none focus:border-[var(--purple)]";
-const noTopo = "px-3 py-2.5";
+export const noTopo = "px-3 py-2.5";
 const naLinha = "num px-2 py-2";
-const cartao = "rounded-3xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]";
+export const cartao = "rounded-3xl bg-white shadow-[0_4px_0_rgba(109,40,184,0.1)]";
 
 export function MinhaLista({ acesso, opcoes }: { acesso: string; opcoes: Opcoes }) {
   const chave = `ibk-lista:${acesso}`;
@@ -209,7 +210,7 @@ export function MinhaLista({ acesso, opcoes }: { acesso: string; opcoes: Opcoes 
   );
 }
 
-function LinhaLista({ l, mudar }: { l: Linha; mudar: (parte: Item) => void }) {
+export function LinhaLista({ l, mudar }: { l: Linha; mudar: (parte: Item) => void }) {
   return (
     <li className="border-b border-[var(--purple)]/10 py-3 last:border-b-0">
       <label className="flex items-start gap-2.5">

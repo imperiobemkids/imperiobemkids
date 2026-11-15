@@ -20,6 +20,7 @@ export type OfertaEntrega = {
   variavelAcesso: string;
   arquivos: Arquivo[];
   temLista?: boolean; // a oferta tem a pagina Minha lista (/obrigado/<oferta>/lista)
+  guardaRoupa?: string[]; // tamanhos da pagina Meu guarda-roupa (/obrigado/<oferta>/guarda-roupa)
 };
 
 // o que e interno (dados.json) nao aparece nem baixa: so o servidor le
@@ -42,14 +43,35 @@ export const OFERTAS_ENTREGA: Record<string, OfertaEntrega> = {
     variavelAcesso: "ACESSO_MALA",
     arquivos: arquivosDe("ibk-mala"),
   },
+  // upsell do enxoval
+  "ibk-guarda-roupa": {
+    slug: "ibk-guarda-roupa",
+    nome: "Guarda-roupa até os 3 anos",
+    pagina: "/enxoval",
+    variavelAcesso: "ACESSO_GUARDA_ROUPA",
+    arquivos: arquivosDe("ibk-guarda-roupa"),
+    guardaRoupa: ["1", "2", "3"],
+  },
+  // downsell: so o primeiro tamanho
+  "ibk-guarda-roupa-1": {
+    slug: "ibk-guarda-roupa-1",
+    nome: "Guarda-roupa do tamanho 1",
+    pagina: "/enxoval",
+    variavelAcesso: "ACESSO_GUARDA_ROUPA_1",
+    arquivos: arquivosDe("ibk-guarda-roupa-1"),
+    guardaRoupa: ["1"],
+  },
 };
 
 /*
-  So no `next dev`: ?acesso=demo abre o enxoval, para conferir as telas. O build
-  de producao troca NODE_ENV por "production" e esse caminho some.
+  So no `next dev`: ?acesso=demo abre o enxoval e ?acesso=demo-guarda-roupa abre
+  a oferta ibk-guarda-roupa, para conferir as telas. O build de producao troca
+  NODE_ENV por "production" e esse caminho some.
 */
 export function ofertaDoAcesso(acesso: unknown): OfertaEntrega | null {
   if (typeof acesso !== "string" || !acesso) return null;
-  if (process.env.NODE_ENV === "development" && acesso === "demo") return OFERTAS_ENTREGA["ibk-enxoval"];
+  if (process.env.NODE_ENV === "development" && acesso.startsWith("demo")) {
+    return OFERTAS_ENTREGA[acesso === "demo" ? "ibk-enxoval" : `ibk-${acesso.slice(5)}`] ?? null;
+  }
   return Object.values(OFERTAS_ENTREGA).find((o) => process.env[o.variavelAcesso] === acesso) ?? null;
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DownloadSimple, FilePdf, Heart, ListChecks, WarningCircle, WhatsappLogo } from "@phosphor-icons/react/ssr";
+import { DownloadSimple, FilePdf, Heart, ListChecks, TShirt, WarningCircle, WhatsappLogo } from "@phosphor-icons/react/ssr";
 import { SiteHeader } from "../../SiteHeader";
 import { SiteFooter } from "../../SiteFooter";
 import { EMPRESA } from "@/lib/empresa";
@@ -81,6 +81,17 @@ export default async function ObrigadoPage({ params, searchParams }: PageProps<"
             </p>
           </div>
         )}
+        {oferta.guardaRoupa && (
+          <div className="mx-auto mb-6 max-w-xs">
+            <Link href={`/obrigado/${slug}/guarda-roupa?acesso=${acesso}`} className={`${botao} w-full`}>
+              <TShirt size={20} weight="bold" aria-hidden />
+              Abrir meu guarda-roupa
+            </Link>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--ink)]/70">
+              Monte o guarda-roupa pelo mês de nascimento, sem instalar nada. Você anota os valores e imprime ou salva em PDF.
+            </p>
+          </div>
+        )}
         <ul className="mx-auto flex max-w-xs flex-col gap-3">
           {oferta.arquivos.map((a) => {
             const abre = a.tipo === "application/pdf";
@@ -99,7 +110,7 @@ export default async function ObrigadoPage({ params, searchParams }: PageProps<"
             );
           })}
         </ul>
-        {oferta.temLista && (
+        {oferta.arquivos.some((a) => a.id === "planilha") && (
           <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-[var(--ink)]/70">
             A planilha é para Excel ou Google Planilhas e, no celular, precisa do app.
           </p>
