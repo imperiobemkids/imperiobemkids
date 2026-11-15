@@ -229,7 +229,7 @@ export function MeuGuardaRoupa({ acesso, opcoes }: { acesso: string; opcoes: Opc
               {guarda.calendario.map((m) => (
                 <li key={m.rotulo} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 border-b border-[var(--purple)]/10 py-2 text-sm last:border-b-0">
                   <span className="font-bold text-[var(--ink)]">{m.rotulo}</span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold text-[var(--ink)]/80 ${COR[m.codigo]}`}>{m.estacao}</span>
+                  <span className={`justify-self-end rounded-full px-2.5 py-0.5 text-xs font-bold text-[var(--ink)]/80 ${COR[m.codigo]}`}>{m.estacao}</span>
                   <span className="text-[var(--ink)]/65">{m.idade}</span>
                   <span className={`text-right ${m.virada ? "font-extrabold text-[#be185d]" : "font-bold text-[var(--purple-dark)]"}`}>
                     Tamanho {m.tamanho}{m.virada ? " (meça)" : ""}
