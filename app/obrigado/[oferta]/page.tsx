@@ -6,6 +6,7 @@ import { SiteHeader } from "../../SiteHeader";
 import { SiteFooter } from "../../SiteFooter";
 import { EMPRESA } from "@/lib/empresa";
 import { OFERTAS_ENTREGA, ofertaDoAcesso } from "@/lib/checkout/ofertas";
+import { UPSELL } from "@/lib/checkout/upsell";
 import { SITE } from "@/lib/seo";
 import { AvisoNavegador } from "./AvisoNavegador";
 
@@ -29,7 +30,7 @@ const botaoClaro =
 
 export default async function ObrigadoPage({ params, searchParams }: PageProps<"/obrigado/[oferta]">) {
   const { oferta: slug } = await params;
-  const { acesso } = await searchParams;
+  const { acesso, levou, code_senha } = await searchParams;
   const pagina = OFERTAS_ENTREGA[slug];
   if (!pagina) notFound();
 
@@ -60,6 +61,11 @@ export default async function ObrigadoPage({ params, searchParams }: PageProps<"
     );
   }
 
+  // quem aceitou a oferta de 1 clique chega com ?levou=<produto>. E so um aviso: o acesso ao extra vem pela area de membros
+  const extra = typeof levou === "string" && (UPSELL[slug] ?? []).some((p) => p.oferta === levou) ? OFERTAS_ENTREGA[levou] : null;
+  // a Kiwify manda junto o codigo para criar a senha da area de membros, quando a compradora ainda nao tem uma
+  const senha = typeof code_senha === "string" && /^[A-Za-z0-9_-]{6,200}$/.test(code_senha) ? code_senha : null;
+
   const meuWhatsapp = `https://wa.me/?text=${encodeURIComponent(`Meu acesso ao ${oferta.nome}: ${SITE}/obrigado/${slug}?acesso=${acesso}`)}`;
 
   return (
@@ -70,6 +76,22 @@ export default async function ObrigadoPage({ params, searchParams }: PageProps<"
         <h1 className={`${titulo} mt-3 text-3xl`}>Compra confirmada!</h1>
         <p className={`${texto} mb-6 mt-2`}>O {oferta.nome} é seu. Tudo abre aqui mesmo, no celular ou no computador.</p>
         <AvisoNavegador />
+        {extra && (
+          <div className="mx-auto mb-6 max-w-md rounded-2xl bg-[#d1fae5] px-4 py-4 text-left text-sm leading-relaxed text-[var(--ink)]/85">
+            <b className="text-[#065f46]">Você também levou o {extra.nome}.</b> O acesso dele chega no seu e-mail, pela área
+            de membros, junto com o do {oferta.nome}.
+            {senha && (
+              <a
+                href={`https://dashboard.kiwify.com.br/student/password/${senha}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${botaoClaro} mt-3 w-full px-3 text-[15px]`}
+              >
+                Criar a senha da área de membros
+              </a>
+            )}
+          </div>
+        )}
         {oferta.temLista && (
           <div className="mx-auto mb-6 max-w-xs">
             <Link href={`/obrigado/${slug}/lista?acesso=${acesso}`} className={`${botao} w-full`}>

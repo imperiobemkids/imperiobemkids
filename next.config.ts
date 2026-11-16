@@ -29,6 +29,15 @@ const csp = [
   ...(dev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
+/*
+  A oferta de 1 clique (/obrigado/<oferta>/oferta/...) roda o script de upsell
+  da Kiwify, que chama a API de checkout dela para cobrar. So essa rota libera
+  os dois dominios; o resto do site segue com a CSP de cima.
+*/
+const cspUpsell = csp
+  .replace("script-src 'self'", "script-src 'self' https://kiwify-snippets.netlify.app")
+  .replace("connect-src 'self'", "connect-src 'self' https://checkout-api.kiwify.com.br");
+
 const headers = [
   { key: "Content-Security-Policy", value: csp },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -58,6 +67,8 @@ const nextConfig: NextConfig = {
         source: "/api/entrega/:path*",
         headers: headers.filter((h) => h.key !== "Content-Security-Policy" && h.key !== "X-Frame-Options"),
       },
+      // vem depois da regra geral: na mesma chave, a ultima regra vale
+      { source: "/obrigado/:oferta/oferta/:passo/:acesso", headers: [{ key: "Content-Security-Policy", value: cspUpsell }] },
     ];
   },
 };
