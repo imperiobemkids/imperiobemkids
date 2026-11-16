@@ -24,7 +24,9 @@ export function AvisoCookies() {
     }
   }, []);
 
-  if (!mostrar || pathname.startsWith("/admin") || pathname.startsWith("/portal")) return null;
+  // na oferta de 1 clique o aviso cobriria o botao, e la o Pixel e o Analytics nem rodam (tudo sob /obrigado fica sem tag)
+  const naOferta = /^\/obrigado\/[^/]+\/oferta\//.test(pathname);
+  if (!mostrar || naOferta || pathname.startsWith("/admin") || pathname.startsWith("/portal")) return null;
 
   const aceitar = () => {
     try {
