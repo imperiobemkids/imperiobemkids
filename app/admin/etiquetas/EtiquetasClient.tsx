@@ -6,14 +6,24 @@ import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SetupCard } from "../SetupCard";
 import { SkeletonRows, Vazio, btnPrimario } from "../ui";
 import { STATUS, type StatusPedido } from "@/lib/pedidos";
-import { imprimirRomaneios, imprimirEtiquetasProduto, type EscritoRomaneio, type QrRomaneio } from "@/lib/etiquetas";
+import {
+  imprimirEtiquetasPresente,
+  imprimirEtiquetasProduto,
+  imprimirRomaneios,
+  type EscritoRomaneio,
+  type EtiquetaPresente,
+  type QrRomaneio,
+} from "@/lib/etiquetas";
 import { EMPRESA } from "@/lib/empresa";
 
 /*
-  Impressao em 100x150 na termica. Duas coisas: o romaneio do pedido (vai no
-  pacote: itens pra conferir e os QRs da loja) e a etiqueta de produto (nome,
-  tamanho, SKU e codigo de barras, pra organizar o estoque).
+  Impressao em 100x150 na termica. Tres coisas: o romaneio do pedido (vai no
+  pacote: itens pra conferir e os QRs da loja), a etiqueta de produto (nome,
+  tamanho, SKU e codigo de barras, pra organizar o estoque) e a etiqueta de
+  presente ("Com carinho / De / Para"), que tambem sai colorida em folha A4.
 */
+
+const FRASES_PRESENTE = ["Com carinho", "Feliz Natal", "Para você", "Feliz aniversário", "Bem-vindo, bebê"];
 
 // rodape do romaneio, em todo pedido (decisao da loja em 03/10/2026):
 // TikTok e grupo de achadinhos com QR; WhatsApp e blog por escrito
@@ -54,7 +64,16 @@ const nomeItem = (p: { nome: string | null; tamanho: string | null; cor: string 
   p ? [p.nome?.trim() || "Produto", p.tamanho && `tam ${p.tamanho}`, p.cor].filter(Boolean).join(" · ") : "produto removido";
 
 export function EtiquetasClient() {
-  const [aba, setAba] = useState<"romaneio" | "produto">("romaneio");
+  const [aba, setAba] = useState<"romaneio" | "produto" | "presente">("romaneio");
+  const [presente, setPresente] = useState<EtiquetaPresente>({
+    frase: "Com carinho",
+    de: "",
+    para: "",
+    qtd: 2,
+    formato: "termica",
+    cor: "roxo",
+    comMarca: true,
+  });
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,6 +175,25 @@ export function EtiquetasClient() {
 
   const totalEtiquetas = Object.values(qtdP).reduce((s, n) => s + (n || 0), 0);
 
+  const imprimirPres = async () => {
+    setErro("");
+    if (!presente.frase.trim()) return setErro("escreva a frase do topo");
+    try {
+      await imprimirEtiquetasPresente(presente, opts());
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "erro ao imprimir");
+    }
+  };
+  const mudarPresente = (patch: Partial<EtiquetaPresente>) => setPresente((p) => ({ ...p, ...patch }));
+  const porFolha = presente.formato === "termica" ? 2 : 8;
+  const folhasPresente = Math.ceil(Math.max(1, presente.qtd) / porFolha);
+  const campoPresente =
+    "mt-1 w-full rounded-xl border border-[var(--purple)]/20 bg-white px-3 py-2 text-sm font-normal outline-none focus:border-[var(--purple)]";
+  const chipPresente = (ativo: boolean) =>
+    `rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors ${
+      ativo ? "bg-[var(--purple)] text-white" : "bg-[var(--purple)]/8 text-[var(--purple-dark)] hover:bg-[var(--purple)]/12"
+    }`;
+
   return (
     <div className="page-in">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -163,16 +201,18 @@ export function EtiquetasClient() {
           <h1 className="font-[family-name:var(--font-baloo)] text-2xl font-extrabold tracking-tight text-[var(--purple-dark)]">
             Etiquetas
           </h1>
-          <p className="text-sm text-[var(--ink)]/65">Impressão em 100x150 mm na térmica. Abre a prévia e manda imprimir.</p>
+          <p className="text-sm text-[var(--ink)]/65">
+            Impressão em 100x150 mm na térmica; a de presente também sai em folha A4. Abre a prévia e manda imprimir.
+          </p>
         </div>
-        <div className="flex gap-1">
-          {(["romaneio", "produto"] as const).map((a) => (
+        <div className="flex flex-wrap gap-1">
+          {(["romaneio", "produto", "presente"] as const).map((a) => (
             <button
               key={a}
               onClick={() => setAba(a)}
               className={`rounded-xl px-4 py-2 text-sm font-bold ${aba === a ? "bg-[var(--purple)] text-white" : "bg-[var(--purple)]/8 text-[var(--purple)]"}`}
             >
-              {a === "romaneio" ? "Romaneio do pedido" : "Etiqueta de produto"}
+              {a === "romaneio" ? "Romaneio do pedido" : a === "produto" ? "Etiqueta de produto" : "Etiqueta de presente"}
             </button>
           ))}
         </div>
@@ -335,6 +375,110 @@ export function EtiquetasClient() {
             </table>
           </div>
         </>
+      )}
+
+      {aba === "presente" && (
+        <div className="card mt-4 max-w-xl p-4">
+          <label className="block text-sm font-bold text-[var(--ink)]/80">
+            Frase do topo
+            <input
+              value={presente.frase}
+              maxLength={22}
+              onChange={(e) => mudarPresente({ frase: e.target.value })}
+              className={campoPresente}
+            />
+          </label>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {FRASES_PRESENTE.map((f) => (
+              <button key={f} onClick={() => mudarPresente({ frase: f })} className={chipPresente(presente.frase === f)}>
+                {f}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-bold text-[var(--ink)]/80">
+              De
+              <input
+                value={presente.de}
+                maxLength={28}
+                onChange={(e) => mudarPresente({ de: e.target.value })}
+                placeholder="em branco: escreve à mão"
+                className={campoPresente}
+              />
+            </label>
+            <label className="text-sm font-bold text-[var(--ink)]/80">
+              Para
+              <input
+                value={presente.para}
+                maxLength={28}
+                onChange={(e) => mudarPresente({ para: e.target.value })}
+                placeholder="em branco: escreve à mão"
+                className={campoPresente}
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 text-sm font-bold text-[var(--ink)]/80">Onde imprimir</div>
+          <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+            <button onClick={() => mudarPresente({ formato: "termica" })} className={chipPresente(presente.formato === "termica")}>
+              Térmica 10x15
+              <span className="block text-xs font-semibold opacity-80">2 por etiqueta, em preto, com linha de corte</span>
+            </button>
+            <button onClick={() => mudarPresente({ formato: "a4" })} className={chipPresente(presente.formato === "a4")}>
+              Folha A4
+              <span className="block text-xs font-semibold opacity-80">8 por folha, colorida, para papel adesivo</span>
+            </button>
+          </div>
+
+          {presente.formato === "a4" && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(
+                [
+                  ["roxo", "Roxo", "#6d28b8"],
+                  ["rosa", "Rosa", "#f472b6"],
+                  ["menta", "Menta", "#34d399"],
+                ] as const
+              ).map(([c, rotulo, tom]) => (
+                <button key={c} onClick={() => mudarPresente({ cor: c })} className={chipPresente(presente.cor === c)}>
+                  <span className="mr-1.5 inline-block h-3 w-3 rounded-full align-middle" style={{ background: tom }} />
+                  {rotulo}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="text-sm font-bold text-[var(--ink)]/80">
+              Quantas etiquetas
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={presente.qtd}
+                onChange={(e) => mudarPresente({ qtd: Math.max(1, Math.min(200, parseInt(e.target.value) || 1)) })}
+                className={`${campoPresente} num w-24`}
+              />
+            </label>
+            <label className="flex items-center gap-2 pb-2 text-sm font-semibold text-[var(--ink)]/80">
+              <input
+                type="checkbox"
+                checked={presente.comMarca}
+                onChange={(e) => mudarPresente({ comMarca: e.target.checked })}
+                className="accent-[var(--purple)]"
+              />
+              Logo e nome da loja
+            </label>
+            <button onClick={imprimirPres} className={`ml-auto flex items-center gap-1.5 ${btnPrimario}`}>
+              <Printer size={16} weight="bold" /> imprimir
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-[var(--ink)]/65">
+            {presente.formato === "termica"
+              ? `Usa ${folhasPresente} ${folhasPresente === 1 ? "etiqueta" : "etiquetas"} de 10x15: corte na linha tracejada.`
+              : `Usa ${folhasPresente} ${folhasPresente === 1 ? "folha" : "folhas"} A4. Cada etiqueta tem 9 x 6 cm: recorte pela moldura.`}
+          </p>
+        </div>
       )}
     </div>
   );
